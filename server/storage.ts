@@ -122,6 +122,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClass(id: string): Promise<void> {
+    // Delete student progress and students first (FK constraints)
+    const studentList = await this.getStudentsByClass(id);
+    for (const student of studentList) {
+      await db.delete(studentProgress).where(eq(studentProgress.studentId, student.id));
+    }
+    await db.delete(students).where(eq(students.classId, id));
     await db.delete(classes).where(eq(classes.id, id));
   }
 
