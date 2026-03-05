@@ -6,12 +6,14 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        lg: ".75rem",
+        md: ".5rem",
+        sm: ".25rem",
+        xl: "1rem",
+        "2xl": "1.5rem",
+        "3xl": "2rem",
       },
       colors: {
-        // Flat / base colors (regular buttons)
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
         border: "hsl(var(--border) / <alpha-value>)",
@@ -81,11 +83,32 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        // Fun child-friendly game colors
+        rhythm: {
+          DEFAULT: "#f97316",
+          light: "#fed7aa",
+          dark: "#ea580c",
+        },
+        notes: {
+          DEFAULT: "#8b5cf6",
+          light: "#ede9fe",
+          dark: "#7c3aed",
+        },
+        star: {
+          DEFAULT: "#f59e0b",
+          light: "#fef3c7",
+        },
+        success: {
+          DEFAULT: "#22c55e",
+          light: "#dcfce7",
+          dark: "#16a34a",
+        },
       },
       fontFamily: {
-        sans: ["var(--font-sans)"],
-        serif: ["var(--font-serif)"],
-        mono: ["var(--font-mono)"],
+        sans: ["Nunito", "sans-serif"],
+        serif: ["Georgia", "serif"],
+        mono: ["Menlo", "monospace"],
+        display: ["Nunito", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {
@@ -96,10 +119,56 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "bounce-in": {
+          "0%": { transform: "scale(0.3)", opacity: "0" },
+          "50%": { transform: "scale(1.05)", opacity: "0.8" },
+          "70%": { transform: "scale(0.9)" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "wiggle": {
+          "0%, 100%": { transform: "rotate(-3deg)" },
+          "50%": { transform: "rotate(3deg)" },
+        },
+        "pulse-ring": {
+          "0%": { transform: "scale(0.95)", opacity: "1" },
+          "70%": { transform: "scale(1.1)", opacity: "0.4" },
+          "100%": { transform: "scale(0.95)", opacity: "1" },
+        },
+        "star-pop": {
+          "0%": { transform: "scale(0) rotate(-30deg)", opacity: "0" },
+          "60%": { transform: "scale(1.3) rotate(10deg)", opacity: "1" },
+          "100%": { transform: "scale(1) rotate(0deg)", opacity: "1" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "correct-flash": {
+          "0%": { backgroundColor: "transparent" },
+          "30%": { backgroundColor: "rgba(34, 197, 94, 0.3)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        "wrong-flash": {
+          "0%": { backgroundColor: "transparent" },
+          "30%": { backgroundColor: "rgba(239, 68, 68, 0.3)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        "beat": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.15)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "bounce-in": "bounce-in 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
+        "wiggle": "wiggle 0.5s ease-in-out",
+        "pulse-ring": "pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "star-pop": "star-pop 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
+        "float": "float 3s ease-in-out infinite",
+        "correct-flash": "correct-flash 0.5s ease-out",
+        "wrong-flash": "wrong-flash 0.5s ease-out",
+        "beat": "beat 0.3s ease-in-out",
       },
     },
   },

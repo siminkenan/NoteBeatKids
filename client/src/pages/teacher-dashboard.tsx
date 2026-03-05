@@ -1,0 +1,290 @@
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
+import { motion } from "framer-motion";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen } from "lucide-react";
+import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import type { Class } from "@shared/schema";
+
+const classSchema = z.object({
+  name: z.string().min(1, "Class name is required"),
+  maxStudents: z.coerce.number().min(1).max(100).default(30),
+  expiresAt: z.string().optional(),
+});
+type ClassForm = z.infer<typeof classSchema>;
+
+export default function TeacherDashboard() {
+  const [, navigate] = useLocation();
+  const { teacher, setTeacher, logoutTeacher } = useAuth();
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!teacher) {
+      fetch("/api/auth/teacher/me")
+        .then(r => r.ok ? r.json() : null)
+        .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
+    }
+  }, []);
+
+  const { data: classes, isLoading } = useQuery<Class[]>({
+    queryKey: ["/api/teacher/classes"],
+    enabled: !!teacher,
+  });
+
+  const form = useForm<ClassForm>({
+    resolver: zodResolver(classSchema),
+    defaultValues: { name: "", maxStudents: 30, expiresAt: "" },
+  });
+
+  const createClass = useMutation({
+    mutationFn: async (data: ClassForm) => {
+      const res = await apiRequest("POST", "/api/teacher/classes", {
+        ...data,
+        teacherId: teacher?.id,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes"] });
+      setDialogOpen(false);
+      form.reset();
+      toast({ title: "Class created!", description: "Share the class code with your students." });
+    },
+    onError: (e: any) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const deleteClass = useMutation({
+    mutationFn: async (classId: string) => {
+      await apiRequest("DELETE", `/api/teacher/classes/${classId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes"] });
+      toast({ title: "Class deleted" });
+    },
+  });
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast({ title: "Copied!", description: `Class code ${code} copied to clipboard.` });
+  };
+
+  const handleLogout = async () => {
+    await logoutTeacher();
+    navigate("/");
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+      {/* Header */}
+      <header className="bg-white border-b shadow-sm sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src={logoPath} alt="NoteBeat Kids" className="w-10 h-10 object-contain" />
+            <div>
+              <h1 className="font-extrabold text-lg text-foreground leading-tight">NoteBeat Kids</h1>
+              <p className="text-xs text-muted-foreground font-semibold">Teacher Dashboard</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:block text-right">
+              <p className="font-bold text-sm text-foreground">{teacher?.name}</p>
+              <p className="text-xs text-muted-foreground">{teacher?.email}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2 rounded-xl" data-testid="button-logout">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        {/* Welcome */}
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h2 className="text-3xl font-extrabold text-foreground">
+            Welcome back, {teacher?.name?.split(" ")[0]}!
+          </h2>
+          <p className="text-muted-foreground font-semibold mt-1">Manage your music classes below</p>
+        </motion.div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+          {[
+            { label: "Total Classes", value: classes?.length ?? 0, icon: <BookOpen className="w-6 h-6" />, color: "text-blue-500", bg: "bg-blue-50" },
+            { label: "Total Students", value: classes?.reduce((a, c) => a + (c.maxStudents || 0), 0) ?? 0, icon: <Users className="w-6 h-6" />, color: "text-purple-500", bg: "bg-purple-50" },
+            { label: "Active Classes", value: classes?.filter(c => !c.expiresAt || new Date(c.expiresAt) > new Date()).length ?? 0, icon: <Music className="w-6 h-6" />, color: "text-green-500", bg: "bg-green-50" },
+          ].map((stat, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+              <Card className="rounded-2xl">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className={`${stat.bg} ${stat.color} p-3 rounded-xl`}>{stat.icon}</div>
+                  <div>
+                    <div className="text-2xl font-extrabold text-foreground" data-testid={`stat-${stat.label.toLowerCase().replace(" ", "-")}`}>{stat.value}</div>
+                    <div className="text-xs text-muted-foreground font-semibold">{stat.label}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Classes list */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-extrabold text-foreground">My Classes</h3>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2 rounded-xl font-bold" data-testid="button-create-class">
+                <Plus className="w-4 h-4" />
+                Create Class
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-extrabold">Create New Class</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(d => createClass.mutate(d))} className="space-y-4 pt-2">
+                  <FormField control={form.control} name="name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-bold">Class Name</FormLabel>
+                      <FormControl><Input {...field} placeholder="e.g. Grade 2A Music" className="rounded-xl" data-testid="input-class-name" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="maxStudents" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-bold">Max Students</FormLabel>
+                      <FormControl><Input {...field} type="number" min={1} max={100} className="rounded-xl" data-testid="input-max-students" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="expiresAt" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-bold">Expiration Date (optional)</FormLabel>
+                      <FormControl><Input {...field} type="date" className="rounded-xl" data-testid="input-expires-at" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <Button type="submit" disabled={createClass.isPending} className="w-full rounded-xl font-bold" data-testid="button-submit-class">
+                    {createClass.isPending ? "Creating..." : "Create Class"}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {isLoading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-44 rounded-2xl bg-white animate-pulse" />
+            ))}
+          </div>
+        ) : classes?.length === 0 ? (
+          <Card className="rounded-2xl">
+            <CardContent className="py-16 text-center">
+              <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+              <h3 className="text-xl font-extrabold text-muted-foreground mb-2">No classes yet</h3>
+              <p className="text-muted-foreground mb-4 font-semibold">Create your first class to get started!</p>
+              <Button onClick={() => setDialogOpen(true)} className="rounded-xl font-bold">Create Class</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {classes?.map((cls, i) => {
+              const expired = cls.expiresAt && new Date(cls.expiresAt) < new Date();
+              return (
+                <motion.div
+                  key={cls.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                >
+                  <Card className="rounded-2xl hover-elevate cursor-pointer" data-testid={`card-class-${cls.id}`}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-lg font-extrabold leading-tight">{cls.name}</CardTitle>
+                        <Badge variant={expired ? "destructive" : "default"} className="shrink-0">
+                          {expired ? "Expired" : "Active"}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {/* Class code */}
+                      <div className="flex items-center justify-between bg-primary/5 rounded-xl p-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground font-bold">Class Code</p>
+                          <p className="font-mono text-2xl font-extrabold text-primary tracking-widest" data-testid={`text-class-code-${cls.id}`}>{cls.classCode}</p>
+                        </div>
+                        <button
+                          onClick={() => copyCode(cls.classCode)}
+                          className="p-2 rounded-xl bg-primary/10 text-primary cursor-pointer"
+                          data-testid={`button-copy-code-${cls.id}`}
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5" />
+                          <span className="font-semibold">Max {cls.maxStudents}</span>
+                        </div>
+                        {cls.expiresAt && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span className="font-semibold">{new Date(cls.expiresAt).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 rounded-xl font-bold"
+                          onClick={() => navigate(`/teacher/class/${cls.id}`)}
+                          data-testid={`button-view-class-${cls.id}`}
+                        >
+                          <Users className="w-3.5 h-3.5 mr-1.5" />
+                          View Students
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-destructive"
+                          onClick={() => deleteClass.mutate(cls.id)}
+                          data-testid={`button-delete-class-${cls.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

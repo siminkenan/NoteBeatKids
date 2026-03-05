@@ -1,0 +1,321 @@
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useLocation } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { SingleNoteRenderer } from "@/components/vexflow-renderer";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft } from "lucide-react";
+import type { StudentProgress } from "@shared/schema";
+
+// Notes by level
+const LEVEL_NOTES: Record<number, { vexKey: string; label: string; solfa: string }[]> = {
+  1: [
+    { vexKey: "c/4", label: "C", solfa: "Do" },
+    { vexKey: "d/4", label: "D", solfa: "Re" },
+    { vexKey: "e/4", label: "E", solfa: "Mi" },
+  ],
+  2: [
+    { vexKey: "c/4", label: "C", solfa: "Do" },
+    { vexKey: "d/4", label: "D", solfa: "Re" },
+    { vexKey: "e/4", label: "E", solfa: "Mi" },
+    { vexKey: "f/4", label: "F", solfa: "Fa" },
+    { vexKey: "g/4", label: "G", solfa: "Sol" },
+  ],
+  3: [
+    { vexKey: "c/4", label: "C", solfa: "Do" },
+    { vexKey: "d/4", label: "D", solfa: "Re" },
+    { vexKey: "e/4", label: "E", solfa: "Mi" },
+    { vexKey: "f/4", label: "F", solfa: "Fa" },
+    { vexKey: "g/4", label: "G", solfa: "Sol" },
+    { vexKey: "a/4", label: "A", solfa: "La" },
+    { vexKey: "b/4", label: "B", solfa: "Si" },
+  ],
+  4: [
+    { vexKey: "g/4", label: "G", solfa: "Sol" },
+    { vexKey: "a/4", label: "A", solfa: "La" },
+    { vexKey: "b/4", label: "B", solfa: "Si" },
+    { vexKey: "c/5", label: "C", solfa: "Do" },
+    { vexKey: "d/5", label: "D", solfa: "Re" },
+    { vexKey: "e/5", label: "E", solfa: "Mi" },
+  ],
+  5: [
+    { vexKey: "c/4", label: "C", solfa: "Do" },
+    { vexKey: "d/4", label: "D", solfa: "Re" },
+    { vexKey: "e/4", label: "E", solfa: "Mi" },
+    { vexKey: "f/4", label: "F", solfa: "Fa" },
+    { vexKey: "g/4", label: "G", solfa: "Sol" },
+    { vexKey: "a/4", label: "A", solfa: "La" },
+    { vexKey: "b/4", label: "B", solfa: "Si" },
+    { vexKey: "c/5", label: "C", solfa: "Do" },
+    { vexKey: "d/5", label: "D", solfa: "Re" },
+  ],
+};
+
+const ALL_BUTTONS = [
+  { label: "C", solfa: "Do" },
+  { label: "D", solfa: "Re" },
+  { label: "E", solfa: "Mi" },
+  { label: "F", solfa: "Fa" },
+  { label: "G", solfa: "Sol" },
+  { label: "A", solfa: "La" },
+  { label: "B", solfa: "Si" },
+];
+
+const BUTTON_GRADIENTS = [
+  "linear-gradient(135deg, #f87171, #ef4444)",
+  "linear-gradient(135deg, #fb923c, #f97316)",
+  "linear-gradient(135deg, #facc15, #eab308)",
+  "linear-gradient(135deg, #4ade80, #22c55e)",
+  "linear-gradient(135deg, #2dd4bf, #14b8a6)",
+  "linear-gradient(135deg, #60a5fa, #3b82f6)",
+  "linear-gradient(135deg, #c084fc, #a855f7)",
+];
+
+export default function NoteDetective() {
+  const [, navigate] = useLocation();
+  const { student } = useAuth();
+  const qc = useQueryClient();
+
+  const [level, setLevel] = useState(1);
+  const [currentNote, setCurrentNote] = useState<{ vexKey: string; label: string; solfa: string } | null>(null);
+  const [score, setScore] = useState({ correct: 0, wrong: 0 });
+  const [totalStars, setTotalStars] = useState(0);
+  const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
+  const [answeredThisRound, setAnsweredThisRound] = useState(false);
+
+  const sessionStartRef = useRef(Date.now());
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const { data: progress } = useQuery<StudentProgress[]>({
+    queryKey: ["/api/student", student?.student.id, "progress"],
+    queryFn: async () => {
+      const res = await fetch(`/api/student/${student!.student.id}/progress`);
+      return res.json();
+    },
+    enabled: !!student,
+  });
+
+  useEffect(() => {
+    if (!student) { navigate("/student/login"); return; }
+    const notesProgress = progress?.find(p => p.appType === "notes");
+    if (notesProgress) {
+      setLevel(notesProgress.level);
+      setScore({ correct: notesProgress.correctAnswers, wrong: notesProgress.wrongAnswers });
+      setTotalStars(notesProgress.starsEarned);
+      setConsecutiveCorrect(0);
+    }
+  }, [student, progress]);
+
+  const playNote = useCallback((freq: number, correct: boolean) => {
+    try {
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+      const ctx = audioCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = correct ? freq : 200;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (correct ? 0.5 : 0.3));
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + (correct ? 0.5 : 0.3));
+    } catch {}
+  }, []);
+
+  const noteFrequencies: Record<string, number> = {
+    "c/4": 261.63, "d/4": 293.66, "e/4": 329.63, "f/4": 349.23,
+    "g/4": 392.0, "a/4": 440.0, "b/4": 493.88,
+    "c/5": 523.25, "d/5": 587.33, "e/5": 659.25,
+  };
+
+  const pickRandomNote = useCallback((lvl: number) => {
+    const notes = LEVEL_NOTES[Math.min(lvl, 5)] ?? LEVEL_NOTES[5];
+    const note = notes[Math.floor(Math.random() * notes.length)];
+    setCurrentNote(note);
+    setFeedback(null);
+    setAnsweredThisRound(false);
+  }, []);
+
+  useEffect(() => {
+    if (student) pickRandomNote(level);
+  }, [level, student]);
+
+  const handleAnswer = useCallback((label: string) => {
+    if (!currentNote || answeredThisRound) return;
+    setAnsweredThisRound(true);
+
+    const correct = currentNote.label === label;
+    const freq = noteFrequencies[currentNote.vexKey] ?? 440;
+    playNote(freq, correct);
+
+    const messages = correct
+      ? ["Brilliant! 🌟", "That's right! ⭐", "Amazing! 🎉", "Perfect! 🎵"]
+      : [`It was ${currentNote.label} (${currentNote.solfa})!`, `Oops! That's ${currentNote.label}`, `Try again! The answer is ${currentNote.label}`];
+
+    setFeedback({
+      correct,
+      message: messages[Math.floor(Math.random() * messages.length)],
+    });
+
+    const newCorrect = score.correct + (correct ? 1 : 0);
+    const newWrong = score.wrong + (correct ? 0 : 1);
+    const newConsecutive = correct ? consecutiveCorrect + 1 : 0;
+    setConsecutiveCorrect(newConsecutive);
+    setScore({ correct: newCorrect, wrong: newWrong });
+
+    const levelNotes = LEVEL_NOTES[Math.min(level, 5)];
+    const starsToAdd = correct ? 1 : 0;
+    const newStars = totalStars + starsToAdd;
+    setTotalStars(newStars);
+
+    const shouldLevelUp = newConsecutive >= levelNotes.length * 2 && correct;
+    const newLevel = shouldLevelUp ? Math.min(level + 1, 6) : level;
+    if (shouldLevelUp) setLevel(newLevel);
+
+    if (student) {
+      const elapsed = Math.floor((Date.now() - sessionStartRef.current) / 1000);
+      apiRequest("POST", `/api/student/${student.student.id}/progress`, {
+        appType: "notes",
+        level: newLevel,
+        starsEarned: newStars,
+        correctAnswers: newCorrect,
+        wrongAnswers: newWrong,
+        timeSpentSeconds: elapsed,
+      }).then(() => qc.invalidateQueries({ queryKey: ["/api/student", student.student.id, "progress"] }));
+    }
+
+    setTimeout(() => pickRandomNote(newLevel), 1500);
+  }, [currentNote, answeredThisRound, score, consecutiveCorrect, totalStars, level, student, qc, playNote, pickRandomNote]);
+
+  const accuracy = score.correct + score.wrong > 0
+    ? Math.round((score.correct / (score.correct + score.wrong)) * 100)
+    : 0;
+
+  if (!student) return null;
+
+  return (
+    <div className="min-h-screen select-none"
+      style={{ background: "linear-gradient(160deg, #f3e8ff 0%, #e0d7ff 50%, #ddd6fe 100%)" }}
+    >
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur border-b sticky top-0 z-50">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/student/home")} className="gap-1.5 rounded-xl font-bold">
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🔍</span>
+            <h1 className="font-extrabold text-lg text-purple-700">Note Detective</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-500">⭐</span>
+            <span className="font-extrabold text-yellow-700 text-sm" data-testid="text-stars">{totalStars}</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 py-6 flex flex-col gap-5">
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: "Level", value: level, color: "text-purple-600", bg: "bg-purple-50" },
+            { label: "Correct", value: score.correct, color: "text-green-600", bg: "bg-green-50" },
+            { label: "Wrong", value: score.wrong, color: "text-red-500", bg: "bg-red-50" },
+            { label: "Accuracy", value: `${accuracy}%`, color: "text-blue-600", bg: "bg-blue-50" },
+          ].map((stat, i) => (
+            <div key={i} className={`${stat.bg} rounded-2xl p-3 text-center shadow-sm`}>
+              <p className={`text-xl font-extrabold ${stat.color}`}>{stat.value}</p>
+              <p className="text-xs text-muted-foreground font-bold">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Level badge */}
+        <div className="text-center">
+          <Badge className="font-extrabold text-sm px-4 py-1.5 rounded-full bg-purple-600 text-white border-0">
+            Level {level} — {LEVEL_NOTES[Math.min(level, 5)]?.length ?? 7} notes
+          </Badge>
+          {consecutiveCorrect > 0 && (
+            <p className="text-xs font-bold text-purple-500 mt-1">{consecutiveCorrect} in a row!</p>
+          )}
+        </div>
+
+        {/* Staff and note display */}
+        <div className="bg-white rounded-3xl p-6 shadow-md">
+          <p className="text-xs font-extrabold text-center text-muted-foreground uppercase tracking-widest mb-3">
+            What note is this?
+          </p>
+          <div className="flex justify-center">
+            {currentNote && (
+              <SingleNoteRenderer
+                noteKey={currentNote.vexKey}
+                width={280}
+                height={160}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Feedback */}
+        <AnimatePresence>
+          {feedback && (
+            <motion.div
+              className={`rounded-2xl p-4 text-center`}
+              style={{ background: feedback.correct ? "#dcfce7" : "#fee2e2" }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <p className="text-3xl mb-1">{feedback.correct ? "🌟" : "🤔"}</p>
+              <p className={`text-xl font-extrabold ${feedback.correct ? "text-green-600" : "text-red-500"}`}>
+                {feedback.message}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Note buttons */}
+        <div className="grid grid-cols-7 gap-2">
+          {ALL_BUTTONS.map((btn, i) => {
+            const isActive = LEVEL_NOTES[Math.min(level, 5)]?.some(n => n.label === btn.label);
+            const isSelected = answeredThisRound && currentNote?.label === btn.label;
+            return (
+              <motion.button
+                key={btn.label}
+                data-testid={`button-note-${btn.label}`}
+                className={`flex flex-col items-center py-4 rounded-2xl cursor-pointer font-extrabold text-white shadow-md transition-all ${
+                  !isActive ? "opacity-30 cursor-not-allowed" : ""
+                }`}
+                style={{
+                  background: isSelected
+                    ? "linear-gradient(135deg, #22c55e, #16a34a)"
+                    : BUTTON_GRADIENTS[i],
+                }}
+                whileHover={isActive ? { scale: 1.08, boxShadow: "0 8px 20px rgba(0,0,0,0.2)" } : {}}
+                whileTap={isActive ? { scale: 0.93 } : {}}
+                onClick={() => isActive && handleAnswer(btn.label)}
+                disabled={!isActive || answeredThisRound}
+              >
+                <span className="text-xl font-black">{btn.label}</span>
+                <span className="text-xs font-bold opacity-80">{btn.solfa}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {/* Note colors guide */}
+        <div className="grid grid-cols-7 gap-2 text-center">
+          {ALL_BUTTONS.map((btn) => (
+            <div key={btn.label} className="text-xs text-muted-foreground font-bold">{btn.solfa}</div>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}

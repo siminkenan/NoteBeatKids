@@ -1,0 +1,195 @@
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { motion } from "framer-motion";
+import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import type { StudentProgress } from "@shared/schema";
+
+export default function StudentHome() {
+  const [, navigate] = useLocation();
+  const { student, logoutStudent, studentLoading } = useAuth();
+
+  useEffect(() => {
+    if (!studentLoading && !student) {
+      navigate("/student/login");
+    }
+  }, [student, studentLoading, navigate]);
+
+  const { data: progress } = useQuery<StudentProgress[]>({
+    queryKey: ["/api/student", student?.student.id, "progress"],
+    queryFn: async () => {
+      const res = await fetch(`/api/student/${student!.student.id}/progress`);
+      return res.json();
+    },
+    enabled: !!student,
+  });
+
+  const rhythmProgress = progress?.find(p => p.appType === "rhythm");
+  const notesProgress = progress?.find(p => p.appType === "notes");
+
+  if (studentLoading || !student) return null;
+
+  const totalStars = (rhythmProgress?.starsEarned ?? 0) + (notesProgress?.starsEarned ?? 0);
+
+  return (
+    <div className="min-h-screen relative overflow-hidden"
+      style={{ background: "linear-gradient(160deg, #a8edea 0%, #fed6e3 50%, #ffecd2 100%)" }}
+    >
+      {/* Floating decorations */}
+      <div className="absolute inset-0 pointer-events-none select-none">
+        {["⭐", "🎵", "🎶", "🌟", "✨"].map((emoji, i) => (
+          <motion.span
+            key={i}
+            className="absolute text-2xl"
+            style={{ left: `${8 + i * 18}%`, top: `${5 + (i % 3) * 20}%` }}
+            animate={{ y: [0, -15, 0], rotate: [-10, 10, -10] }}
+            transition={{ duration: 3 + i * 0.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
+          >
+            {emoji}
+          </motion.span>
+        ))}
+      </div>
+
+      <div className="relative z-10 max-w-lg mx-auto px-4 py-6 flex flex-col min-h-screen">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <img src={logoPath} alt="NoteBeat Kids" className="w-12 h-12 object-contain" />
+            <div>
+              <h1 className="font-extrabold text-lg text-gray-800 leading-tight">
+                Hi, {student.student.firstName}!
+              </h1>
+              <p className="text-sm text-gray-600 font-semibold">{student.class.name}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 bg-yellow-100 rounded-full px-3 py-1.5 shadow-sm">
+              <span className="text-yellow-500 text-lg">⭐</span>
+              <span className="font-extrabold text-yellow-700 text-sm" data-testid="text-total-stars">{totalStars}</span>
+            </div>
+            <button
+              onClick={() => { logoutStudent(); navigate("/"); }}
+              className="text-xs text-gray-500 font-bold cursor-pointer"
+              data-testid="button-logout"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Stats bar */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[
+            { label: "Rhythm Level", value: rhythmProgress?.level ?? 1, color: "#f97316", icon: "🥁" },
+            { label: "Notes Level", value: notesProgress?.level ?? 1, color: "#8b5cf6", icon: "🎵" },
+            { label: "Total Stars", value: totalStars, color: "#f59e0b", icon: "⭐" },
+          ].map((stat, i) => (
+            <motion.div
+              key={i}
+              className="bg-white/80 backdrop-blur rounded-2xl p-3 text-center shadow-md"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <span className="text-xl block mb-1">{stat.icon}</span>
+              <div className="text-xl font-extrabold" style={{ color: stat.color }}>{stat.value}</div>
+              <div className="text-xs text-gray-500 font-bold">{stat.label}</div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Activity buttons */}
+        <div className="flex flex-col gap-5 flex-1">
+          {/* Catch The Rhythm */}
+          <motion.button
+            data-testid="button-rhythm-game"
+            className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
+            style={{
+              background: "linear-gradient(135deg, #ff9a56 0%, #ff6348 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(255, 100, 50, 0.4)" }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/student/rhythm")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-5xl">🥁</span>
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold text-white">Catch The Rhythm</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Tap along to the beat! Match the rhythm pattern.</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
+                  Level {rhythmProgress?.level ?? 1}
+                </div>
+                <div className="text-white/80 text-xs font-bold">
+                  {rhythmProgress?.starsEarned ?? 0} stars earned
+                </div>
+              </div>
+            </div>
+          </motion.button>
+
+          {/* Note Detective */}
+          <motion.button
+            data-testid="button-notes-game"
+            className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
+            style={{
+              background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(139, 92, 246, 0.4)" }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/student/notes")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.35 }}
+          >
+            <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-5xl">🔍</span>
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold text-white">Note Detective</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Identify musical notes on the staff!</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
+                  Level {notesProgress?.level ?? 1}
+                </div>
+                <div className="text-white/80 text-xs font-bold">
+                  {notesProgress?.starsEarned ?? 0} stars earned
+                </div>
+              </div>
+            </div>
+          </motion.button>
+
+          {/* Level Map button */}
+          <motion.button
+            data-testid="button-level-map"
+            className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
+            style={{
+              background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/student/map")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <div className="w-14 h-14 bg-white/30 rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-3xl">🗺️</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-white">My Progress Map</h2>
+              <p className="text-white/85 font-semibold text-sm">See your learning journey!</p>
+            </div>
+          </motion.button>
+        </div>
+      </div>
+    </div>
+  );
+}
