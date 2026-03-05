@@ -2,42 +2,43 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 
-// All note value symbols with labels
+// All note value symbols — size matches the tagline text (~18px)
 const NOTE_SYMBOLS = [
-  { symbol: "𝅜", name: "Tam / Whole", size: 44, color: "rgba(255,255,255,0.18)" },
-  { symbol: "𝅗𝅥", name: "İki Dörtlük / Half", size: 38, color: "rgba(255,220,100,0.20)" },
-  { symbol: "♩", name: "Dörtlük / Quarter", size: 36, color: "rgba(255,255,255,0.22)" },
-  { symbol: "♪", name: "Sekizlik / Eighth", size: 34, color: "rgba(255,200,255,0.20)" },
-  { symbol: "♫", name: "Sekizlik çift / Beamed 8th", size: 36, color: "rgba(200,255,255,0.18)" },
-  { symbol: "♬", name: "Onaltılık / Sixteenth", size: 32, color: "rgba(255,255,180,0.20)" },
-  { symbol: "𝄽", name: "Dörtlük sus / Quarter Rest", size: 36, color: "rgba(255,180,200,0.18)" },
-  { symbol: "𝄾", name: "Sekizlik sus / Eighth Rest", size: 30, color: "rgba(180,200,255,0.20)" },
-  { symbol: "𝄿", name: "Onaltılık sus / 16th Rest", size: 28, color: "rgba(255,255,255,0.15)" },
-  { symbol: "𝄻", name: "Tam sus / Whole Rest", size: 32, color: "rgba(255,220,120,0.18)" },
-  { symbol: "𝄼", name: "Yarım sus / Half Rest", size: 32, color: "rgba(200,255,200,0.18)" },
-  { symbol: "♭", name: "Bemol / Flat", size: 40, color: "rgba(255,200,255,0.20)" },
-  { symbol: "♯", name: "Diyez / Sharp", size: 34, color: "rgba(255,255,200,0.20)" },
-  { symbol: "♮", name: "Natürel / Natural", size: 32, color: "rgba(200,230,255,0.18)" },
+  { symbol: "𝅜",  color: "rgba(255,255,255,0.18)" },
+  { symbol: "𝅗𝅥", color: "rgba(255,220,100,0.20)" },
+  { symbol: "♩",  color: "rgba(255,255,255,0.22)" },
+  { symbol: "♪",  color: "rgba(255,200,255,0.20)" },
+  { symbol: "♫",  color: "rgba(200,255,255,0.18)" },
+  { symbol: "♬",  color: "rgba(255,255,180,0.20)" },
+  { symbol: "𝄽",  color: "rgba(255,180,200,0.18)" },
+  { symbol: "𝄾",  color: "rgba(180,200,255,0.20)" },
+  { symbol: "𝄿",  color: "rgba(255,255,255,0.15)" },
+  { symbol: "𝄻",  color: "rgba(255,220,120,0.18)" },
+  { symbol: "𝄼",  color: "rgba(200,255,200,0.18)" },
+  { symbol: "♭",  color: "rgba(255,200,255,0.20)" },
+  { symbol: "♯",  color: "rgba(255,255,200,0.20)" },
+  { symbol: "♮",  color: "rgba(200,230,255,0.18)" },
 ];
 
-// Generate a large set of falling/rising notes spread across the screen
-const FLOATING_NOTES = Array.from({ length: 36 }, (_, i) => {
+// 30 notes spread across 10 columns, alternating up/down direction
+const FLOATING_NOTES = Array.from({ length: 30 }, (_, i) => {
   const noteData = NOTE_SYMBOLS[i % NOTE_SYMBOLS.length];
-  const column = i % 12; // 12 columns
-  const leftPercent = (column / 12) * 100 + (Math.random() * 6 - 3);
-  const goingDown = i % 2 === 0; // alternating direction
-  const duration = 7 + (i % 7) * 1.5;
-  const delay = -(i * 0.9) % duration; // stagger start
+  const col = i % 10;
+  const leftPercent = col * 10 + 2 + (i % 3) * 2; // slight jitter per column
+  const goingDown = i % 2 === 0;
+  // Much slower: 20–36 seconds per pass
+  const duration = 20 + (i % 9) * 2;
+  // Stagger start so screen is always populated
+  const delay = -(((i * 2.3) % duration));
 
   return {
     id: i,
     ...noteData,
-    left: `${Math.max(1, Math.min(96, leftPercent))}%`,
+    left: `${Math.max(1, Math.min(97, leftPercent))}%`,
     goingDown,
     duration,
     delay,
-    rotate: -15 + (i % 7) * 5,
-    scale: 0.7 + (i % 4) * 0.15,
+    rotate: -10 + (i % 5) * 5, // subtle tilt
   };
 });
 
@@ -60,12 +61,12 @@ export default function Home() {
             className="absolute font-bold leading-none"
             style={{
               left: n.left,
-              fontSize: n.size * n.scale,
+              /* match tagline font size: text-lg ≈ 18px */
+              fontSize: "18px",
               color: n.color,
               rotate: n.rotate,
-              // start position: top of screen (going down) or bottom (going up)
-              top: n.goingDown ? "-60px" : "unset",
-              bottom: n.goingDown ? "unset" : "-60px",
+              top:    n.goingDown ? "-30px" : "unset",
+              bottom: n.goingDown ? "unset"  : "-30px",
             }}
             animate={
               n.goingDown
@@ -91,14 +92,22 @@ export default function Home() {
             key={i}
             className="absolute rounded-full"
             style={{
-              width: `${80 + i * 50}px`,
+              width:  `${80 + i * 50}px`,
               height: `${80 + i * 50}px`,
-              background: i % 2 === 0 ? "rgba(255,255,255,0.06)" : "rgba(255,215,0,0.07)",
+              background:
+                i % 2 === 0
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(255,215,0,0.07)",
               left: `${(i * 17) % 85}%`,
-              top: `${(i * 23) % 75}%`,
+              top:  `${(i * 23) % 75}%`,
             }}
             animate={{ scale: [1, 1.12, 1], opacity: [0.4, 0.7, 0.4] }}
-            transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.7 }}
+            transition={{
+              duration: 5 + i,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.7,
+            }}
           />
         ))}
       </div>
@@ -186,24 +195,6 @@ export default function Home() {
           Admin Access · Yönetici Girişi
         </motion.button>
       </motion.div>
-
-      {/* ─── Note legend strip at the bottom ─── */}
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-5 z-10 pointer-events-none select-none">
-        {[
-          { sym: "𝅜", tr: "Tam", en: "Whole" },
-          { sym: "𝅗𝅥", tr: "Yarım", en: "Half" },
-          { sym: "♩", tr: "Dörtlük", en: "Quarter" },
-          { sym: "♪", tr: "Sekizlik", en: "Eighth" },
-          { sym: "♬", tr: "Onaltılık", en: "16th" },
-        ].map((n) => (
-          <div key={n.sym} className="flex flex-col items-center gap-0.5">
-            <span className="text-white/50 text-2xl font-bold">{n.sym}</span>
-            <span className="text-white/40 text-[9px] font-bold leading-tight text-center">
-              {n.en}<br />{n.tr}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
