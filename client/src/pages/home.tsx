@@ -4,20 +4,20 @@ import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-pre
 
 // All note value symbols — size matches the tagline text (~18px)
 const NOTE_SYMBOLS = [
-  { symbol: "𝅜",  color: "rgba(255,255,255,0.18)" },
-  { symbol: "𝅗𝅥", color: "rgba(255,220,100,0.20)" },
-  { symbol: "♩",  color: "rgba(255,255,255,0.22)" },
-  { symbol: "♪",  color: "rgba(255,200,255,0.20)" },
-  { symbol: "♫",  color: "rgba(200,255,255,0.18)" },
-  { symbol: "♬",  color: "rgba(255,255,180,0.20)" },
-  { symbol: "𝄽",  color: "rgba(255,180,200,0.18)" },
-  { symbol: "𝄾",  color: "rgba(180,200,255,0.20)" },
-  { symbol: "𝄿",  color: "rgba(255,255,255,0.15)" },
-  { symbol: "𝄻",  color: "rgba(255,220,120,0.18)" },
-  { symbol: "𝄼",  color: "rgba(200,255,200,0.18)" },
-  { symbol: "♭",  color: "rgba(255,200,255,0.20)" },
-  { symbol: "♯",  color: "rgba(255,255,200,0.20)" },
-  { symbol: "♮",  color: "rgba(200,230,255,0.18)" },
+  { symbol: "𝅜",  color: "rgba(255,255,255,0.09)" },
+  { symbol: "𝅗𝅥", color: "rgba(255,220,100,0.10)" },
+  { symbol: "♩",  color: "rgba(255,255,255,0.10)" },
+  { symbol: "♪",  color: "rgba(255,200,255,0.09)" },
+  { symbol: "♫",  color: "rgba(200,255,255,0.08)" },
+  { symbol: "♬",  color: "rgba(255,255,180,0.09)" },
+  { symbol: "𝄽",  color: "rgba(255,180,200,0.08)" },
+  { symbol: "𝄾",  color: "rgba(180,200,255,0.09)" },
+  { symbol: "𝄿",  color: "rgba(255,255,255,0.07)" },
+  { symbol: "𝄻",  color: "rgba(255,220,120,0.08)" },
+  { symbol: "𝄼",  color: "rgba(200,255,200,0.08)" },
+  { symbol: "♭",  color: "rgba(255,200,255,0.09)" },
+  { symbol: "♯",  color: "rgba(255,255,200,0.09)" },
+  { symbol: "♮",  color: "rgba(200,230,255,0.08)" },
 ];
 
 // 30 notes spread across 10 columns, alternating up/down direction
@@ -26,8 +26,8 @@ const FLOATING_NOTES = Array.from({ length: 30 }, (_, i) => {
   const col = i % 10;
   const leftPercent = col * 10 + 2 + (i % 3) * 2; // slight jitter per column
   const goingDown = i % 2 === 0;
-  // Much slower: 20–36 seconds per pass
-  const duration = 20 + (i % 9) * 2;
+  // Very slow: 40–65 seconds per pass
+  const duration = 40 + (i % 10) * 2.5;
   // Stagger start so screen is always populated
   const delay = -(((i * 2.3) % duration));
 
