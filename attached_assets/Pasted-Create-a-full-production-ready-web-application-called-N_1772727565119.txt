@@ -1,0 +1,500 @@
+Create a full production-ready web application called NoteBeat Kids.
+
+This is an interactive music education platform for elementary school students (ages 6-10) that teaches rhythm reading and musical note recognition through gamified activities.
+
+The system must be stable, visually correct for music notation, secure and scalable.
+
+------------------------------------------------
+
+TECH STACK
+
+Frontend  
+React + TypeScript  
+Vite  
+TailwindCSS
+
+Backend  
+Node.js + Express
+
+Database  
+Firebase Firestore
+
+Authentication  
+Firebase Authentication  
+Google Sign-In enabled
+
+Music Rendering  
+Use VexFlow to render all music notation.
+
+Audio System  
+Use Web Audio API to build a continuous metronome engine.
+
+------------------------------------------------
+
+USER ROLES
+
+1. System Admin  
+2. Institution  
+3. Teacher  
+4. Student
+
+Each role has different permissions.
+
+------------------------------------------------
+
+SECURITY
+
+Use:
+
+Secure token authentication  
+Firebase authentication  
+Encrypted sessions  
+Auto-login memory
+
+Teachers only see their own classes.
+
+Institutions only see their teachers.
+
+Admin has full control.
+
+------------------------------------------------
+
+ADMIN PANEL
+
+Admin can:
+
+Create institutions.
+
+Fields:
+
+Institution Name  
+License Start Date  
+License End Date
+
+Institution becomes active only within the license period.
+
+If the license expires:
+
+Automatically disable the institution.
+
+Admin statistics dashboard shows:
+
+Institution count  
+Teacher count  
+Student count  
+Total exercises completed  
+Total usage time
+
+Admin can export reports as:
+
+Excel  
+PDF
+
+------------------------------------------------
+
+HOME SCREEN
+
+Display NoteBeat Kids logo at top.
+
+Two large buttons:
+
+Teacher Login  
+Student Login
+
+Design:
+
+Pastel colors  
+Child-friendly  
+Large rounded buttons
+
+------------------------------------------------
+
+TEACHER PANEL
+
+Teacher logs in using Google.
+
+Teacher dashboard features:
+
+Create Class
+
+Class creation fields:
+
+Class Name  
+Expiration Date  
+Maximum Student Count
+
+System generates a 6-digit class code.
+
+Teacher shares class code with students.
+
+------------------------------------------------
+
+CLASS DASHBOARD
+
+Teacher can see:
+
+Student list  
+Correct answers  
+Wrong answers  
+Accuracy percentage  
+Time spent in activities
+
+Teacher reports include:
+
+Rhythm training performance  
+Note reading performance
+
+Export reports as:
+
+Excel  
+PDF
+
+------------------------------------------------
+
+STUDENT LOGIN
+
+Students login with:
+
+Name  
+Surname  
+Class Code
+
+System stores session locally.
+
+Next login becomes automatic.
+
+------------------------------------------------
+
+STUDENT HOME SCREEN
+
+Top:
+
+NoteBeat Kids Logo
+
+Below:
+
+Two activity buttons.
+
+1️⃣ Catch The Rhythm  
+2️⃣ Note Detective
+
+------------------------------------------------
+
+APP 1 – CATCH THE RHYTHM
+
+Purpose:
+
+Teach rhythm reading and timing accuracy.
+
+Time Signature:
+
+4/4
+
+Use VexFlow to render rhythms.
+
+IMPORTANT RULE:
+
+Do NOT use placeholder characters such as "?" for rests.
+
+You MUST render real musical rest symbols.
+
+Supported rhythmic symbols:
+
+Whole Note  
+Half Note  
+Quarter Note  
+Eighth Note  
+
+Real musical rests:
+
+Whole Rest  
+Half Rest  
+Quarter Rest  
+Eighth Rest
+
+All rests must use proper VexFlow notation symbols.
+
+------------------------------------------------
+
+METRONOME ENGINE
+
+Create a continuous metronome using Web Audio API.
+
+Metronome must:
+
+Allow BPM adjustment.
+
+Available BPM:
+
+60  
+70  
+80  
+90  
+100  
+110  
+120
+
+Behavior rules:
+
+Metronome starts before rhythm is shown.
+
+Metronome continues playing while student performs the rhythm.
+
+Metronome must never stop during the exercise.
+
+Metronome only stops when exercise ends.
+
+------------------------------------------------
+
+RHYTHM GAME FLOW
+
+1.
+
+System displays rhythm pattern visually.
+
+2.
+
+Metronome starts.
+
+3.
+
+Student listens to rhythm.
+
+4.
+
+Student taps rhythm buttons in correct timing.
+
+5.
+
+System compares tap timing with expected timing.
+
+Accuracy calculation includes:
+
+Correct rhythm pattern  
+Timing accuracy
+
+------------------------------------------------
+
+RHYTHM LEVEL SYSTEM
+
+Level 1
+
+Half notes  
+Quarter notes
+
+Level 2
+
+Add quarter rests
+
+Level 3
+
+Add half rests
+
+Level 4
+
+Add eighth notes
+
+Level 5
+
+Mixed rhythms
+
+Level 6+
+
+Increasing complexity.
+
+------------------------------------------------
+
+APP 2 – NOTE DETECTIVE
+
+Purpose:
+
+Teach musical note recognition.
+
+Use VexFlow to render staff and notes.
+
+Display:
+
+Treble Clef  
+5 line staff
+
+Notes appear randomly.
+
+Allowed notes:
+
+C  
+D  
+E  
+F  
+G  
+A  
+B
+
+Buttons below:
+
+Do  
+Re  
+Mi  
+Fa  
+Sol  
+La  
+Si
+
+Student selects the correct note.
+
+Provide immediate feedback:
+
+Correct  
+Incorrect
+
+------------------------------------------------
+
+NOTE LEVEL SYSTEM
+
+Level 1
+
+C D E
+
+Level 2
+
+Add F G
+
+Level 3
+
+Add A B
+
+Level 4
+
+Higher staff notes
+
+Level 5
+
+Lower staff notes
+
+Level 6
+
+Ledger lines
+
+------------------------------------------------
+
+MUSIC NOTATION RULES
+
+Use VexFlow for ALL notation.
+
+Treble clef must be correctly drawn.
+
+Staff must contain exactly:
+
+5 lines
+
+Spacing must be mathematically correct.
+
+Notes must align correctly.
+
+Rests must be rendered with real musical symbols.
+
+------------------------------------------------
+
+DUOLINGO STYLE LEVEL MAP
+
+Create a visual progression map similar to Duolingo.
+
+Features:
+
+Nodes representing levels.
+
+Student unlocks next node when level completed.
+
+Nodes connected with curved path.
+
+Completed levels show:
+
+Gold star badge.
+
+Locked levels appear greyed out.
+
+Map contains:
+
+Rhythm path  
+Note reading path
+
+------------------------------------------------
+
+GAMIFICATION
+
+Students earn:
+
+Stars  
+Points  
+Badges
+
+Completing levels unlocks next levels.
+
+Encourage progress with positive feedback.
+
+------------------------------------------------
+
+DATA TRACKING
+
+For each student store:
+
+Correct answers  
+Wrong answers  
+Accuracy percentage  
+Time spent  
+Levels completed  
+Stars earned
+
+------------------------------------------------
+
+TEACHER ANALYTICS
+
+Teacher dashboard shows:
+
+Student progress charts  
+Accuracy percentages  
+Time spent in apps  
+Level progression
+
+------------------------------------------------
+
+USER INTERFACE
+
+Style:
+
+Minimal  
+Pastel colors  
+Rounded cards  
+Large icons
+
+Designed for children ages 6-10.
+
+------------------------------------------------
+
+LOGO AREA
+
+Top header shows:
+
+NoteBeat Kids Logo
+
+Logo must be replaceable with uploaded image.
+
+------------------------------------------------
+
+FINAL OUTPUT
+
+Generate a complete working project including:
+
+Frontend  
+Backend  
+Authentication  
+Database integration  
+Music notation engine using VexFlow  
+Continuous metronome engine  
+Rhythm game engine  
+Note recognition game  
+Teacher dashboards  
+Admin dashboards  
+Duolingo-style level map  
+Reporting system.
+
+Ensure the application runs without runtime errors in Repl
