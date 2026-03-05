@@ -11,12 +11,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Music, ArrowLeft, Lock, Mail } from "lucide-react";
+import { ArrowLeft, Lock, Mail } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Geçerli bir e-posta girin"),
+  password: z.string().min(1, "Şifre gerekli"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -41,8 +41,8 @@ export default function TeacherLogin() {
       navigate("/teacher/dashboard");
     } catch (e: any) {
       toast({
-        title: "Login failed",
-        description: e.message || "Invalid email or password",
+        title: "Giriş başarısız",
+        description: e.message || "Geçersiz e-posta veya şifre",
         variant: "destructive",
       });
     } finally {
@@ -54,7 +54,6 @@ export default function TeacherLogin() {
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{ background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 50%, #667eea 100%)" }}
     >
-      {/* Floating music notes */}
       <div className="absolute inset-0 pointer-events-none select-none">
         {["♩", "♪", "♫", "♬"].map((note, i) => (
           <motion.span
@@ -81,7 +80,7 @@ export default function TeacherLogin() {
           data-testid="button-back-home"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Home
+          Ana Sayfaya Dön
         </button>
 
         <Card className="shadow-2xl border-0 rounded-3xl overflow-hidden">
@@ -89,9 +88,9 @@ export default function TeacherLogin() {
             <div className="flex justify-center mb-4">
               <img src={logoPath} alt="NoteBeat Kids" className="w-20 h-20 object-contain" />
             </div>
-            <CardTitle className="text-2xl font-extrabold text-foreground">Teacher Login</CardTitle>
+            <CardTitle className="text-2xl font-extrabold text-foreground">Öğretmen Girişi</CardTitle>
             <CardDescription className="text-base text-muted-foreground">
-              Sign in to manage your classes
+              Sınıflarınızı yönetmek için giriş yapın
             </CardDescription>
           </CardHeader>
 
@@ -103,14 +102,14 @@ export default function TeacherLogin() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Email Address</FormLabel>
+                      <FormLabel className="font-bold">E-posta Adresi</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input
                             {...field}
                             type="email"
-                            placeholder="teacher@school.edu"
+                            placeholder="ogretmen@okul.edu.tr"
                             className="pl-10 rounded-xl h-12"
                             data-testid="input-email"
                           />
@@ -125,7 +124,7 @@ export default function TeacherLogin() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Password</FormLabel>
+                      <FormLabel className="font-bold">Şifre</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -148,15 +147,15 @@ export default function TeacherLogin() {
                   className="w-full h-12 rounded-xl text-lg font-extrabold mt-2"
                   data-testid="button-submit-login"
                 >
-                  {loading ? "Signing in..." : "Sign In"}
+                  {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
                 </Button>
               </form>
             </Form>
 
             <div className="mt-6 p-4 bg-muted rounded-xl text-sm text-muted-foreground">
-              <p className="font-bold text-foreground mb-1">Demo credentials:</p>
-              <p>Email: <span className="font-mono text-foreground">sarah@sunshine.edu</span></p>
-              <p>Password: <span className="font-mono text-foreground">teacher123</span></p>
+              <p className="font-bold text-foreground mb-1">Demo bilgileri:</p>
+              <p>E-posta: <span className="font-mono text-foreground">sarah@sunshine.edu</span></p>
+              <p>Şifre: <span className="font-mono text-foreground">teacher123</span></p>
             </div>
           </CardContent>
         </Card>

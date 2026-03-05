@@ -5,8 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Star, Clock, CheckCircle, XCircle, TrendingUp } from "lucide-react";
+import { ArrowLeft, Star, Clock, CheckCircle, XCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Student, StudentProgress } from "@shared/schema";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
@@ -24,7 +23,7 @@ type ClassDetailData = {
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return `${m}m ${s}s`;
+  return `${m}d ${s}s`;
 }
 
 function accuracy(correct: number, wrong: number) {
@@ -35,7 +34,7 @@ function accuracy(correct: number, wrong: number) {
 
 export default function ClassDetail() {
   const [, navigate] = useLocation();
-  const [match, params] = useRoute("/teacher/class/:classId");
+  const [, params] = useRoute("/teacher/class/:classId");
   const { teacher, setTeacher } = useAuth();
   const classId = params?.classId;
 
@@ -68,13 +67,13 @@ export default function ClassDetail() {
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={() => navigate("/teacher/dashboard")} className="rounded-xl gap-1.5" data-testid="button-back">
             <ArrowLeft className="w-4 h-4" />
-            Back
+            Geri
           </Button>
           <div className="flex items-center gap-3">
             <img src={logoPath} alt="NoteBeat Kids" className="w-8 h-8 object-contain" />
             <div>
-              <h1 className="font-extrabold text-base text-foreground">{data?.class?.name ?? "Loading..."}</h1>
-              <p className="text-xs text-muted-foreground font-semibold">Code: <span className="font-mono font-extrabold text-primary">{data?.class?.classCode}</span></p>
+              <h1 className="font-extrabold text-base text-foreground">{data?.class?.name ?? "Yükleniyor..."}</h1>
+              <p className="text-xs text-muted-foreground font-semibold">Kod: <span className="font-mono font-extrabold text-primary">{data?.class?.classCode}</span></p>
             </div>
           </div>
         </div>
@@ -87,13 +86,12 @@ export default function ClassDetail() {
           </div>
         ) : (
           <>
-            {/* Summary stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
               {[
-                { label: "Students", value: data?.students.length ?? 0, color: "text-blue-500", bg: "bg-blue-50", icon: "👥" },
-                { label: "Avg Rhythm %", value: `${Math.round(chartData.reduce((a, c) => a + c.rhythmAccuracy, 0) / (chartData.length || 1))}%`, color: "text-orange-500", bg: "bg-orange-50", icon: "🥁" },
-                { label: "Avg Notes %", value: `${Math.round(chartData.reduce((a, c) => a + c.notesAccuracy, 0) / (chartData.length || 1))}%`, color: "text-purple-500", bg: "bg-purple-50", icon: "🎵" },
-                { label: "Total Stars", value: data?.students.reduce((a, s) => a + (s.rhythmProgress?.starsEarned ?? 0) + (s.notesProgress?.starsEarned ?? 0), 0) ?? 0, color: "text-yellow-500", bg: "bg-yellow-50", icon: "⭐" },
+                { label: "Öğrenciler", value: data?.students.length ?? 0, color: "text-blue-500", bg: "bg-blue-50", icon: "👥" },
+                { label: "Ort. Ritim %", value: `${Math.round(chartData.reduce((a, c) => a + c.rhythmAccuracy, 0) / (chartData.length || 1))}%`, color: "text-orange-500", bg: "bg-orange-50", icon: "🥁" },
+                { label: "Ort. Nota %", value: `${Math.round(chartData.reduce((a, c) => a + c.notesAccuracy, 0) / (chartData.length || 1))}%`, color: "text-purple-500", bg: "bg-purple-50", icon: "🎵" },
+                { label: "Toplam Yıldız", value: data?.students.reduce((a, s) => a + (s.rhythmProgress?.starsEarned ?? 0) + (s.notesProgress?.starsEarned ?? 0), 0) ?? 0, color: "text-yellow-500", bg: "bg-yellow-50", icon: "⭐" },
               ].map((stat, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
                   <Card className="rounded-2xl">
@@ -109,10 +107,9 @@ export default function ClassDetail() {
               ))}
             </div>
 
-            {/* Chart */}
             {chartData.length > 0 && (
               <Card className="rounded-2xl mb-6">
-                <CardHeader><CardTitle className="font-extrabold">Student Accuracy Overview</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="font-extrabold">Öğrenci Doğruluk Özeti</CardTitle></CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
@@ -120,18 +117,17 @@ export default function ClassDetail() {
                       <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: "bold" }} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                       <Tooltip formatter={(v) => `${v}%`} />
-                      <Bar dataKey="rhythmAccuracy" fill="#f97316" name="Rhythm" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="notesAccuracy" fill="#8b5cf6" name="Notes" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="rhythmAccuracy" fill="#f97316" name="Ritim" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="notesAccuracy" fill="#8b5cf6" name="Notalar" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
             )}
 
-            {/* Student list */}
-            <h3 className="text-xl font-extrabold mb-4">Student Progress</h3>
+            <h3 className="text-xl font-extrabold mb-4">Öğrenci İlerlemesi</h3>
             {data?.students.length === 0 ? (
-              <Card className="rounded-2xl"><CardContent className="py-12 text-center text-muted-foreground font-semibold">No students in this class yet. Share the class code!</CardContent></Card>
+              <Card className="rounded-2xl"><CardContent className="py-12 text-center text-muted-foreground font-semibold">Bu sınıfta henüz öğrenci yok. Sınıf kodunu paylaşın!</CardContent></Card>
             ) : (
               <div className="space-y-3">
                 {data?.students.map((student, i) => {
@@ -150,15 +146,15 @@ export default function ClassDetail() {
                                 <p className="font-extrabold text-foreground">{student.firstName} {student.lastName}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                                  <span className="text-xs font-bold text-muted-foreground">{(student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0)} stars total</span>
+                                  <span className="text-xs font-bold text-muted-foreground">{(student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0)} yıldız toplam</span>
                                 </div>
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3 text-sm">
                               <div className="bg-orange-50 rounded-xl p-3 text-center">
-                                <p className="text-xs font-bold text-orange-500 mb-1">Rhythm</p>
-                                <p className="font-extrabold text-orange-600">Lvl {student.rhythmProgress?.level ?? 1}</p>
-                                <p className="text-xs text-muted-foreground font-semibold">{rAcc}% accuracy</p>
+                                <p className="text-xs font-bold text-orange-500 mb-1">Ritim</p>
+                                <p className="font-extrabold text-orange-600">Seviye {student.rhythmProgress?.level ?? 1}</p>
+                                <p className="text-xs text-muted-foreground font-semibold">{rAcc}% doğruluk</p>
                                 <div className="flex items-center justify-center gap-1.5 mt-1">
                                   <CheckCircle className="w-3 h-3 text-green-500" />
                                   <span className="text-xs font-bold text-green-600">{student.rhythmProgress?.correctAnswers ?? 0}</span>
@@ -167,9 +163,9 @@ export default function ClassDetail() {
                                 </div>
                               </div>
                               <div className="bg-purple-50 rounded-xl p-3 text-center">
-                                <p className="text-xs font-bold text-purple-500 mb-1">Notes</p>
-                                <p className="font-extrabold text-purple-600">Lvl {student.notesProgress?.level ?? 1}</p>
-                                <p className="text-xs text-muted-foreground font-semibold">{nAcc}% accuracy</p>
+                                <p className="text-xs font-bold text-purple-500 mb-1">Notalar</p>
+                                <p className="font-extrabold text-purple-600">Seviye {student.notesProgress?.level ?? 1}</p>
+                                <p className="text-xs text-muted-foreground font-semibold">{nAcc}% doğruluk</p>
                                 <div className="flex items-center justify-center gap-1.5 mt-1">
                                   <CheckCircle className="w-3 h-3 text-green-500" />
                                   <span className="text-xs font-bold text-green-600">{student.notesProgress?.correctAnswers ?? 0}</span>

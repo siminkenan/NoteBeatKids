@@ -8,21 +8,21 @@ import { ArrowLeft, Lock, Star, Play } from "lucide-react";
 import type { StudentProgress } from "@shared/schema";
 
 const RHYTHM_LEVELS = [
-  { id: 1, name: "Half & Quarter", emoji: "🥁", desc: "Basic notes" },
-  { id: 2, name: "Quarter Rests", emoji: "🎵", desc: "Add silence" },
-  { id: 3, name: "Half Rests", emoji: "🎶", desc: "Longer pauses" },
-  { id: 4, name: "Eighth Notes", emoji: "⚡", desc: "Fast notes" },
-  { id: 5, name: "Mixed Rhythms", emoji: "🌟", desc: "All together" },
-  { id: 6, name: "Advanced", emoji: "🏆", desc: "Master level" },
+  { id: 1, name: "Yarım & Dörtlük", emoji: "🥁", desc: "Temel notalar" },
+  { id: 2, name: "Dörtlük Suslar", emoji: "🎵", desc: "Sessizlik ekle" },
+  { id: 3, name: "Yarım Suslar", emoji: "🎶", desc: "Uzun duraklamalar" },
+  { id: 4, name: "Sekizlik Notalar", emoji: "⚡", desc: "Hızlı notalar" },
+  { id: 5, name: "Karışık Ritimler", emoji: "🌟", desc: "Hepsi bir arada" },
+  { id: 6, name: "İleri Seviye", emoji: "🏆", desc: "Usta seviyesi" },
 ];
 
 const NOTE_LEVELS = [
-  { id: 1, name: "C, D, E", emoji: "🔍", desc: "First notes" },
-  { id: 2, name: "Add F, G", emoji: "🎼", desc: "More notes" },
-  { id: 3, name: "Full Scale", emoji: "🎹", desc: "C to B" },
-  { id: 4, name: "High Notes", emoji: "🚀", desc: "Upper staff" },
-  { id: 5, name: "Mixed Notes", emoji: "🌈", desc: "All octaves" },
-  { id: 6, name: "Expert", emoji: "🏆", desc: "Ledger lines" },
+  { id: 1, name: "Do, Re, Mi", emoji: "🔍", desc: "İlk notalar" },
+  { id: 2, name: "Fa, Sol ekle", emoji: "🎼", desc: "Daha fazla nota" },
+  { id: 3, name: "Tam Gam", emoji: "🎹", desc: "Do'dan Si'ye" },
+  { id: 4, name: "Tiz Notalar", emoji: "🚀", desc: "Üst porte" },
+  { id: 5, name: "Karışık Notalar", emoji: "🌈", desc: "Tüm oktavlar" },
+  { id: 6, name: "Uzman", emoji: "🏆", desc: "Yardımcı çizgiler" },
 ];
 
 interface LevelNodeProps {
@@ -47,7 +47,6 @@ function LevelNode({ level, unlocked, completed, current, stars, index, color }:
       transition={{ delay: index * 0.1, type: "spring", stiffness: 200 }}
     >
       <div className="relative">
-        {/* Glow for current */}
         {current && (
           <motion.div
             className="absolute inset-0 rounded-full"
@@ -77,13 +76,12 @@ function LevelNode({ level, unlocked, completed, current, stars, index, color }:
             <>
               <span className="text-3xl">{level.emoji}</span>
               <span className="text-xs font-extrabold text-center leading-tight px-1" style={{ color: completed ? "#92400e" : current ? "white" : "#374151" }}>
-                Lvl {level.id}
+                Seviye {level.id}
               </span>
             </>
           )}
         </div>
 
-        {/* Stars below */}
         {unlocked && (
           <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 flex gap-0.5">
             {[1, 2, 3].map(s => (
@@ -135,9 +133,9 @@ export default function LevelMap() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/student/home")} className="gap-1.5 rounded-xl font-bold">
             <ArrowLeft className="w-4 h-4" />
-            Back
+            Geri
           </Button>
-          <h1 className="font-extrabold text-xl text-sky-700">My Progress Map</h1>
+          <h1 className="font-extrabold text-xl text-sky-700">İlerleme Haritam</h1>
           <div className="flex items-center gap-1.5 bg-yellow-100 rounded-full px-3 py-1.5">
             <span className="text-yellow-500">⭐</span>
             <span className="font-extrabold text-yellow-700 text-sm">{totalStars}</span>
@@ -146,19 +144,18 @@ export default function LevelMap() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8">
-        {/* Student greeting */}
         <motion.div
           className="text-center mb-8"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-2xl font-extrabold text-sky-800">
-            {student.student.firstName}'s Journey
+            {student.student.firstName}'nin Yolculuğu
           </h2>
           <p className="text-sky-600 font-semibold">{student.class.name}</p>
         </motion.div>
 
-        {/* Rhythm Path */}
+        {/* Ritim Yolu */}
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md"
@@ -166,8 +163,8 @@ export default function LevelMap() {
               🥁
             </div>
             <div>
-              <h3 className="text-xl font-extrabold text-orange-700">Catch The Rhythm</h3>
-              <p className="text-sm text-orange-500 font-semibold">Level {rhythmLevel} • {rhythmProgress?.starsEarned ?? 0} stars</p>
+              <h3 className="text-xl font-extrabold text-orange-700">Ritmi Yakala</h3>
+              <p className="text-sm text-orange-500 font-semibold">Seviye {rhythmLevel} • {rhythmProgress?.starsEarned ?? 0} yıldız</p>
             </div>
             <Button
               size="sm"
@@ -177,13 +174,11 @@ export default function LevelMap() {
               data-testid="button-play-rhythm"
             >
               <Play className="w-3.5 h-3.5" />
-              Play
+              Oyna
             </Button>
           </div>
 
-          {/* Path */}
           <div className="relative">
-            {/* SVG path */}
             <svg className="absolute left-0 top-0 w-full h-full pointer-events-none" style={{ overflow: "visible" }}>
               {RHYTHM_LEVELS.slice(0, -1).map((_, i) => {
                 const x1 = 48 + (i % 2 === 0 ? 0 : 60);
@@ -216,10 +211,9 @@ export default function LevelMap() {
           </div>
         </div>
 
-        {/* Divider */}
         <div className="border-t-2 border-dashed border-sky-300 my-8" />
 
-        {/* Notes Path */}
+        {/* Nota Yolu */}
         <div>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md"
@@ -227,8 +221,8 @@ export default function LevelMap() {
               🔍
             </div>
             <div>
-              <h3 className="text-xl font-extrabold text-purple-700">Note Detective</h3>
-              <p className="text-sm text-purple-500 font-semibold">Level {notesLevel} • {notesProgress?.starsEarned ?? 0} stars</p>
+              <h3 className="text-xl font-extrabold text-purple-700">Nota Dedektifi</h3>
+              <p className="text-sm text-purple-500 font-semibold">Seviye {notesLevel} • {notesProgress?.starsEarned ?? 0} yıldız</p>
             </div>
             <Button
               size="sm"
@@ -238,7 +232,7 @@ export default function LevelMap() {
               data-testid="button-play-notes"
             >
               <Play className="w-3.5 h-3.5" />
-              Play
+              Oyna
             </Button>
           </div>
 
@@ -260,7 +254,6 @@ export default function LevelMap() {
           </div>
         </div>
 
-        {/* Bottom padding */}
         <div className="h-16" />
       </main>
     </div>

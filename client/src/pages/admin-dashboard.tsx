@@ -28,16 +28,16 @@ type AdminStats = {
 };
 
 const institutionSchema = z.object({
-  name: z.string().min(1, "Institution name is required"),
-  licenseStart: z.string().min(1, "Start date required"),
-  licenseEnd: z.string().min(1, "End date required"),
+  name: z.string().min(1, "Kurum adı gerekli"),
+  licenseStart: z.string().min(1, "Başlangıç tarihi gerekli"),
+  licenseEnd: z.string().min(1, "Bitiş tarihi gerekli"),
 });
 type InstitutionForm = z.infer<typeof institutionSchema>;
 
 const teacherSchema = z.object({
-  name: z.string().min(1, "Name required"),
-  email: z.string().email("Valid email required"),
-  password: z.string().min(6, "Min 6 characters"),
+  name: z.string().min(1, "Ad gerekli"),
+  email: z.string().email("Geçerli e-posta gerekli"),
+  password: z.string().min(6, "En az 6 karakter"),
   institutionId: z.string().optional(),
 });
 type TeacherForm = z.infer<typeof teacherSchema>;
@@ -45,7 +45,7 @@ type TeacherForm = z.infer<typeof teacherSchema>;
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h ${m}m`;
+  return `${h}s ${m}d`;
 }
 
 export default function AdminDashboard() {
@@ -103,9 +103,9 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       setInstDialogOpen(false);
       instForm.reset();
-      toast({ title: "Institution created!" });
+      toast({ title: "Kurum oluşturuldu!" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
   const createTeacher = useMutation({
@@ -118,9 +118,9 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       setTeacherDialogOpen(false);
       teacherForm.reset();
-      toast({ title: "Teacher created!" });
+      toast({ title: "Öğretmen oluşturuldu!" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
   const toggleInstitution = useMutation({
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/institutions"] });
-      toast({ title: "Updated!" });
+      toast({ title: "Güncellendi!" });
     },
   });
 
@@ -147,7 +147,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <header className="bg-slate-900 text-white shadow-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -156,7 +155,7 @@ export default function AdminDashboard() {
               <h1 className="font-extrabold text-base leading-tight">NoteBeat Kids</h1>
               <p className="text-slate-400 text-xs font-semibold flex items-center gap-1">
                 <Shield className="w-3 h-3" />
-                Admin Panel
+                Yönetici Paneli
               </p>
             </div>
           </div>
@@ -164,21 +163,20 @@ export default function AdminDashboard() {
             <p className="text-slate-300 text-sm font-semibold hidden sm:block">{admin?.name}</p>
             <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2 rounded-xl bg-transparent border-slate-600 text-slate-300" data-testid="button-logout">
               <LogOut className="w-4 h-4" />
-              Logout
+              Çıkış
             </Button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           {[
-            { label: "Institutions", value: stats?.institutionCount ?? 0, icon: <Building2 className="w-5 h-5" />, color: "text-blue-600", bg: "bg-blue-50" },
-            { label: "Teachers", value: stats?.teacherCount ?? 0, icon: <Users className="w-5 h-5" />, color: "text-purple-600", bg: "bg-purple-50" },
-            { label: "Students", value: stats?.studentCount ?? 0, icon: <BookOpen className="w-5 h-5" />, color: "text-green-600", bg: "bg-green-50" },
-            { label: "Exercises Done", value: stats?.totalExercisesCompleted ?? 0, icon: <CheckCircle className="w-5 h-5" />, color: "text-orange-600", bg: "bg-orange-50" },
-            { label: "Total Time", value: formatTime(stats?.totalTimeSpentSeconds ?? 0), icon: <Clock className="w-5 h-5" />, color: "text-teal-600", bg: "bg-teal-50" },
+            { label: "Kurumlar", value: stats?.institutionCount ?? 0, icon: <Building2 className="w-5 h-5" />, color: "text-blue-600", bg: "bg-blue-50" },
+            { label: "Öğretmenler", value: stats?.teacherCount ?? 0, icon: <Users className="w-5 h-5" />, color: "text-purple-600", bg: "bg-purple-50" },
+            { label: "Öğrenciler", value: stats?.studentCount ?? 0, icon: <BookOpen className="w-5 h-5" />, color: "text-green-600", bg: "bg-green-50" },
+            { label: "Tamamlanan Alıştırma", value: stats?.totalExercisesCompleted ?? 0, icon: <CheckCircle className="w-5 h-5" />, color: "text-orange-600", bg: "bg-orange-50" },
+            { label: "Toplam Süre", value: formatTime(stats?.totalTimeSpentSeconds ?? 0), icon: <Clock className="w-5 h-5" />, color: "text-teal-600", bg: "bg-teal-50" },
           ].map((stat, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
               <Card className="rounded-2xl">
@@ -194,51 +192,51 @@ export default function AdminDashboard() {
 
         <Tabs defaultValue="institutions">
           <TabsList className="mb-6 rounded-xl bg-white border">
-            <TabsTrigger value="institutions" className="rounded-lg font-bold">Institutions</TabsTrigger>
-            <TabsTrigger value="teachers" className="rounded-lg font-bold">Teachers</TabsTrigger>
+            <TabsTrigger value="institutions" className="rounded-lg font-bold">Kurumlar</TabsTrigger>
+            <TabsTrigger value="teachers" className="rounded-lg font-bold">Öğretmenler</TabsTrigger>
           </TabsList>
 
           <TabsContent value="institutions">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-extrabold">Institutions</h3>
+              <h3 className="text-xl font-extrabold">Kurumlar</h3>
               <Dialog open={instDialogOpen} onOpenChange={setInstDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="gap-2 rounded-xl font-bold" data-testid="button-create-institution">
                     <Plus className="w-4 h-4" />
-                    Add Institution
+                    Kurum Ekle
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="rounded-2xl max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="font-extrabold">Add Institution</DialogTitle>
+                    <DialogTitle className="font-extrabold">Kurum Ekle</DialogTitle>
                   </DialogHeader>
                   <Form {...instForm}>
                     <form onSubmit={instForm.handleSubmit(d => createInstitution.mutate(d))} className="space-y-4 pt-2">
                       <FormField control={instForm.control} name="name" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-bold">Institution Name</FormLabel>
-                          <FormControl><Input {...field} placeholder="Sunshine Elementary School" className="rounded-xl" data-testid="input-institution-name" /></FormControl>
+                          <FormLabel className="font-bold">Kurum Adı</FormLabel>
+                          <FormControl><Input {...field} placeholder="Güneş İlkokulu" className="rounded-xl" data-testid="input-institution-name" /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <div className="grid grid-cols-2 gap-3">
                         <FormField control={instForm.control} name="licenseStart" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-bold">License Start</FormLabel>
+                            <FormLabel className="font-bold">Lisans Başlangıcı</FormLabel>
                             <FormControl><Input {...field} type="date" className="rounded-xl" data-testid="input-license-start" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={instForm.control} name="licenseEnd" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-bold">License End</FormLabel>
+                            <FormLabel className="font-bold">Lisans Bitişi</FormLabel>
                             <FormControl><Input {...field} type="date" className="rounded-xl" data-testid="input-license-end" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                       </div>
                       <Button type="submit" disabled={createInstitution.isPending} className="w-full rounded-xl font-bold" data-testid="button-submit-institution">
-                        {createInstitution.isPending ? "Creating..." : "Create Institution"}
+                        {createInstitution.isPending ? "Oluşturuluyor..." : "Kurum Oluştur"}
                       </Button>
                     </form>
                   </Form>
@@ -259,15 +257,15 @@ export default function AdminDashboard() {
                             <Building2 className="w-5 h-5 text-blue-600" />
                           </div>
                           <Badge variant={active ? "default" : expired ? "destructive" : "secondary"} className="shrink-0">
-                            {active ? "Active" : expired ? "Expired" : "Inactive"}
+                            {active ? "Aktif" : expired ? "Süresi Doldu" : "Pasif"}
                           </Badge>
                         </div>
                         <CardTitle className="text-base font-extrabold mt-2">{inst.name}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2 pt-0">
                         <div className="text-sm text-muted-foreground font-semibold">
-                          <p>Start: {new Date(inst.licenseStart).toLocaleDateString()}</p>
-                          <p>End: {new Date(inst.licenseEnd).toLocaleDateString()}</p>
+                          <p>Başlangıç: {new Date(inst.licenseStart).toLocaleDateString("tr-TR")}</p>
+                          <p>Bitiş: {new Date(inst.licenseEnd).toLocaleDateString("tr-TR")}</p>
                         </div>
                         <Button
                           variant="outline"
@@ -277,7 +275,7 @@ export default function AdminDashboard() {
                           data-testid={`button-toggle-institution-${inst.id}`}
                         >
                           {active ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                          {active ? "Deactivate" : "Activate"}
+                          {active ? "Devre Dışı Bırak" : "Etkinleştir"}
                         </Button>
                       </CardContent>
                     </Card>
@@ -289,47 +287,47 @@ export default function AdminDashboard() {
 
           <TabsContent value="teachers">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-extrabold">Teachers</h3>
+              <h3 className="text-xl font-extrabold">Öğretmenler</h3>
               <Dialog open={teacherDialogOpen} onOpenChange={setTeacherDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="gap-2 rounded-xl font-bold" data-testid="button-create-teacher">
                     <Plus className="w-4 h-4" />
-                    Add Teacher
+                    Öğretmen Ekle
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="rounded-2xl max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="font-extrabold">Add Teacher</DialogTitle>
+                    <DialogTitle className="font-extrabold">Öğretmen Ekle</DialogTitle>
                   </DialogHeader>
                   <Form {...teacherForm}>
                     <form onSubmit={teacherForm.handleSubmit(d => createTeacher.mutate(d))} className="space-y-4 pt-2">
                       <FormField control={teacherForm.control} name="name" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-bold">Full Name</FormLabel>
-                          <FormControl><Input {...field} placeholder="Ms. Sarah Johnson" className="rounded-xl" data-testid="input-teacher-name" /></FormControl>
+                          <FormLabel className="font-bold">Ad Soyad</FormLabel>
+                          <FormControl><Input {...field} placeholder="Ayşe Öztürk" className="rounded-xl" data-testid="input-teacher-name" /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={teacherForm.control} name="email" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-bold">Email</FormLabel>
-                          <FormControl><Input {...field} type="email" placeholder="teacher@school.edu" className="rounded-xl" data-testid="input-teacher-email" /></FormControl>
+                          <FormLabel className="font-bold">E-posta</FormLabel>
+                          <FormControl><Input {...field} type="email" placeholder="ogretmen@okul.edu.tr" className="rounded-xl" data-testid="input-teacher-email" /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={teacherForm.control} name="password" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-bold">Password</FormLabel>
-                          <FormControl><Input {...field} type="password" placeholder="Min 6 characters" className="rounded-xl" data-testid="input-teacher-password" /></FormControl>
+                          <FormLabel className="font-bold">Şifre</FormLabel>
+                          <FormControl><Input {...field} type="password" placeholder="En az 6 karakter" className="rounded-xl" data-testid="input-teacher-password" /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                       <FormField control={teacherForm.control} name="institutionId" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-bold">Institution (optional)</FormLabel>
+                          <FormLabel className="font-bold">Kurum (isteğe bağlı)</FormLabel>
                           <FormControl>
                             <select {...field} className="w-full h-10 rounded-xl border border-input px-3 text-sm font-semibold bg-background" data-testid="select-institution">
-                              <option value="">No institution</option>
+                              <option value="">Kurum yok</option>
                               {institutions?.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                             </select>
                           </FormControl>
@@ -337,7 +335,7 @@ export default function AdminDashboard() {
                         </FormItem>
                       )} />
                       <Button type="submit" disabled={createTeacher.isPending} className="w-full rounded-xl font-bold" data-testid="button-submit-teacher">
-                        {createTeacher.isPending ? "Creating..." : "Create Teacher"}
+                        {createTeacher.isPending ? "Oluşturuluyor..." : "Öğretmen Oluştur"}
                       </Button>
                     </form>
                   </Form>
@@ -351,14 +349,14 @@ export default function AdminDashboard() {
                   <Card className="rounded-2xl" data-testid={`card-teacher-${teacher.id}`}>
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center text-lg font-extrabold text-primary flex-shrink-0">
-                        {teacher.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                        {teacher.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                       </div>
                       <div className="min-w-0">
                         <p className="font-extrabold text-foreground truncate">{teacher.name}</p>
                         <p className="text-xs text-muted-foreground font-semibold truncate">{teacher.email}</p>
                         {teacher.institutionId && (
                           <Badge variant="secondary" className="text-xs mt-1">
-                            {institutions?.find(i => i.id === teacher.institutionId)?.name ?? "Institution"}
+                            {institutions?.find(i => i.id === teacher.institutionId)?.name ?? "Kurum"}
                           </Badge>
                         )}
                       </div>

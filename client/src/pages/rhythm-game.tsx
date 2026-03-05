@@ -13,8 +13,8 @@ import type { StudentProgress } from "@shared/schema";
 // Rhythm patterns by level
 const LEVELS: Record<number, { name: string; description: string; patterns: NoteData[][] }> = {
   1: {
-    name: "Level 1 - Half & Quarter Notes",
-    description: "Tap along with half and quarter notes",
+    name: "Seviye 1 - Yarım & Dörtlük Notalar",
+    description: "Yarım ve dörtlük notalarla ritme eşlik et",
     patterns: [
       [{ keys: ["b/4"], duration: "h" }, { keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "q" }],
       [{ keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "h" }],
@@ -22,8 +22,8 @@ const LEVELS: Record<number, { name: string; description: string; patterns: Note
     ],
   },
   2: {
-    name: "Level 2 - Quarter Rests",
-    description: "Half notes, quarter notes, and quarter rests",
+    name: "Seviye 2 - Dörtlük Suslar",
+    description: "Yarım, dörtlük notalar ve dörtlük suslar",
     patterns: [
       [{ keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "qr" }, { keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "q" }],
       [{ keys: ["b/4"], duration: "h" }, { keys: ["b/4"], duration: "qr" }, { keys: ["b/4"], duration: "q" }],
@@ -31,8 +31,8 @@ const LEVELS: Record<number, { name: string; description: string; patterns: Note
     ],
   },
   3: {
-    name: "Level 3 - Half Rests",
-    description: "Adding half rests to your patterns",
+    name: "Seviye 3 - Yarım Suslar",
+    description: "Kalıplara yarım suslar ekleniyor",
     patterns: [
       [{ keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "hr" }],
       [{ keys: ["b/4"], duration: "h" }, { keys: ["b/4"], duration: "hr" }],
@@ -40,8 +40,8 @@ const LEVELS: Record<number, { name: string; description: string; patterns: Note
     ],
   },
   4: {
-    name: "Level 4 - Eighth Notes",
-    description: "Fast eighth notes added!",
+    name: "Seviye 4 - Sekizlik Notalar",
+    description: "Hızlı sekizlik notalar eklendi!",
     patterns: [
       [{ keys: ["b/4"], duration: "8" }, { keys: ["b/4"], duration: "8" }, { keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "q" }],
       [{ keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "8" }, { keys: ["b/4"], duration: "8" }, { keys: ["b/4"], duration: "h" }],
@@ -49,8 +49,8 @@ const LEVELS: Record<number, { name: string; description: string; patterns: Note
     ],
   },
   5: {
-    name: "Level 5 - Mixed Rhythms",
-    description: "All note types together!",
+    name: "Seviye 5 - Karışık Ritimler",
+    description: "Tüm nota türleri bir arada!",
     patterns: [
       [{ keys: ["b/4"], duration: "8" }, { keys: ["b/4"], duration: "8" }, { keys: ["b/4"], duration: "qr" }, { keys: ["b/4"], duration: "q" }, { keys: ["b/4"], duration: "q" }],
       [{ keys: ["b/4"], duration: "h" }, { keys: ["b/4"], duration: "8" }, { keys: ["b/4"], duration: "8" }, { keys: ["b/4"], duration: "qr" }],
@@ -215,7 +215,7 @@ export default function RhythmGame() {
         startMetronome(bpm);
         setPhase("tapping");
         gameStartTimeRef.current = Date.now();
-        setGameMessage("Tap the rhythm!");
+        setGameMessage("Ritme dokun!");
 
         const beatDuration = (60 / bpm) * 1000;
         const totalDuration = currentPattern.reduce((acc, n) => acc + (DURATION_BEATS[n.duration] ?? 1), 0) * beatDuration;
@@ -265,7 +265,7 @@ export default function RhythmGame() {
 
     setTapResults(results);
     setFeedback(allCorrect ? "correct" : "wrong");
-    setGameMessage(allCorrect ? "Excellent! Perfect rhythm!" : `${correct}/${expected.length} beats correct`);
+    setGameMessage(allCorrect ? "Mükemmel! Kusursuz ritim!" : `${correct}/${expected.length} vuruş doğru`);
 
     const stars = allCorrect ? 3 : correct > expected.length / 2 ? 1 : 0;
     const newCorrect = score.correct + correct;
@@ -323,11 +323,11 @@ export default function RhythmGame() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => { stopMetronome(); navigate("/student/home"); }} className="gap-1.5 rounded-xl font-bold">
             <ArrowLeft className="w-4 h-4" />
-            Back
+            Geri
           </Button>
           <div className="flex items-center gap-2">
             <span className="text-2xl">🥁</span>
-            <h1 className="font-extrabold text-lg text-orange-700">Catch The Rhythm</h1>
+            <h1 className="font-extrabold text-lg text-orange-700">Ritmi Yakala</h1>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-yellow-500">⭐</span>
@@ -341,15 +341,15 @@ export default function RhythmGame() {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white/80 rounded-2xl p-3 text-center shadow-sm">
             <p className="text-2xl font-extrabold text-orange-500">{level}</p>
-            <p className="text-xs text-muted-foreground font-bold">Level</p>
+            <p className="text-xs text-muted-foreground font-bold">Seviye</p>
           </div>
           <div className="bg-white/80 rounded-2xl p-3 text-center shadow-sm">
             <p className="text-2xl font-extrabold text-green-500">{score.correct}</p>
-            <p className="text-xs text-muted-foreground font-bold">Correct</p>
+            <p className="text-xs text-muted-foreground font-bold">Doğru</p>
           </div>
           <div className="bg-white/80 rounded-2xl p-3 text-center shadow-sm">
             <p className="text-2xl font-extrabold text-red-400">{score.wrong}</p>
-            <p className="text-xs text-muted-foreground font-bold">Missed</p>
+            <p className="text-xs text-muted-foreground font-bold">Kaçırılan</p>
           </div>
         </div>
 
@@ -381,7 +381,7 @@ export default function RhythmGame() {
 
         {/* VexFlow notation */}
         <div className="bg-white rounded-3xl p-4 shadow-md overflow-x-auto">
-          <p className="text-xs font-extrabold text-muted-foreground text-center mb-3 uppercase tracking-widest">Rhythm Pattern</p>
+          <p className="text-xs font-extrabold text-muted-foreground text-center mb-3 uppercase tracking-widest">Ritim Kalıbı</p>
           <div className="flex justify-center">
             <VexFlowRenderer
               notes={currentPattern ?? []}
@@ -473,7 +473,7 @@ export default function RhythmGame() {
               onClick={startExercise}
             >
               <Play className="w-6 h-6" />
-              Start Exercise
+              Alıştırmayı Başlat
             </motion.button>
           )}
 
@@ -492,9 +492,9 @@ export default function RhythmGame() {
                 onPointerDown={handleTapFixed}
               >
                 <span className="text-4xl">🥁</span>
-                TAP!
+                DOKUN!
               </motion.button>
-              <p className="text-center text-xs text-muted-foreground font-semibold">Also works with SPACEBAR</p>
+              <p className="text-center text-xs text-muted-foreground font-semibold">BOŞLUK tuşu ile de çalışır</p>
             </>
           )}
 
@@ -507,7 +507,7 @@ export default function RhythmGame() {
               whileTap={{ scale: 0.97 }}
               onClick={nextPattern}
             >
-              Next Pattern →
+              Sonraki Kalıp →
             </motion.button>
           )}
         </div>

@@ -14,8 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ArrowLeft, Lock, Mail, Shield } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Geçerli bir e-posta girin"),
+  password: z.string().min(1, "Şifre gerekli"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -40,8 +40,8 @@ export default function AdminLogin() {
       navigate("/admin/dashboard");
     } catch (e: any) {
       toast({
-        title: "Access denied",
-        description: e.message || "Invalid credentials",
+        title: "Erişim reddedildi",
+        description: e.message || "Geçersiz kimlik bilgileri",
         variant: "destructive",
       });
     } finally {
@@ -63,7 +63,7 @@ export default function AdminLogin() {
           data-testid="button-back-home"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Home
+          Ana Sayfaya Dön
         </button>
 
         <Card className="shadow-2xl border-slate-700 rounded-3xl bg-slate-800">
@@ -73,9 +73,9 @@ export default function AdminLogin() {
                 <Shield className="w-8 h-8 text-primary" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-extrabold text-white">System Admin</CardTitle>
+            <CardTitle className="text-2xl font-extrabold text-white">Sistem Yöneticisi</CardTitle>
             <CardDescription className="text-slate-400">
-              Restricted access — authorized personnel only
+              Kısıtlı erişim — yalnızca yetkili personel
             </CardDescription>
           </CardHeader>
 
@@ -87,7 +87,7 @@ export default function AdminLogin() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold text-slate-300">Email</FormLabel>
+                      <FormLabel className="font-bold text-slate-300">E-posta</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -103,7 +103,7 @@ export default function AdminLogin() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold text-slate-300">Password</FormLabel>
+                      <FormLabel className="font-bold text-slate-300">Şifre</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -115,15 +115,15 @@ export default function AdminLogin() {
                   )}
                 />
                 <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl text-lg font-extrabold mt-2" data-testid="button-submit-login">
-                  {loading ? "Authenticating..." : "Access Admin Panel"}
+                  {loading ? "Doğrulanıyor..." : "Yönetici Paneline Gir"}
                 </Button>
               </form>
             </Form>
 
             <div className="mt-4 p-4 bg-slate-700/50 rounded-xl text-sm text-slate-400">
-              <p className="font-bold text-slate-300 mb-1">Demo credentials:</p>
-              <p>Email: <span className="font-mono text-slate-200">admin@notebeatkids.com</span></p>
-              <p>Password: <span className="font-mono text-slate-200">admin123</span></p>
+              <p className="font-bold text-slate-300 mb-1">Demo bilgileri:</p>
+              <p>E-posta: <span className="font-mono text-slate-200">admin@notebeatkids.com</span></p>
+              <p>Şifre: <span className="font-mono text-slate-200">admin123</span></p>
             </div>
           </CardContent>
         </Card>

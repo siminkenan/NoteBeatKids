@@ -154,8 +154,8 @@ export default function NoteDetective() {
     playNote(freq, correct);
 
     const messages = correct
-      ? ["Brilliant! 🌟", "That's right! ⭐", "Amazing! 🎉", "Perfect! 🎵"]
-      : [`It was ${currentNote.label} (${currentNote.solfa})!`, `Oops! That's ${currentNote.label}`, `Try again! The answer is ${currentNote.label}`];
+      ? ["Harika! 🌟", "Doğru! ⭐", "Mükemmel! 🎉", "Süper! 🎵"]
+      : [`Cevap ${currentNote.label} (${currentNote.solfa}) idi!`, `Hata! O ${currentNote.label}`, `Tekrar dene! Cevap: ${currentNote.label}`];
 
     setFeedback({
       correct,
@@ -207,11 +207,11 @@ export default function NoteDetective() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/student/home")} className="gap-1.5 rounded-xl font-bold">
             <ArrowLeft className="w-4 h-4" />
-            Back
+            Geri
           </Button>
           <div className="flex items-center gap-2">
             <span className="text-2xl">🔍</span>
-            <h1 className="font-extrabold text-lg text-purple-700">Note Detective</h1>
+            <h1 className="font-extrabold text-lg text-purple-700">Nota Dedektifi</h1>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-yellow-500">⭐</span>
@@ -224,10 +224,10 @@ export default function NoteDetective() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: "Level", value: level, color: "text-purple-600", bg: "bg-purple-50" },
-            { label: "Correct", value: score.correct, color: "text-green-600", bg: "bg-green-50" },
-            { label: "Wrong", value: score.wrong, color: "text-red-500", bg: "bg-red-50" },
-            { label: "Accuracy", value: `${accuracy}%`, color: "text-blue-600", bg: "bg-blue-50" },
+            { label: "Seviye", value: level, color: "text-purple-600", bg: "bg-purple-50" },
+            { label: "Doğru", value: score.correct, color: "text-green-600", bg: "bg-green-50" },
+            { label: "Yanlış", value: score.wrong, color: "text-red-500", bg: "bg-red-50" },
+            { label: "Doğruluk", value: `${accuracy}%`, color: "text-blue-600", bg: "bg-blue-50" },
           ].map((stat, i) => (
             <div key={i} className={`${stat.bg} rounded-2xl p-3 text-center shadow-sm`}>
               <p className={`text-xl font-extrabold ${stat.color}`}>{stat.value}</p>
@@ -239,17 +239,17 @@ export default function NoteDetective() {
         {/* Level badge */}
         <div className="text-center">
           <Badge className="font-extrabold text-sm px-4 py-1.5 rounded-full bg-purple-600 text-white border-0">
-            Level {level} — {LEVEL_NOTES[Math.min(level, 5)]?.length ?? 7} notes
+            Seviye {level} — {LEVEL_NOTES[Math.min(level, 5)]?.length ?? 7} nota
           </Badge>
           {consecutiveCorrect > 0 && (
-            <p className="text-xs font-bold text-purple-500 mt-1">{consecutiveCorrect} in a row!</p>
+            <p className="text-xs font-bold text-purple-500 mt-1">{consecutiveCorrect} art arda!</p>
           )}
         </div>
 
         {/* Staff and note display */}
         <div className="bg-white rounded-3xl p-6 shadow-md">
           <p className="text-xs font-extrabold text-center text-muted-foreground uppercase tracking-widest mb-3">
-            What note is this?
+            Bu nota hangisi?
           </p>
           <div className="flex justify-center">
             {currentNote && (

@@ -19,7 +19,7 @@ import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-pre
 import type { Class } from "@shared/schema";
 
 const classSchema = z.object({
-  name: z.string().min(1, "Class name is required"),
+  name: z.string().min(1, "Sınıf adı gerekli"),
   maxStudents: z.coerce.number().min(1).max(100).default(30),
   expiresAt: z.string().optional(),
 });
@@ -62,10 +62,10 @@ export default function TeacherDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes"] });
       setDialogOpen(false);
       form.reset();
-      toast({ title: "Class created!", description: "Share the class code with your students." });
+      toast({ title: "Sınıf oluşturuldu!", description: "Sınıf kodunu öğrencilerinizle paylaşın." });
     },
     onError: (e: any) => {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast({ title: "Hata", description: e.message, variant: "destructive" });
     },
   });
 
@@ -75,13 +75,13 @@ export default function TeacherDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes"] });
-      toast({ title: "Class deleted" });
+      toast({ title: "Sınıf silindi" });
     },
   });
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    toast({ title: "Copied!", description: `Class code ${code} copied to clipboard.` });
+    toast({ title: "Kopyalandı!", description: `Sınıf kodu ${code} panoya kopyalandı.` });
   };
 
   const handleLogout = async () => {
@@ -91,14 +91,13 @@ export default function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-      {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logoPath} alt="NoteBeat Kids" className="w-10 h-10 object-contain" />
             <div>
               <h1 className="font-extrabold text-lg text-foreground leading-tight">NoteBeat Kids</h1>
-              <p className="text-xs text-muted-foreground font-semibold">Teacher Dashboard</p>
+              <p className="text-xs text-muted-foreground font-semibold">Öğretmen Paneli</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -108,31 +107,29 @@ export default function TeacherDashboard() {
             </div>
             <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2 rounded-xl" data-testid="button-logout">
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="hidden sm:inline">Çıkış</span>
             </Button>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Welcome */}
         <motion.div
           className="mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-3xl font-extrabold text-foreground">
-            Welcome back, {teacher?.name?.split(" ")[0]}!
+            Hoş geldin, {teacher?.name?.split(" ")[0]}!
           </h2>
-          <p className="text-muted-foreground font-semibold mt-1">Manage your music classes below</p>
+          <p className="text-muted-foreground font-semibold mt-1">Müzik sınıflarınızı aşağıdan yönetin</p>
         </motion.div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
           {[
-            { label: "Total Classes", value: classes?.length ?? 0, icon: <BookOpen className="w-6 h-6" />, color: "text-blue-500", bg: "bg-blue-50" },
-            { label: "Total Students", value: classes?.reduce((a, c) => a + (c.maxStudents || 0), 0) ?? 0, icon: <Users className="w-6 h-6" />, color: "text-purple-500", bg: "bg-purple-50" },
-            { label: "Active Classes", value: classes?.filter(c => !c.expiresAt || new Date(c.expiresAt) > new Date()).length ?? 0, icon: <Music className="w-6 h-6" />, color: "text-green-500", bg: "bg-green-50" },
+            { label: "Toplam Sınıf", value: classes?.length ?? 0, icon: <BookOpen className="w-6 h-6" />, color: "text-blue-500", bg: "bg-blue-50" },
+            { label: "Toplam Öğrenci", value: classes?.reduce((a, c) => a + (c.maxStudents || 0), 0) ?? 0, icon: <Users className="w-6 h-6" />, color: "text-purple-500", bg: "bg-purple-50" },
+            { label: "Aktif Sınıf", value: classes?.filter(c => !c.expiresAt || new Date(c.expiresAt) > new Date()).length ?? 0, icon: <Music className="w-6 h-6" />, color: "text-green-500", bg: "bg-green-50" },
           ].map((stat, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
               <Card className="rounded-2xl">
@@ -148,45 +145,44 @@ export default function TeacherDashboard() {
           ))}
         </div>
 
-        {/* Classes list */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-extrabold text-foreground">My Classes</h3>
+          <h3 className="text-xl font-extrabold text-foreground">Sınıflarım</h3>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2 rounded-xl font-bold" data-testid="button-create-class">
                 <Plus className="w-4 h-4" />
-                Create Class
+                Sınıf Oluştur
               </Button>
             </DialogTrigger>
             <DialogContent className="rounded-2xl max-w-md">
               <DialogHeader>
-                <DialogTitle className="text-xl font-extrabold">Create New Class</DialogTitle>
+                <DialogTitle className="text-xl font-extrabold">Yeni Sınıf Oluştur</DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(d => createClass.mutate(d))} className="space-y-4 pt-2">
                   <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Class Name</FormLabel>
-                      <FormControl><Input {...field} placeholder="e.g. Grade 2A Music" className="rounded-xl" data-testid="input-class-name" /></FormControl>
+                      <FormLabel className="font-bold">Sınıf Adı</FormLabel>
+                      <FormControl><Input {...field} placeholder="ör. 2A Müzik Sınıfı" className="rounded-xl" data-testid="input-class-name" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="maxStudents" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Max Students</FormLabel>
+                      <FormLabel className="font-bold">Maksimum Öğrenci</FormLabel>
                       <FormControl><Input {...field} type="number" min={1} max={100} className="rounded-xl" data-testid="input-max-students" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="expiresAt" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Expiration Date (optional)</FormLabel>
+                      <FormLabel className="font-bold">Son Kullanma Tarihi (isteğe bağlı)</FormLabel>
                       <FormControl><Input {...field} type="date" className="rounded-xl" data-testid="input-expires-at" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <Button type="submit" disabled={createClass.isPending} className="w-full rounded-xl font-bold" data-testid="button-submit-class">
-                    {createClass.isPending ? "Creating..." : "Create Class"}
+                    {createClass.isPending ? "Oluşturuluyor..." : "Sınıf Oluştur"}
                   </Button>
                 </form>
               </Form>
@@ -204,9 +200,9 @@ export default function TeacherDashboard() {
           <Card className="rounded-2xl">
             <CardContent className="py-16 text-center">
               <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-              <h3 className="text-xl font-extrabold text-muted-foreground mb-2">No classes yet</h3>
-              <p className="text-muted-foreground mb-4 font-semibold">Create your first class to get started!</p>
-              <Button onClick={() => setDialogOpen(true)} className="rounded-xl font-bold">Create Class</Button>
+              <h3 className="text-xl font-extrabold text-muted-foreground mb-2">Henüz sınıf yok</h3>
+              <p className="text-muted-foreground mb-4 font-semibold">Başlamak için ilk sınıfınızı oluşturun!</p>
+              <Button onClick={() => setDialogOpen(true)} className="rounded-xl font-bold">Sınıf Oluştur</Button>
             </CardContent>
           </Card>
         ) : (
@@ -225,15 +221,14 @@ export default function TeacherDashboard() {
                       <div className="flex items-start justify-between gap-2">
                         <CardTitle className="text-lg font-extrabold leading-tight">{cls.name}</CardTitle>
                         <Badge variant={expired ? "destructive" : "default"} className="shrink-0">
-                          {expired ? "Expired" : "Active"}
+                          {expired ? "Süresi Doldu" : "Aktif"}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {/* Class code */}
                       <div className="flex items-center justify-between bg-primary/5 rounded-xl p-3">
                         <div>
-                          <p className="text-xs text-muted-foreground font-bold">Class Code</p>
+                          <p className="text-xs text-muted-foreground font-bold">Sınıf Kodu</p>
                           <p className="font-mono text-2xl font-extrabold text-primary tracking-widest" data-testid={`text-class-code-${cls.id}`}>{cls.classCode}</p>
                         </div>
                         <button
@@ -247,12 +242,12 @@ export default function TeacherDashboard() {
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Users className="w-3.5 h-3.5" />
-                          <span className="font-semibold">Max {cls.maxStudents}</span>
+                          <span className="font-semibold">Maks {cls.maxStudents}</span>
                         </div>
                         {cls.expiresAt && (
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5" />
-                            <span className="font-semibold">{new Date(cls.expiresAt).toLocaleDateString()}</span>
+                            <span className="font-semibold">{new Date(cls.expiresAt).toLocaleDateString("tr-TR")}</span>
                           </div>
                         )}
                       </div>
@@ -265,7 +260,7 @@ export default function TeacherDashboard() {
                           data-testid={`button-view-class-${cls.id}`}
                         >
                           <Users className="w-3.5 h-3.5 mr-1.5" />
-                          View Students
+                          Öğrencileri Gör
                         </Button>
                         <Button
                           variant="outline"

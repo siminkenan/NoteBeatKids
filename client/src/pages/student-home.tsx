@@ -36,7 +36,6 @@ export default function StudentHome() {
     <div className="min-h-screen relative overflow-hidden"
       style={{ background: "linear-gradient(160deg, #a8edea 0%, #fed6e3 50%, #ffecd2 100%)" }}
     >
-      {/* Floating decorations */}
       <div className="absolute inset-0 pointer-events-none select-none">
         {["⭐", "🎵", "🎶", "🌟", "✨"].map((emoji, i) => (
           <motion.span
@@ -52,13 +51,13 @@ export default function StudentHome() {
       </div>
 
       <div className="relative z-10 max-w-lg mx-auto px-4 py-6 flex flex-col min-h-screen">
-        {/* Header */}
+        {/* Üst bar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <img src={logoPath} alt="NoteBeat Kids" className="w-12 h-12 object-contain" />
             <div>
               <h1 className="font-extrabold text-lg text-gray-800 leading-tight">
-                Hi, {student.student.firstName}!
+                Merhaba, {student.student.firstName}!
               </h1>
               <p className="text-sm text-gray-600 font-semibold">{student.class.name}</p>
             </div>
@@ -73,17 +72,17 @@ export default function StudentHome() {
               className="text-xs text-gray-500 font-bold cursor-pointer"
               data-testid="button-logout"
             >
-              Logout
+              Çıkış
             </button>
           </div>
         </div>
 
-        {/* Stats bar */}
+        {/* İstatistik bar */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: "Rhythm Level", value: rhythmProgress?.level ?? 1, color: "#f97316", icon: "🥁" },
-            { label: "Notes Level", value: notesProgress?.level ?? 1, color: "#8b5cf6", icon: "🎵" },
-            { label: "Total Stars", value: totalStars, color: "#f59e0b", icon: "⭐" },
+            { label: "Ritim Seviyesi", value: rhythmProgress?.level ?? 1, color: "#f97316", icon: "🥁" },
+            { label: "Nota Seviyesi", value: notesProgress?.level ?? 1, color: "#8b5cf6", icon: "🎵" },
+            { label: "Toplam Yıldız", value: totalStars, color: "#f59e0b", icon: "⭐" },
           ].map((stat, i) => (
             <motion.div
               key={i}
@@ -99,9 +98,9 @@ export default function StudentHome() {
           ))}
         </div>
 
-        {/* Activity buttons */}
+        {/* Oyun butonları */}
         <div className="flex flex-col gap-5 flex-1">
-          {/* Catch The Rhythm */}
+          {/* Ritmi Yakala */}
           <motion.button
             data-testid="button-rhythm-game"
             className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
@@ -120,20 +119,20 @@ export default function StudentHome() {
               <span className="text-5xl">🥁</span>
             </div>
             <div>
-              <h2 className="text-2xl font-extrabold text-white">Catch The Rhythm</h2>
-              <p className="text-white/85 font-bold text-sm mt-1">Tap along to the beat! Match the rhythm pattern.</p>
+              <h2 className="text-2xl font-extrabold text-white">Ritmi Yakala</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Ritme eşlik et! Ritim kalıbını eşleştir.</p>
               <div className="flex items-center gap-2 mt-2">
                 <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
-                  Level {rhythmProgress?.level ?? 1}
+                  Seviye {rhythmProgress?.level ?? 1}
                 </div>
                 <div className="text-white/80 text-xs font-bold">
-                  {rhythmProgress?.starsEarned ?? 0} stars earned
+                  {rhythmProgress?.starsEarned ?? 0} yıldız kazanıldı
                 </div>
               </div>
             </div>
           </motion.button>
 
-          {/* Note Detective */}
+          {/* Nota Dedektifi */}
           <motion.button
             data-testid="button-notes-game"
             className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
@@ -152,20 +151,20 @@ export default function StudentHome() {
               <span className="text-5xl">🔍</span>
             </div>
             <div>
-              <h2 className="text-2xl font-extrabold text-white">Note Detective</h2>
-              <p className="text-white/85 font-bold text-sm mt-1">Identify musical notes on the staff!</p>
+              <h2 className="text-2xl font-extrabold text-white">Nota Dedektifi</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Portedeki müzik notalarını tanı!</p>
               <div className="flex items-center gap-2 mt-2">
                 <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
-                  Level {notesProgress?.level ?? 1}
+                  Seviye {notesProgress?.level ?? 1}
                 </div>
                 <div className="text-white/80 text-xs font-bold">
-                  {notesProgress?.starsEarned ?? 0} stars earned
+                  {notesProgress?.starsEarned ?? 0} yıldız kazanıldı
                 </div>
               </div>
             </div>
           </motion.button>
 
-          {/* Level Map button */}
+          {/* İlerleme Haritası */}
           <motion.button
             data-testid="button-level-map"
             className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
@@ -184,8 +183,8 @@ export default function StudentHome() {
               <span className="text-3xl">🗺️</span>
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-white">My Progress Map</h2>
-              <p className="text-white/85 font-semibold text-sm">See your learning journey!</p>
+              <h2 className="text-xl font-extrabold text-white">İlerleme Haritam</h2>
+              <p className="text-white/85 font-semibold text-sm">Öğrenme yolculuğunu gör!</p>
             </div>
           </motion.button>
         </div>

@@ -15,9 +15,9 @@ import { ArrowLeft } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 
 const loginSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  classCode: z.string().min(6, "Class code must be 6 characters").max(6).transform(v => v.toUpperCase()),
+  firstName: z.string().min(1, "Ad gerekli"),
+  lastName: z.string().min(1, "Soyad gerekli"),
+  classCode: z.string().min(6, "Sınıf kodu 6 karakter olmalı").max(6).transform(v => v.toUpperCase()),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -42,8 +42,8 @@ export default function StudentLogin() {
       navigate("/student/home");
     } catch (e: any) {
       toast({
-        title: "Login failed",
-        description: e.message || "Please check your name and class code",
+        title: "Giriş başarısız",
+        description: e.message || "Adını ve sınıf kodunu kontrol et",
         variant: "destructive",
       });
     } finally {
@@ -55,7 +55,6 @@ export default function StudentLogin() {
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 40%, #fda085 100%)" }}
     >
-      {/* Stars background */}
       <div className="absolute inset-0 pointer-events-none select-none">
         {[...Array(6)].map((_, i) => (
           <motion.span
@@ -82,7 +81,7 @@ export default function StudentLogin() {
           data-testid="button-back-home"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Home
+          Ana Sayfaya Dön
         </button>
 
         <Card className="shadow-2xl border-0 rounded-3xl">
@@ -90,9 +89,9 @@ export default function StudentLogin() {
             <div className="flex justify-center mb-4">
               <img src={logoPath} alt="NoteBeat Kids" className="w-20 h-20 object-contain" />
             </div>
-            <CardTitle className="text-2xl font-extrabold">Student Login</CardTitle>
+            <CardTitle className="text-2xl font-extrabold">Öğrenci Girişi</CardTitle>
             <CardDescription className="text-base">
-              Enter your name and class code to start playing!
+              Adını ve sınıf kodunu girerek oynamaya başla!
             </CardDescription>
           </CardHeader>
 
@@ -105,11 +104,11 @@ export default function StudentLogin() {
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-bold">First Name</FormLabel>
+                        <FormLabel className="font-bold">Ad</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="Emma"
+                            placeholder="Ali"
                             className="rounded-xl h-12"
                             data-testid="input-first-name"
                           />
@@ -123,11 +122,11 @@ export default function StudentLogin() {
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-bold">Last Name</FormLabel>
+                        <FormLabel className="font-bold">Soyad</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="Wilson"
+                            placeholder="Yılmaz"
                             className="rounded-xl h-12"
                             data-testid="input-last-name"
                           />
@@ -143,7 +142,7 @@ export default function StudentLogin() {
                   name="classCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Class Code</FormLabel>
+                      <FormLabel className="font-bold">Sınıf Kodu</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -155,7 +154,7 @@ export default function StudentLogin() {
                         />
                       </FormControl>
                       <FormMessage />
-                      <p className="text-xs text-muted-foreground text-center">Ask your teacher for the 6-digit class code</p>
+                      <p className="text-xs text-muted-foreground text-center">6 haneli sınıf kodu için öğretmenine sor</p>
                     </FormItem>
                   )}
                 />
@@ -167,15 +166,15 @@ export default function StudentLogin() {
                   style={{ background: "linear-gradient(135deg, #f093fb, #f5576c)" }}
                   data-testid="button-submit-login"
                 >
-                  {loading ? "Joining..." : "Let's Play!"}
+                  {loading ? "Katılınıyor..." : "Hadi Oynayalım!"}
                 </Button>
               </form>
             </Form>
 
             <div className="mt-6 p-4 bg-muted rounded-xl text-sm text-muted-foreground">
-              <p className="font-bold text-foreground mb-1">Try demo:</p>
-              <p>First Name: <span className="font-bold text-foreground">Emma</span>, Last Name: <span className="font-bold text-foreground">Wilson</span></p>
-              <p>Class Code: <span className="font-mono font-bold text-foreground">SUN2A1</span></p>
+              <p className="font-bold text-foreground mb-1">Demo için dene:</p>
+              <p>Ad: <span className="font-bold text-foreground">Emma</span>, Soyad: <span className="font-bold text-foreground">Wilson</span></p>
+              <p>Sınıf Kodu: <span className="font-mono font-bold text-foreground">SUN2A1</span></p>
             </div>
           </CardContent>
         </Card>
