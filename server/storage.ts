@@ -25,6 +25,7 @@ export interface IStorage {
   getTeacher(id: string): Promise<Teacher | undefined>;
   createTeacher(data: InsertTeacher): Promise<Teacher>;
   // Classes
+  getAllClasses(): Promise<Array<Class & { teacherName: string; teacherEmail: string; institutionName: string | null; studentCount: number }>>;
   getClassesByTeacher(teacherId: string): Promise<Class[]>;
   getClass(id: string): Promise<Class | undefined>;
   getClassByCode(code: string): Promise<Class | undefined>;
@@ -102,6 +103,40 @@ export class DatabaseStorage implements IStorage {
     const hashed = await bcrypt.hash(data.password, 10);
     const result = await db.insert(teachers).values({ ...data, password: hashed }).returning();
     return result[0];
+  }
+
+  async getAllClasses(): Promise<Array<Class & { teacherName: string; teacherEmail: string; institutionName: string | null; studentCount: number }>> {
+    const rows = await db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        teacherId: classes.teacherId,
+        classCode: classes.classCode,
+        maxStudents: classes.maxStudents,
+        expiresAt: classes.expiresAt,
+        createdAt: classes.createdAt,
+        teacherName: teachers.name,
+        teacherEmail: teachers.email,
+        institutionName: institutions.name,
+      })
+      .from(classes)
+      .leftJoin(teachers, eq(classes.teacherId, teachers.id))
+      .leftJoin(institutions, eq(teachers.institutionId, institutions.id))
+      .orderBy(classes.createdAt);
+
+    const counts = await db
+      .select({ classId: students.classId, count: sql<number>`count(*)::int` })
+      .from(students)
+      .groupBy(students.classId);
+    const countMap = Object.fromEntries(counts.map(r => [r.classId, r.count]));
+
+    return rows.map(r => ({
+      ...r,
+      teacherName: r.teacherName ?? "—",
+      teacherEmail: r.teacherEmail ?? "—",
+      institutionName: r.institutionName ?? null,
+      studentCount: countMap[r.id] ?? 0,
+    }));
   }
 
   async getClassesByTeacher(teacherId: string): Promise<Class[]> {

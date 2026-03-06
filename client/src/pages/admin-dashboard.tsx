@@ -15,9 +15,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, RotateCcw } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, RotateCcw, School, Trash2, Search } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import type { Institution, Teacher } from "@shared/schema";
+
+type AdminClass = {
+  id: string;
+  name: string;
+  teacherId: string;
+  classCode: string;
+  maxStudents: number;
+  expiresAt: string | null;
+  createdAt: string;
+  teacherName: string;
+  teacherEmail: string;
+  institutionName: string | null;
+  studentCount: number;
+};
 
 type AdminStats = {
   institutionCount: number;
@@ -56,6 +70,7 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const [instDialogOpen, setInstDialogOpen] = useState(false);
   const [teacherDialogOpen, setTeacherDialogOpen] = useState(false);
+  const [classSearch, setClassSearch] = useState("");
 
   useEffect(() => {
     if (!admin) {
@@ -77,6 +92,11 @@ export default function AdminDashboard() {
 
   const { data: teachers } = useQuery<Teacher[]>({
     queryKey: ["/api/admin/teachers"],
+    enabled: !!admin,
+  });
+
+  const { data: allClasses } = useQuery<AdminClass[]>({
+    queryKey: ["/api/admin/classes"],
     enabled: !!admin,
   });
 
@@ -154,6 +174,19 @@ export default function AdminDashboard() {
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
+  const deleteClass = useMutation({
+    mutationFn: async (classId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/classes/${classId}`, undefined);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: "Sınıf silindi!" });
+    },
+    onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
   const handleLogout = async () => {
     await logoutAdmin();
     navigate("/");
@@ -214,6 +247,7 @@ export default function AdminDashboard() {
           <TabsList className="mb-6 rounded-xl bg-white border">
             <TabsTrigger value="institutions" className="rounded-lg font-bold">Kurumlar</TabsTrigger>
             <TabsTrigger value="teachers" className="rounded-lg font-bold">Öğretmenler</TabsTrigger>
+            <TabsTrigger value="classes" className="rounded-lg font-bold">Sınıflar</TabsTrigger>
           </TabsList>
 
           <TabsContent value="institutions">
@@ -425,6 +459,93 @@ export default function AdminDashboard() {
                   </Card>
                 </motion.div>
               ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="classes">
+            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+              <h3 className="text-xl font-extrabold">Sınıflar</h3>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Sınıf, öğretmen veya kurum ara..."
+                  value={classSearch}
+                  onChange={e => setClassSearch(e.target.value)}
+                  className="pl-9 rounded-xl"
+                  data-testid="input-class-search"
+                />
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(allClasses ?? [])
+                .filter(cls => {
+                  if (!classSearch.trim()) return true;
+                  const q = classSearch.toLowerCase();
+                  return (
+                    cls.name.toLowerCase().includes(q) ||
+                    cls.classCode.toLowerCase().includes(q) ||
+                    cls.teacherName.toLowerCase().includes(q) ||
+                    (cls.institutionName ?? "").toLowerCase().includes(q)
+                  );
+                })
+                .map((cls, i) => (
+                  <motion.div key={cls.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                    <Card className="rounded-2xl" data-testid={`card-class-${cls.id}`}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                              <School className="w-4 h-4 text-indigo-600" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-extrabold text-foreground truncate">{cls.name}</p>
+                              <code className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md" data-testid={`text-classcode-${cls.id}`}>{cls.classCode}</code>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:bg-red-50 rounded-xl flex-shrink-0"
+                            disabled={deleteClass.isPending}
+                            onClick={() => {
+                              if (window.confirm(`"${cls.name}" sınıfı ve içindeki tüm öğrenciler silinecek. Emin misiniz?`)) {
+                                deleteClass.mutate(cls.id);
+                              }
+                            }}
+                            data-testid={`button-delete-class-${cls.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <p className="font-semibold truncate">
+                            <span className="text-foreground">Öğretmen:</span> {cls.teacherName}
+                          </p>
+                          {cls.institutionName && (
+                            <p className="font-semibold truncate">
+                              <span className="text-foreground">Kurum:</span> {cls.institutionName}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2 flex-wrap">
+                          <span className="bg-green-50 text-green-700 font-bold text-xs px-2 py-1 rounded-lg" data-testid={`text-student-count-${cls.id}`}>
+                            {cls.studentCount} / {cls.maxStudents} öğrenci
+                          </span>
+                          {cls.expiresAt && (
+                            <span className={`font-bold text-xs px-2 py-1 rounded-lg ${new Date(cls.expiresAt) < new Date() ? "bg-red-50 text-red-600" : "bg-yellow-50 text-yellow-700"}`}>
+                              {new Date(cls.expiresAt) < new Date() ? "Süresi doldu" : `Bitiş: ${new Date(cls.expiresAt).toLocaleDateString("tr-TR")}`}
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              {(allClasses ?? []).length === 0 && (
+                <p className="text-muted-foreground font-semibold col-span-3 py-8 text-center" data-testid="text-no-classes">Henüz sınıf yok.</p>
+              )}
             </div>
           </TabsContent>
         </Tabs>

@@ -247,6 +247,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Admin: list all classes
+  app.get("/api/admin/classes", async (req: Request, res: Response) => {
+    const adminId = (req.session as any).adminId;
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const list = await storage.getAllClasses();
+    res.json(list);
+  });
+
+  // Admin: delete any class
+  app.delete("/api/admin/classes/:classId", async (req: Request, res: Response) => {
+    const adminId = (req.session as any).adminId;
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const cls = await storage.getClass(req.params.classId);
+    if (!cls) return res.status(404).json({ message: "Class not found" });
+    await storage.deleteClass(req.params.classId);
+    res.json({ ok: true });
+  });
+
   // Class public info (for students to verify)
   app.get("/api/class/:code", async (req: Request, res: Response) => {
     const cls = await storage.getClassByCode(req.params.code);
