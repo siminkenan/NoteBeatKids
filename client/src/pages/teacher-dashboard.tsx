@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen } from "lucide-react";
+import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import type { Class } from "@shared/schema";
 
@@ -30,6 +31,7 @@ export default function TeacherDashboard() {
   const { teacher, setTeacher, logoutTeacher } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [qrClass, setQrClass] = useState<Class | null>(null);
 
   useEffect(() => {
     if (!teacher) {
@@ -144,6 +146,42 @@ export default function TeacherDashboard() {
             </motion.div>
           ))}
         </div>
+
+        {/* QR Code Dialog */}
+        <Dialog open={!!qrClass} onOpenChange={open => !open && setQrClass(null)}>
+          <DialogContent className="rounded-2xl max-w-sm text-center">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-extrabold">QR Kodu</DialogTitle>
+            </DialogHeader>
+            {qrClass && (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <div className="bg-white p-4 rounded-2xl shadow-inner border">
+                  <QRCodeSVG
+                    value={qrClass.classCode}
+                    size={200}
+                    level="H"
+                    includeMargin={false}
+                    data-testid={`qr-code-${qrClass.id}`}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-extrabold text-lg text-foreground">{qrClass.name}</p>
+                  <p className="font-mono text-2xl font-extrabold text-primary tracking-widest">{qrClass.classCode}</p>
+                  <p className="text-sm text-muted-foreground font-semibold">Öğrenciler bu kodu tarayarak katılabilir</p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="gap-2 rounded-xl font-bold w-full"
+                  onClick={() => copyCode(qrClass.classCode)}
+                  data-testid="button-copy-qr-code"
+                >
+                  <Copy className="w-4 h-4" />
+                  Kodu Kopyala
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-extrabold text-foreground">Sınıflarım</h3>
@@ -261,6 +299,15 @@ export default function TeacherDashboard() {
                         >
                           <Users className="w-3.5 h-3.5 mr-1.5" />
                           Öğrencileri Gör
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-primary"
+                          onClick={() => setQrClass(cls)}
+                          data-testid={`button-show-qr-${cls.id}`}
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
                         </Button>
                         <Button
                           variant="outline"

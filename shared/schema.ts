@@ -9,6 +9,8 @@ export const institutions = pgTable("institutions", {
   licenseStart: timestamp("license_start").notNull(),
   licenseEnd: timestamp("license_end").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+  maxTeachers: integer("max_teachers").notNull().default(10),
+  maxStudents: integer("max_students").notNull().default(200),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -1,0 +1,233 @@
+Build a secure login and role-based access system for the web application NoteBeat Kids.
+
+The system must support three roles:
+
+Admin  
+Teacher  
+Student
+
+Each role has different authentication and access permissions.
+
+------------------------------------------------
+
+LOGIN ENTRY SCREEN
+
+When the application starts show a Role Selection Screen with three large buttons:
+
+Admin Login  
+Teacher Login  
+Student Login
+
+Design:
+
+Large rounded buttons  
+Pastel colors  
+Child friendly UI
+
+------------------------------------------------
+
+ADMIN LOGIN SYSTEM
+
+Admin login must use:
+
+Email  
+Password
+
+Security requirements:
+
+Passwords hashed using bcrypt  
+JWT authentication tokens  
+Protected admin routes
+
+Admin dashboard access only after successful authentication.
+
+Admin capabilities:
+
+Create Institution  
+Create Subscription  
+Define Subscription Duration  
+Define Teacher Limit  
+Define Student Limit
+
+Example subscription settings:
+
+Institution Name  
+License Duration (months)  
+Max Teachers  
+Max Students
+
+Admin must also see system statistics:
+
+Total Institutions  
+Total Teachers  
+Total Students
+
+------------------------------------------------
+
+TEACHER LOGIN SYSTEM
+
+Teachers login using Google OAuth authentication.
+
+Login flow:
+
+Teacher clicks Login with Google.
+
+System verifies:
+
+Is this teacher registered under an institution?
+
+Is the institution subscription active?
+
+If both checks are valid:
+
+Allow teacher login.
+
+Otherwise show message:
+
+"Access denied. Institution subscription inactive."
+
+Teacher session must be stored so they remain logged in.
+
+Teacher dashboard includes:
+
+Create Class  
+View Classes  
+Generate Class QR Code  
+View Student Progress
+
+------------------------------------------------
+
+STUDENT LOGIN SYSTEM
+
+Students do not have traditional accounts.
+
+Students join using:
+
+Class Code  
+OR  
+QR Code
+
+Student login screen fields:
+
+Student Name  
+Class Code
+
+OR
+
+Scan QR Code button.
+
+QR system must use camera access to scan.
+
+After scanning QR code:
+
+System retrieves class ID.
+
+Student then enters name and joins class.
+
+------------------------------------------------
+
+QR CODE CLASS ACCESS
+
+Each class created by a teacher must generate a unique QR code.
+
+QR code contains:
+
+Encrypted Class ID  
+Institution ID  
+Secure Token
+
+QR tokens must be validated server-side.
+
+If class capacity is full:
+
+QR code becomes inactive.
+
+Show message:
+
+"Class capacity reached."
+
+------------------------------------------------
+
+SUBSCRIPTION VALIDATION
+
+Every login must verify subscription status.
+
+Rules:
+
+If institution subscription expired:
+
+Teacher login blocked  
+Student login blocked
+
+Show message:
+
+"Subscription expired. Please contact administrator."
+
+------------------------------------------------
+
+ROLE BASED ROUTING
+
+After login users must be redirected automatically:
+
+Admin → Admin Dashboard  
+Teacher → Teacher Dashboard  
+Student → Student Activity Screen
+
+Students should see only:
+
+Catch The Rhythm  
+Note Detective
+
+Teachers see:
+
+Classes  
+Student Progress  
+Reports
+
+Admin sees:
+
+Institutions  
+Subscriptions  
+Statistics
+
+------------------------------------------------
+
+SESSION MANAGEMENT
+
+Sessions must include:
+
+JWT tokens  
+Secure cookies  
+Auto login memory
+
+Logout must destroy session tokens.
+
+------------------------------------------------
+
+SECURITY REQUIREMENTS
+
+Use:
+
+bcrypt password hashing  
+JWT authentication  
+Google OAuth verification  
+Role based access control  
+Encrypted QR tokens
+
+Prevent:
+
+Unauthorized panel access  
+Subscription bypass  
+QR manipulation
+
+------------------------------------------------
+
+FINAL RESULT
+
+The system must provide a stable and secure login architecture for:
+
+Admin  
+Teacher  
+Student
+
+Compatible with web and mobile devices.

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, QrCode, X } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 
 const loginSchema = z.object({
@@ -27,11 +27,56 @@ export default function StudentLogin() {
   const { setStudent } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const scannerRef = useRef<any>(null);
+  const scannerInitRef = useRef(false);
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { firstName: "", lastName: "", classCode: "" },
   });
+
+  useEffect(() => {
+    if (showScanner && !scannerInitRef.current) {
+      scannerInitRef.current = true;
+      import("html5-qrcode").then(({ Html5QrcodeScanner }) => {
+        const scanner = new Html5QrcodeScanner(
+          "qr-reader",
+          { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
+          false
+        );
+        scanner.render(
+          (decodedText: string) => {
+            const code = decodedText.trim().toUpperCase().slice(0, 6);
+            form.setValue("classCode", code);
+            scanner.clear().catch(() => {});
+            setShowScanner(false);
+            scannerInitRef.current = false;
+            scannerRef.current = null;
+            toast({ title: "QR Kodu Okundu!", description: `Sınıf kodu: ${code}` });
+          },
+          () => {}
+        );
+        scannerRef.current = scanner;
+      });
+    }
+    return () => {
+      if (!showScanner && scannerRef.current) {
+        scannerRef.current.clear().catch(() => {});
+        scannerRef.current = null;
+        scannerInitRef.current = false;
+      }
+    };
+  }, [showScanner]);
+
+  const closeScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.clear().catch(() => {});
+      scannerRef.current = null;
+    }
+    scannerInitRef.current = false;
+    setShowScanner(false);
+  };
 
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
@@ -143,18 +188,31 @@ export default function StudentLogin() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="font-bold">Sınıf Kodu</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="SUN2A1"
-                          className="rounded-xl h-14 text-center text-2xl font-mono font-extrabold tracking-widest uppercase"
-                          maxLength={6}
-                          onChange={e => field.onChange(e.target.value.toUpperCase())}
-                          data-testid="input-class-code"
-                        />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="SUN2A1"
+                            className="rounded-xl h-14 text-center text-2xl font-mono font-extrabold tracking-widest uppercase"
+                            maxLength={6}
+                            onChange={e => field.onChange(e.target.value.toUpperCase())}
+                            data-testid="input-class-code"
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-14 w-14 rounded-xl shrink-0 text-primary border-primary/30"
+                          onClick={() => setShowScanner(true)}
+                          data-testid="button-open-scanner"
+                        >
+                          <QrCode className="w-6 h-6" />
+                        </Button>
+                      </div>
                       <FormMessage />
-                      <p className="text-xs text-muted-foreground text-center">6 haneli sınıf kodu için öğretmenine sor</p>
+                      <p className="text-xs text-muted-foreground text-center">
+                        6 haneli sınıf kodu için öğretmenine sor ya da QR kodu tara
+                      </p>
                     </FormItem>
                   )}
                 />
@@ -179,6 +237,46 @@ export default function StudentLogin() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* QR Scanner Overlay */}
+      <AnimatePresence>
+        {showScanner && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.85)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+              initial={{ scale: 0.8, y: 40 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, y: 40 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-extrabold text-foreground">QR Kodu Tara</h3>
+                  <p className="text-sm text-muted-foreground font-semibold">Kamerayı QR koduna tut</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={closeScanner}
+                  data-testid="button-close-scanner"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div id="qr-reader" className="w-full rounded-2xl overflow-hidden" data-testid="qr-reader-container" />
+              <p className="text-xs text-center text-muted-foreground mt-3 font-semibold">
+                Kamera izni gereklidir
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

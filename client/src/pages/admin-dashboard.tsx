@@ -31,6 +31,8 @@ const institutionSchema = z.object({
   name: z.string().min(1, "Kurum adı gerekli"),
   licenseStart: z.string().min(1, "Başlangıç tarihi gerekli"),
   licenseEnd: z.string().min(1, "Bitiş tarihi gerekli"),
+  maxTeachers: z.coerce.number().min(1, "En az 1").max(500).default(10),
+  maxStudents: z.coerce.number().min(1, "En az 1").max(10000).default(200),
 });
 type InstitutionForm = z.infer<typeof institutionSchema>;
 
@@ -80,7 +82,7 @@ export default function AdminDashboard() {
 
   const instForm = useForm<InstitutionForm>({
     resolver: zodResolver(institutionSchema),
-    defaultValues: { name: "", licenseStart: "", licenseEnd: "" },
+    defaultValues: { name: "", licenseStart: "", licenseEnd: "", maxTeachers: 10, maxStudents: 200 },
   });
 
   const teacherForm = useForm<TeacherForm>({
@@ -235,6 +237,22 @@ export default function AdminDashboard() {
                           </FormItem>
                         )} />
                       </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <FormField control={instForm.control} name="maxTeachers" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-bold">Maks. Öğretmen</FormLabel>
+                            <FormControl><Input {...field} type="number" min={1} max={500} className="rounded-xl" data-testid="input-max-teachers" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={instForm.control} name="maxStudents" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-bold">Maks. Öğrenci</FormLabel>
+                            <FormControl><Input {...field} type="number" min={1} max={10000} className="rounded-xl" data-testid="input-max-students" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
                       <Button type="submit" disabled={createInstitution.isPending} className="w-full rounded-xl font-bold" data-testid="button-submit-institution">
                         {createInstitution.isPending ? "Oluşturuluyor..." : "Kurum Oluştur"}
                       </Button>
@@ -266,6 +284,14 @@ export default function AdminDashboard() {
                         <div className="text-sm text-muted-foreground font-semibold">
                           <p>Başlangıç: {new Date(inst.licenseStart).toLocaleDateString("tr-TR")}</p>
                           <p>Bitiş: {new Date(inst.licenseEnd).toLocaleDateString("tr-TR")}</p>
+                        </div>
+                        <div className="flex gap-2 text-xs">
+                          <span className="bg-purple-50 text-purple-700 font-bold px-2 py-1 rounded-lg">
+                            Maks. Öğretmen: {(inst as any).maxTeachers ?? 10}
+                          </span>
+                          <span className="bg-green-50 text-green-700 font-bold px-2 py-1 rounded-lg">
+                            Maks. Öğrenci: {(inst as any).maxStudents ?? 200}
+                          </span>
                         </div>
                         <Button
                           variant="outline"

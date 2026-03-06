@@ -46,9 +46,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { email, password } = req.body;
       const teacher = await storage.getTeacherByEmail(email);
-      if (!teacher) return res.status(401).json({ message: "Invalid credentials" });
+      if (!teacher) return res.status(401).json({ message: "Geçersiz e-posta veya şifre." });
       const valid = await bcrypt.compare(password, teacher.password);
-      if (!valid) return res.status(401).json({ message: "Invalid credentials" });
+      if (!valid) return res.status(401).json({ message: "Geçersiz e-posta veya şifre." });
+      if (teacher.institutionId) {
+        const institution = await storage.getInstitution(teacher.institutionId);
+        if (institution) {
+          if (!institution.isActive) {
+            return res.status(403).json({ message: "Erişim engellendi. Kurum aboneliği pasif durumda. Yöneticinizle iletişime geçin." });
+          }
+          if (new Date(institution.licenseEnd) < new Date()) {
+            return res.status(403).json({ message: "Abonelik süresi doldu. Lütfen yöneticinizle iletişime geçin." });
+          }
+        }
+      }
       (req.session as any).teacherId = teacher.id;
       const { password: _, ...safeTeacher } = teacher;
       res.json({ ...safeTeacher, role: "teacher" });
@@ -198,6 +209,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const adminId = (req.session as any).adminId;
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     try {
+      if (req.body.institutionId) {
+        const institution = await storage.getInstitution(req.body.institutionId);
+        if (institution) {
+          const existingTeachers = await storage.getTeachersByInstitution(req.body.institutionId);
+          if (existingTeachers.length >= institution.maxTeachers) {
+            return res.status(403).json({ message: `Bu kurum maksimum öğretmen sınırına (${institution.maxTeachers}) ulaşmış.` });
+          }
+        }
+      }
       const teacher = await storage.createTeacher(req.body);
       const { password: _, ...safe } = teacher;
       res.json(safe);
