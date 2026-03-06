@@ -5,22 +5,26 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Shield, LogIn } from "lucide-react";
+import { ArrowLeft, Shield, Lock, LogIn } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 
 export default function AdminLogin() {
   const [, navigate] = useLocation();
   const { setAdmin } = useAuth();
   const { toast } = useToast();
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) return;
     setLoading(true);
     try {
       const result = await apiRequest("POST", "/api/auth/admin/login", {
         email: "admin@notebeatkids.com",
-        password: "114344_Kenan",
+        password,
       });
       const admin = await result.json();
       setAdmin(admin);
@@ -28,7 +32,7 @@ export default function AdminLogin() {
     } catch (e: any) {
       toast({
         title: "Erişim reddedildi",
-        description: e.message || "Geçersiz kimlik bilgileri",
+        description: "Şifre hatalı. Lütfen tekrar deneyin.",
         variant: "destructive",
       });
     } finally {
@@ -77,38 +81,53 @@ export default function AdminLogin() {
           </CardHeader>
 
           <CardContent className="px-8 pb-10">
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <Button
-                onClick={handleLogin}
-                disabled={loading}
-                className="w-full h-14 rounded-2xl text-lg font-extrabold gap-3 mt-2"
-                style={{
-                  background: loading
-                    ? undefined
-                    : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                }}
-                data-testid="button-submit-login"
-              >
-                {loading ? (
-                  <>
-                    <motion.div
-                      className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                    />
-                    Giriş yapılıyor...
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-5 h-5" />
-                    Yönetici Paneline Giriş
-                  </>
-                )}
-              </Button>
-            </motion.div>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <label className="font-bold text-slate-300 text-sm block">Şifre</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="pl-10 rounded-xl h-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    autoFocus
+                    data-testid="input-password"
+                  />
+                </div>
+              </div>
+
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
+                <Button
+                  type="submit"
+                  disabled={loading || !password}
+                  className="w-full h-12 rounded-xl text-base font-extrabold gap-2 mt-2"
+                  style={{
+                    background: loading || !password
+                      ? undefined
+                      : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  }}
+                  data-testid="button-submit-login"
+                >
+                  {loading ? (
+                    <>
+                      <motion.div
+                        className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                      />
+                      Doğrulanıyor...
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-4 h-4" />
+                      Giriş Yap
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+            </form>
           </CardContent>
         </Card>
       </motion.div>
