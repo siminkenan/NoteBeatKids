@@ -31,8 +31,8 @@ const institutionSchema = z.object({
   name: z.string().min(1, "Kurum adı gerekli"),
   licenseStart: z.string().min(1, "Başlangıç tarihi gerekli"),
   licenseEnd: z.string().min(1, "Bitiş tarihi gerekli"),
-  maxTeachers: z.coerce.number().min(1, "En az 1").max(500).default(10),
-  maxStudents: z.coerce.number().min(1, "En az 1").max(10000).default(200),
+  maxTeachers: z.coerce.number().min(0, "En az 0 olmalı").max(2000, "En fazla 2000").default(2000),
+  maxStudents: z.coerce.number().min(0, "En az 0 olmalı").max(6000, "En fazla 6000").default(6000),
 });
 type InstitutionForm = z.infer<typeof institutionSchema>;
 
@@ -258,15 +258,15 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-2 gap-3">
                         <FormField control={instForm.control} name="maxTeachers" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-bold">Maks. Öğretmen</FormLabel>
-                            <FormControl><Input {...field} type="number" min={1} max={500} className="rounded-xl" data-testid="input-max-teachers" /></FormControl>
+                            <FormLabel className="font-bold">Maks. Öğretmen (0–2000)</FormLabel>
+                            <FormControl><Input {...field} type="number" min={0} max={2000} className="rounded-xl" data-testid="input-max-teachers" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={instForm.control} name="maxStudents" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-bold">Maks. Öğrenci</FormLabel>
-                            <FormControl><Input {...field} type="number" min={1} max={10000} className="rounded-xl" data-testid="input-max-students" /></FormControl>
+                            <FormLabel className="font-bold">Maks. Öğrenci (0–6000)</FormLabel>
+                            <FormControl><Input {...field} type="number" min={0} max={6000} className="rounded-xl" data-testid="input-max-students" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />

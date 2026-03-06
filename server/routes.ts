@@ -183,7 +183,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const adminId = (req.session as any).adminId;
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     try {
-      const parsed = insertInstitutionSchema.parse(req.body);
+      const body = {
+        ...req.body,
+        licenseStart: req.body.licenseStart ? new Date(req.body.licenseStart) : undefined,
+        licenseEnd: req.body.licenseEnd ? new Date(req.body.licenseEnd) : undefined,
+        maxTeachers: req.body.maxTeachers !== undefined ? Number(req.body.maxTeachers) : 2000,
+        maxStudents: req.body.maxStudents !== undefined ? Number(req.body.maxStudents) : 6000,
+      };
+      const parsed = insertInstitutionSchema.parse(body);
       const inst = await storage.createInstitution(parsed);
       res.json(inst);
     } catch (e: any) {
