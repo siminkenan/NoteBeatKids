@@ -44,6 +44,23 @@ export interface IStorage {
   getClassProgress(classId: string): Promise<Array<Student & { rhythmProgress?: StudentProgress; notesProgress?: StudentProgress }>>;
   // Reset institution quota (delete all students/classes for all teachers in institution)
   resetInstitutionQuota(institutionId: string): Promise<void>;
+  // Delete institution completely
+  deleteInstitution(institutionId: string): Promise<void>;
+  // Get full institution details (teachers + classes + students + progress)
+  getInstitutionDetails(institutionId: string): Promise<{
+    teachers: Array<{
+      id: string; name: string; email: string;
+      classes: Array<{
+        id: string; name: string; classCode: string; maxStudents: number; expiresAt: string | null;
+        students: Array<{
+          id: string; firstName: string; lastName: string;
+          rhythmLevel: number; rhythmStars: number;
+          notesLevel: number; notesStars: number;
+          totalCorrect: number; totalTimeSeconds: number;
+        }>;
+      }>;
+    }>;
+  }>;
   // Stats
   getAdminStats(): Promise<{
     institutionCount: number;
@@ -251,6 +268,58 @@ export class DatabaseStorage implements IStorage {
         await this.deleteClass(cls.id);
       }
     }
+  }
+
+  async deleteInstitution(institutionId: string): Promise<void> {
+    await this.resetInstitutionQuota(institutionId);
+    await db.delete(teachers).where(eq(teachers.institutionId, institutionId));
+    await db.delete(institutions).where(eq(institutions.id, institutionId));
+  }
+
+  async getInstitutionDetails(institutionId: string): Promise<{
+    teachers: Array<{
+      id: string; name: string; email: string;
+      classes: Array<{
+        id: string; name: string; classCode: string; maxStudents: number; expiresAt: string | null;
+        students: Array<{
+          id: string; firstName: string; lastName: string;
+          rhythmLevel: number; rhythmStars: number;
+          notesLevel: number; notesStars: number;
+          totalCorrect: number; totalTimeSeconds: number;
+        }>;
+      }>;
+    }>;
+  }> {
+    const teacherList = await this.getTeachersByInstitution(institutionId);
+    const result = [];
+    for (const teacher of teacherList) {
+      const classList = await this.getClassesByTeacher(teacher.id);
+      const classResults = [];
+      for (const cls of classList) {
+        const progressList = await this.getClassProgress(cls.id);
+        const studentRows = progressList.map(s => ({
+          id: s.id,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          rhythmLevel: s.rhythmProgress?.level ?? 0,
+          rhythmStars: s.rhythmProgress?.starsEarned ?? 0,
+          notesLevel: s.notesProgress?.level ?? 0,
+          notesStars: s.notesProgress?.starsEarned ?? 0,
+          totalCorrect: (s.rhythmProgress?.correctAnswers ?? 0) + (s.notesProgress?.correctAnswers ?? 0),
+          totalTimeSeconds: (s.rhythmProgress?.timeSpentSeconds ?? 0) + (s.notesProgress?.timeSpentSeconds ?? 0),
+        }));
+        classResults.push({
+          id: cls.id,
+          name: cls.name,
+          classCode: cls.classCode,
+          maxStudents: cls.maxStudents,
+          expiresAt: cls.expiresAt ? cls.expiresAt.toISOString() : null,
+          students: studentRows,
+        });
+      }
+      result.push({ id: teacher.id, name: teacher.name, email: teacher.email, classes: classResults });
+    }
+    return { teachers: result };
   }
 
   async getAdminStats() {

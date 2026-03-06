@@ -219,6 +219,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: true });
   });
 
+  app.delete("/api/admin/institutions/:id", async (req: Request, res: Response) => {
+    const adminId = (req.session as any).adminId;
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const inst = await storage.getInstitution(req.params.id);
+    if (!inst) return res.status(404).json({ message: "Institution not found" });
+    await storage.deleteInstitution(req.params.id);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/admin/institutions/:id/details", async (req: Request, res: Response) => {
+    const adminId = (req.session as any).adminId;
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const inst = await storage.getInstitution(req.params.id);
+    if (!inst) return res.status(404).json({ message: "Institution not found" });
+    const details = await storage.getInstitutionDetails(req.params.id);
+    res.json({ institution: inst, ...details });
+  });
+
   app.get("/api/admin/teachers", async (req: Request, res: Response) => {
     const adminId = (req.session as any).adminId;
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });

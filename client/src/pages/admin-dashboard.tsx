@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, RotateCcw, School, Trash2, Search } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import type { Institution, Teacher } from "@shared/schema";
 
@@ -39,6 +39,22 @@ type AdminStats = {
   studentCount: number;
   totalExercisesCompleted: number;
   totalTimeSpentSeconds: number;
+};
+
+type InstitutionDetails = {
+  institution: Institution;
+  teachers: Array<{
+    id: string; name: string; email: string;
+    classes: Array<{
+      id: string; name: string; classCode: string; maxStudents: number; expiresAt: string | null;
+      students: Array<{
+        id: string; firstName: string; lastName: string;
+        rhythmLevel: number; rhythmStars: number;
+        notesLevel: number; notesStars: number;
+        totalCorrect: number; totalTimeSeconds: number;
+      }>;
+    }>;
+  }>;
 };
 
 const institutionSchema = z.object({
@@ -71,6 +87,9 @@ export default function AdminDashboard() {
   const [instDialogOpen, setInstDialogOpen] = useState(false);
   const [teacherDialogOpen, setTeacherDialogOpen] = useState(false);
   const [classSearch, setClassSearch] = useState("");
+  const [selectedInstId, setSelectedInstId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [expandedTeachers, setExpandedTeachers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!admin) {
@@ -98,6 +117,11 @@ export default function AdminDashboard() {
   const { data: allClasses } = useQuery<AdminClass[]>({
     queryKey: ["/api/admin/classes"],
     enabled: !!admin,
+  });
+
+  const { data: institutionDetails, isLoading: detailsLoading } = useQuery<InstitutionDetails>({
+    queryKey: ["/api/admin/institutions", selectedInstId, "details"],
+    enabled: !!selectedInstId && detailOpen,
   });
 
   const instForm = useForm<InstitutionForm>({
@@ -170,6 +194,21 @@ export default function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/institutions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({ title: "Kontenjan Sıfırlandı", description: "Tüm sınıf ve öğrenci verileri temizlendi." });
+    },
+    onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteInstitution = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/institutions/${id}`, undefined);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/institutions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/teachers"] });
+      toast({ title: "Kurum silindi!", description: "Tüm öğretmen, sınıf ve öğrenci verileri kaldırıldı." });
     },
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
@@ -323,14 +362,25 @@ export default function AdminDashboard() {
                     <Card className="rounded-2xl" data-testid={`card-institution-${inst.id}`}>
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <button
+                            className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 hover:bg-blue-200 transition-colors cursor-pointer"
+                            onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); setExpandedTeachers(new Set()); }}
+                            data-testid={`button-inst-detail-${inst.id}`}
+                            title="Detayları Görüntüle"
+                          >
                             <Building2 className="w-5 h-5 text-blue-600" />
-                          </div>
+                          </button>
                           <Badge variant={active ? "default" : expired ? "destructive" : "secondary"} className="shrink-0">
                             {active ? "Aktif" : expired ? "Süresi Doldu" : "Pasif"}
                           </Badge>
                         </div>
-                        <CardTitle className="text-base font-extrabold mt-2">{inst.name}</CardTitle>
+                        <button
+                          className="text-base font-extrabold mt-2 text-left hover:text-primary transition-colors w-full"
+                          onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); setExpandedTeachers(new Set()); }}
+                          data-testid={`button-inst-name-${inst.id}`}
+                        >
+                          {inst.name}
+                        </button>
                       </CardHeader>
                       <CardContent className="space-y-2 pt-0">
                         <div className="text-sm text-muted-foreground font-semibold">
@@ -349,7 +399,7 @@ export default function AdminDashboard() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className={`flex-1 rounded-xl font-bold gap-1.5 ${active ? "text-red-500" : "text-green-600"}`}
+                            className={`flex-1 rounded-xl font-bold gap-1.5 ${active ? "text-orange-500" : "text-green-600"}`}
                             onClick={() => toggleInstitution.mutate({ id: inst.id, isActive: !inst.isActive })}
                             data-testid={`button-toggle-institution-${inst.id}`}
                           >
@@ -359,17 +409,17 @@ export default function AdminDashboard() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="rounded-xl font-bold gap-1.5 text-orange-500"
+                            className="rounded-xl font-bold gap-1.5 text-red-500 hover:bg-red-50"
                             onClick={() => {
-                              if (window.confirm(`"${inst.name}" kurumunun tüm sınıf ve öğrenci verileri silinecek. Emin misiniz?`)) {
-                                resetQuota.mutate(inst.id);
+                              if (window.confirm(`"${inst.name}" kurumu ve bağlı tüm öğretmen, sınıf ve öğrenciler kalıcı olarak silinecek. Emin misiniz?`)) {
+                                deleteInstitution.mutate(inst.id);
                               }
                             }}
-                            disabled={resetQuota.isPending}
-                            data-testid={`button-reset-quota-${inst.id}`}
+                            disabled={deleteInstitution.isPending}
+                            data-testid={`button-delete-institution-${inst.id}`}
                           >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            Sıfırla
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Sil
                           </Button>
                         </div>
                       </CardContent>
@@ -550,6 +600,149 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Kurum Detay Dialog */}
+      <Dialog open={detailOpen} onOpenChange={open => { setDetailOpen(open); if (!open) setSelectedInstId(null); }}>
+        <DialogContent className="rounded-2xl max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-extrabold flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              {institutionDetails?.institution.name ?? "Kurum Detayı"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {detailsLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {institutionDetails && !detailsLoading && (
+            <div className="space-y-4 pt-2">
+              {/* Özet */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground font-semibold mb-0.5">Lisans</p>
+                  <p className="font-bold">{new Date(institutionDetails.institution.licenseStart).toLocaleDateString("tr-TR")} — {new Date(institutionDetails.institution.licenseEnd).toLocaleDateString("tr-TR")}</p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground font-semibold mb-0.5">Durum</p>
+                  <Badge variant={institutionDetails.institution.isActive ? "default" : "destructive"}>
+                    {institutionDetails.institution.isActive ? "Aktif" : "Pasif"}
+                  </Badge>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground font-semibold mb-0.5">Öğretmen Sayısı</p>
+                  <p className="font-extrabold text-purple-700">{institutionDetails.teachers.length} / {(institutionDetails.institution as any).maxTeachers}</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground font-semibold mb-0.5">Toplam Öğrenci</p>
+                  <p className="font-extrabold text-green-700">
+                    {institutionDetails.teachers.reduce((sum, t) => sum + t.classes.reduce((s, c) => s + c.students.length, 0), 0)}
+                    {" / "}{(institutionDetails.institution as any).maxStudents}
+                  </p>
+                </div>
+              </div>
+
+              {/* Öğretmenler */}
+              {institutionDetails.teachers.length === 0 ? (
+                <p className="text-center text-muted-foreground font-semibold py-6">Bu kurumda henüz öğretmen yok.</p>
+              ) : (
+                <div className="space-y-3">
+                  <h4 className="font-extrabold text-sm text-muted-foreground uppercase tracking-wide">Öğretmenler & Performans</h4>
+                  {institutionDetails.teachers.map(teacher => {
+                    const isExpanded = expandedTeachers.has(teacher.id);
+                    const totalStudents = teacher.classes.reduce((s, c) => s + c.students.length, 0);
+                    return (
+                      <div key={teacher.id} className="border rounded-xl overflow-hidden" data-testid={`section-teacher-${teacher.id}`}>
+                        <button
+                          className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                          onClick={() => {
+                            const next = new Set(expandedTeachers);
+                            if (isExpanded) next.delete(teacher.id); else next.add(teacher.id);
+                            setExpandedTeachers(next);
+                          }}
+                          data-testid={`button-expand-teacher-${teacher.id}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <UserCheck className="w-4 h-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-sm">{teacher.name}</p>
+                              <p className="text-xs text-muted-foreground">{teacher.email} · {teacher.classes.length} sınıf · {totalStudents} öğrenci</p>
+                            </div>
+                          </div>
+                          {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                        </button>
+
+                        {isExpanded && (
+                          <div className="p-3 space-y-3">
+                            {teacher.classes.length === 0 ? (
+                              <p className="text-xs text-muted-foreground text-center py-2">Henüz sınıf yok.</p>
+                            ) : teacher.classes.map(cls => (
+                              <div key={cls.id} className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <School className="w-3.5 h-3.5 text-indigo-600" />
+                                  <span className="font-bold text-sm">{cls.name}</span>
+                                  <code className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{cls.classCode}</code>
+                                  <span className="text-xs text-muted-foreground">{cls.students.length}/{cls.maxStudents}</span>
+                                </div>
+                                {cls.students.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground pl-5">Henüz öğrenci yok.</p>
+                                ) : (
+                                  <div className="overflow-x-auto rounded-lg border">
+                                    <table className="w-full text-xs">
+                                      <thead className="bg-slate-50">
+                                        <tr>
+                                          <th className="text-left p-2 font-bold">Öğrenci</th>
+                                          <th className="text-center p-2 font-bold">Ritim</th>
+                                          <th className="text-center p-2 font-bold">Nota</th>
+                                          <th className="text-center p-2 font-bold">Doğru</th>
+                                          <th className="text-center p-2 font-bold">Süre</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {cls.students.map(s => (
+                                          <tr key={s.id} className="border-t hover:bg-slate-50" data-testid={`row-student-${s.id}`}>
+                                            <td className="p-2 font-semibold">{s.firstName} {s.lastName}</td>
+                                            <td className="p-2 text-center">
+                                              <div className="flex items-center justify-center gap-0.5">
+                                                <span className="font-bold">Sv.{s.rhythmLevel}</span>
+                                                <span className="text-yellow-500 flex">
+                                                  {Array.from({ length: s.rhythmStars }).map((_, i) => <Star key={i} className="w-2.5 h-2.5 fill-current" />)}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              <div className="flex items-center justify-center gap-0.5">
+                                                <span className="font-bold">Sv.{s.notesLevel}</span>
+                                                <span className="text-yellow-500 flex">
+                                                  {Array.from({ length: s.notesStars }).map((_, i) => <Star key={i} className="w-2.5 h-2.5 fill-current" />)}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td className="p-2 text-center font-bold text-green-700">{s.totalCorrect}</td>
+                                            <td className="p-2 text-center text-muted-foreground">{Math.floor(s.totalTimeSeconds / 60)}d</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
