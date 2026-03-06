@@ -155,7 +155,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const teacherId = (req.session as any).teacherId;
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     try {
-      const parsed = insertClassSchema.parse({ ...req.body, teacherId });
+      const body = {
+        ...req.body,
+        teacherId,
+        expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : null,
+      };
+      const parsed = insertClassSchema.parse(body);
       let classCode = generateClassCode();
       let attempts = 0;
       while (await storage.getClassByCode(classCode) && attempts < 10) {
