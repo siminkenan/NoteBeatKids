@@ -46,25 +46,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { firstName, lastName, teacherCode } = req.body;
       if (!firstName?.trim() || !lastName?.trim() || !teacherCode?.trim()) {
-        return res.status(400).json({ message: "Ad, soyad ve kurum kodu gereklidir." });
+        return res.status(400).json({ message: "Ad, soyad ve öğretmen kodu gereklidir." });
       }
-      const institution = await storage.getInstitutionByTeacherCode(teacherCode.trim().toUpperCase());
-      if (!institution) return res.status(404).json({ message: "Geçersiz kurum kodu. Lütfen yöneticinizden alın." });
-      if (!institution.isActive) {
-        return res.status(403).json({ message: "Kurumun aboneliği pasif durumda. Yöneticinizle iletişime geçin." });
-      }
-      if (new Date(institution.licenseEnd) < new Date()) {
-        return res.status(403).json({ message: "Kurumun abonelik süresi dolmuş. Yöneticinizle iletişime geçin." });
-      }
+      const codeRecord = await storage.findTeacherCodeByValue(teacherCode.trim().toUpperCase());
+      if (!codeRecord) return res.status(404).json({ message: "Geçersiz kod. Yöneticinizden aldığınız kodu kontrol edin." });
+
+      const institution = await storage.getInstitution(codeRecord.institutionId);
+      if (!institution) return res.status(404).json({ message: "Kurum bulunamadı." });
+      if (!institution.isActive) return res.status(403).json({ message: "Kurumun aboneliği pasif durumda. Yöneticinizle iletişime geçin." });
+      if (new Date(institution.licenseEnd) < new Date()) return res.status(403).json({ message: "Kurumun abonelik süresi dolmuş. Yöneticinizle iletişime geçin." });
+
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
-      let teacher = await storage.findTeacherByNameAndInstitution(fullName, institution.id);
-      if (!teacher) {
-        const existing = await storage.getTeachersByInstitution(institution.id);
-        if (existing.length >= institution.maxTeachers) {
-          return res.status(403).json({ message: `Kurum öğretmen kapasitesi doldu (Maks: ${institution.maxTeachers}).` });
+
+      if (codeRecord.teacherId) {
+        // Code is already linked — verify name matches
+        const existingTeacher = await storage.getTeacher(codeRecord.teacherId);
+        if (!existingTeacher) return res.status(500).json({ message: "Öğretmen kaydı bulunamadı." });
+        if (existingTeacher.name.toLowerCase() !== fullName.toLowerCase()) {
+          return res.status(403).json({ message: `Bu kod "${existingTeacher.name}" adına kayıtlıdır. Lütfen kayıt sırasında girdiğiniz adı kullanın.` });
         }
-        teacher = await storage.createTeacherByCode({ name: fullName, institutionId: institution.id });
+        (req.session as any).teacherId = existingTeacher.id;
+        const { password: _, ...safe } = existingTeacher;
+        return res.json({ ...safe, role: "teacher" });
       }
+
+      // Code is unused — register new teacher
+      const teacher = await storage.createTeacherByCode({ name: fullName, institutionId: institution.id });
+      await storage.linkTeacherToCode(codeRecord.id, teacher.id);
       (req.session as any).teacherId = teacher.id;
       const { password: _, ...safeTeacher } = teacher;
       res.json({ ...safeTeacher, role: "teacher" });
@@ -73,11 +81,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // Public endpoint to verify a teacher code (shows institution name)
+  // Public endpoint to verify an individual teacher code
   app.get("/api/institution/by-teacher-code/:code", async (req: Request, res: Response) => {
-    const inst = await storage.getInstitutionByTeacherCode(req.params.code.toUpperCase());
-    if (!inst) return res.status(404).json({ message: "Geçersiz kod" });
-    res.json({ id: inst.id, name: inst.name, isActive: inst.isActive });
+    const codeRecord = await storage.findTeacherCodeByValue(req.params.code.toUpperCase());
+    if (!codeRecord) return res.status(404).json({ message: "Geçersiz kod" });
+    const inst = await storage.getInstitution(codeRecord.institutionId);
+    if (!inst) return res.status(404).json({ message: "Kurum bulunamadı" });
+    const status = codeRecord.teacherId ? "used" : "available";
+    res.json({ id: inst.id, name: inst.name, isActive: inst.isActive, codeStatus: status });
   });
 
   app.post("/api/auth/teacher/logout", (req: Request, res: Response) => {
@@ -247,6 +258,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!inst) return res.status(404).json({ message: "Institution not found" });
     const details = await storage.getInstitutionDetails(req.params.id);
     res.json({ institution: inst, ...details });
+  });
+
+  app.get("/api/admin/institutions/:id/teacher-codes", async (req: Request, res: Response) => {
+    const adminId = (req.session as any).adminId;
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const codes = await storage.getTeacherCodesByInstitution(req.params.id);
+    res.json(codes);
+  });
+
+  app.post("/api/admin/institutions/:id/teacher-codes/generate", async (req: Request, res: Response) => {
+    const adminId = (req.session as any).adminId;
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const inst = await storage.getInstitution(req.params.id);
+    if (!inst) return res.status(404).json({ message: "Institution not found" });
+    const count = Math.min(Number(req.body.count) || 1, 100);
+    const existingCodes = await storage.getTeacherCodesByInstitution(req.params.id);
+    const maxSlot = existingCodes.reduce((m, c) => Math.max(m, c.slotNumber), 0);
+    const newCodes = await storage.generateTeacherCodesForInstitution(req.params.id, count, maxSlot + 1);
+    res.json(newCodes);
   });
 
   app.get("/api/admin/teachers", async (req: Request, res: Response) => {

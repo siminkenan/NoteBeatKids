@@ -125,6 +125,27 @@ export default function AdminDashboard() {
     enabled: !!selectedInstId && detailOpen,
   });
 
+  type TeacherCodeItem = { id: string; code: string; slotNumber: number; teacherId: string | null; teacherName: string | null };
+  const { data: teacherCodeList, isLoading: codesLoading } = useQuery<TeacherCodeItem[]>({
+    queryKey: ["/api/admin/institutions", selectedInstId, "teacher-codes"],
+    enabled: !!selectedInstId && detailOpen,
+  });
+
+  const [addCodeCount, setAddCodeCount] = useState(1);
+  const [codesSearchQuery, setCodesSearchQuery] = useState("");
+
+  const generateMoreCodes = useMutation({
+    mutationFn: async ({ instId, count }: { instId: string; count: number }) => {
+      const res = await apiRequest("POST", `/api/admin/institutions/${instId}/teacher-codes/generate`, { count });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/institutions", selectedInstId, "teacher-codes"] });
+      toast({ title: `${addCodeCount} yeni kod oluşturuldu!` });
+    },
+    onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
   const instForm = useForm<InstitutionForm>({
     resolver: zodResolver(institutionSchema),
     defaultValues: { name: "", licenseStart: "", licenseEnd: "", maxTeachers: 2000, maxStudents: 6000 },
@@ -397,25 +418,15 @@ export default function AdminDashboard() {
                           </span>
                         </div>
 
-                        {(inst as any).teacherCode && (
-                          <div className="flex items-center gap-2 p-2 bg-indigo-50 rounded-xl">
-                            <QrCode className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-xs text-indigo-500 font-semibold">Öğretmen Kodu</p>
-                              <code className="font-extrabold text-indigo-700 text-base tracking-widest" data-testid={`text-teacher-code-${inst.id}`}>
-                                {(inst as any).teacherCode}
-                              </code>
-                            </div>
-                            <button
-                              className="ml-auto text-indigo-400 hover:text-indigo-700 transition-colors"
-                              onClick={() => { navigator.clipboard.writeText((inst as any).teacherCode); toast({ title: "Kod kopyalandı!" }); }}
-                              data-testid={`button-copy-code-${inst.id}`}
-                              title="Kopyala"
-                            >
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
+                        <button
+                          className="w-full flex items-center gap-2 p-2 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors text-left"
+                          onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); setExpandedTeachers(new Set()); setCodesSearchQuery(""); }}
+                          data-testid={`button-view-codes-${inst.id}`}
+                        >
+                          <QrCode className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                          <span className="text-xs font-bold text-indigo-700">Öğretmen Kodlarını Görüntüle</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-indigo-400 ml-auto" />
+                        </button>
 
                         <div className="flex gap-2">
                           <Button
@@ -641,34 +652,97 @@ export default function AdminDashboard() {
 
           {institutionDetails && !detailsLoading && (
             <div className="space-y-4 pt-2">
-              {/* Öğretmen Kodu + QR */}
-              {(institutionDetails.institution as any).teacherCode && (
-                <div className="flex gap-4 items-center p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
-                  <div className="bg-white rounded-xl p-2 shadow-sm flex-shrink-0">
-                    <QRCodeSVG
-                      value={(institutionDetails.institution as any).teacherCode}
-                      size={100}
-                      level="M"
-                      data-testid="qr-teacher-code"
+              {/* Bireysel Öğretmen Kodları */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h4 className="font-extrabold text-sm uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                    <QrCode className="w-4 h-4" />
+                    Öğretmen Kodları
+                    {teacherCodeList && (
+                      <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                        {teacherCodeList.filter(c => c.teacherId).length}/{teacherCodeList.length} kullanıldı
+                      </span>
+                    )}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Kod veya isim ara..."
+                      value={codesSearchQuery}
+                      onChange={e => setCodesSearchQuery(e.target.value)}
+                      className="h-8 rounded-lg text-xs w-40"
+                      data-testid="input-codes-search"
                     />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-1">Öğretmen Giriş Kodu</p>
-                    <code className="text-3xl font-extrabold text-indigo-700 tracking-widest block" data-testid="text-detail-teacher-code">
-                      {(institutionDetails.institution as any).teacherCode}
-                    </code>
-                    <p className="text-xs text-indigo-500 mt-1">Bu kodu öğretmenlerinizle paylaşın. QR kodu okutarak veya kodu yazarak giriş yapabilirler.</p>
-                    <button
-                      className="mt-2 flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
-                      onClick={() => { navigator.clipboard.writeText((institutionDetails.institution as any).teacherCode); toast({ title: "Kod kopyalandı!" }); }}
-                      data-testid="button-copy-detail-code"
-                    >
-                      <Copy className="w-3 h-3" />
-                      Kopyala
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={addCodeCount}
+                        onChange={e => setAddCodeCount(Math.max(1, Math.min(100, Number(e.target.value))))}
+                        className="h-8 rounded-lg text-xs w-16"
+                        data-testid="input-add-code-count"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-lg font-bold text-xs gap-1"
+                        disabled={generateMoreCodes.isPending}
+                        onClick={() => selectedInstId && generateMoreCodes.mutate({ instId: selectedInstId, count: addCodeCount })}
+                        data-testid="button-generate-codes"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Kod Ekle
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              )}
+
+                {codesLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto pr-1">
+                    {(teacherCodeList ?? [])
+                      .filter(c => {
+                        if (!codesSearchQuery.trim()) return true;
+                        const q = codesSearchQuery.toLowerCase();
+                        return c.code.toLowerCase().includes(q) || (c.teacherName ?? "").toLowerCase().includes(q);
+                      })
+                      .map(tc => (
+                        <div
+                          key={tc.id}
+                          className={`rounded-xl border p-2 flex flex-col items-center gap-1.5 text-center ${tc.teacherId ? "bg-green-50 border-green-200" : "bg-white border-slate-200"}`}
+                          data-testid={`card-teacher-code-${tc.id}`}
+                        >
+                          <div className="bg-white rounded-lg p-1 shadow-sm">
+                            <QRCodeSVG value={tc.code} size={60} level="M" />
+                          </div>
+                          <code className="text-xs font-extrabold tracking-widest text-indigo-700 block" data-testid={`text-code-${tc.id}`}>
+                            {tc.code}
+                          </code>
+                          {tc.teacherName ? (
+                            <span className="text-xs font-bold text-green-700 truncate w-full" data-testid={`text-code-teacher-${tc.id}`}>
+                              {tc.teacherName}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground font-semibold">Öğretmen {tc.slotNumber}</span>
+                          )}
+                          <button
+                            className="text-indigo-400 hover:text-indigo-700 transition-colors"
+                            onClick={() => { navigator.clipboard.writeText(tc.code); toast({ title: "Kod kopyalandı!" }); }}
+                            data-testid={`button-copy-code-${tc.id}`}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    {(teacherCodeList ?? []).length === 0 && (
+                      <p className="text-center text-muted-foreground text-xs col-span-3 py-4">Henüz kod yok.</p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Özet */}
               <div className="grid grid-cols-2 gap-3 text-sm">

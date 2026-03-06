@@ -61,6 +61,15 @@ export const studentProgress = pgTable("student_progress", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const teacherCodes = pgTable("teacher_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  institutionId: varchar("institution_id").references(() => institutions.id).notNull(),
+  code: varchar("code", { length: 10 }).notNull().unique(),
+  teacherId: varchar("teacher_id").references(() => teachers.id),
+  slotNumber: integer("slot_number").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertInstitutionSchema = createInsertSchema(institutions).omit({ id: true, createdAt: true });
 export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true, createdAt: true }).extend({
   email: z.string().email().optional().nullable(),
@@ -81,6 +90,7 @@ export type Student = typeof students.$inferSelect;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
 export type StudentProgress = typeof studentProgress.$inferSelect;
 export type InsertProgress = z.infer<typeof insertProgressSchema>;
+export type TeacherCode = typeof teacherCodes.$inferSelect;
 
 export type InsertUser = { username: string; password: string };
 export type User = { id: string; username: string; password: string };

@@ -9,7 +9,7 @@ Core features include:
 - **Note Detective**: Students identify musical notes displayed on a staff
 - **Level Map**: A visual progression map showing unlocked/completed levels and stars earned
 - **Teacher Dashboard**: Class management, student roster, QR code generation for class join codes, and progress charts
-- **Admin Dashboard**: Institution management, teacher creation, license/subscription management, and platform-wide stats
+- **Admin Dashboard**: Institution management, per-slot individual teacher codes (QR + copy), teacher creation, license/subscription management, and platform-wide stats
 
 ---
 
