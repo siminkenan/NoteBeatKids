@@ -1,19 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, User, Hash, Building2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, User, Hash, Building2, LogIn, UserCircle2, X } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import { useQuery } from "@tanstack/react-query";
+
+const STORAGE_KEY = "notebeat_teacher_saved";
+
+type SavedTeacher = { firstName: string; lastName: string; teacherCode: string };
 
 const loginSchema = z.object({
   firstName: z.string().min(1, "Ad gerekli"),
@@ -23,12 +28,32 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+function getInitials(firstName: string, lastName: string) {
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+}
+
 export default function TeacherLogin() {
   const [, navigate] = useLocation();
   const { setTeacher } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [codePreview, setCodePreview] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [savedTeacher, setSavedTeacher] = useState<SavedTeacher | null>(null);
+  const [quickLoading, setQuickLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const data: SavedTeacher = JSON.parse(raw);
+        if (data.firstName && data.lastName && data.teacherCode) {
+          setSavedTeacher(data);
+          setRememberMe(true);
+          form.reset({ firstName: data.firstName, lastName: data.lastName, teacherCode: data.teacherCode });
+        }
+      }
+    } catch {}
+  }, []);
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -44,26 +69,50 @@ export default function TeacherLogin() {
     retry: false,
   });
 
+  const doLogin = async (firstName: string, lastName: string, teacherCode: string, remember: boolean) => {
+    const result = await apiRequest("POST", "/api/auth/teacher/login", {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      teacherCode: teacherCode.trim().toUpperCase(),
+    });
+    const teacher = await result.json();
+    if (remember) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), teacherCode: teacherCode.trim().toUpperCase() }));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    setTeacher(teacher);
+    navigate("/teacher/dashboard");
+  };
+
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      const result = await apiRequest("POST", "/api/auth/teacher/login", {
-        firstName: data.firstName.trim(),
-        lastName: data.lastName.trim(),
-        teacherCode: data.teacherCode.trim().toUpperCase(),
-      });
-      const teacher = await result.json();
-      setTeacher(teacher);
-      navigate("/teacher/dashboard");
+      await doLogin(data.firstName, data.lastName, data.teacherCode, rememberMe);
     } catch (e: any) {
-      toast({
-        title: "Giriş başarısız",
-        description: e.message || "Bilgilerinizi kontrol edin",
-        variant: "destructive",
-      });
+      toast({ title: "Giriş başarısız", description: e.message || "Bilgilerinizi kontrol edin", variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const onQuickLogin = async () => {
+    if (!savedTeacher) return;
+    setQuickLoading(true);
+    try {
+      await doLogin(savedTeacher.firstName, savedTeacher.lastName, savedTeacher.teacherCode, true);
+    } catch (e: any) {
+      toast({ title: "Giriş başarısız", description: e.message || "Kayıtlı bilgilerle giriş yapılamadı.", variant: "destructive" });
+    } finally {
+      setQuickLoading(false);
+    }
+  };
+
+  const removeSaved = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setSavedTeacher(null);
+    setRememberMe(false);
+    form.reset({ firstName: "", lastName: "", teacherCode: "" });
   };
 
   return (
@@ -98,6 +147,57 @@ export default function TeacherLogin() {
           <ArrowLeft className="w-4 h-4" />
           Ana Sayfaya Dön
         </button>
+
+        {/* Quick Login Card */}
+        <AnimatePresence>
+          {savedTeacher && (
+            <motion.div
+              initial={{ opacity: 0, y: -16, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.95 }}
+              transition={{ duration: 0.35 }}
+              className="mb-4"
+            >
+              <div className="bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl p-4 flex items-center gap-4 shadow-lg">
+                <div className="w-12 h-12 rounded-full bg-white/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+                  <span className="text-white font-extrabold text-lg">
+                    {getInitials(savedTeacher.firstName, savedTeacher.lastName)}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white/70 text-xs font-bold uppercase tracking-wide">Kayıtlı Hesap</p>
+                  <p className="text-white font-extrabold text-base truncate">
+                    {savedTeacher.firstName} {savedTeacher.lastName}
+                  </p>
+                  <p className="text-white/60 text-xs font-mono tracking-widest">{savedTeacher.teacherCode}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={onQuickLogin}
+                    disabled={quickLoading}
+                    className="flex items-center gap-1.5 bg-white text-indigo-700 hover:bg-indigo-50 font-extrabold text-sm px-4 py-2 rounded-xl shadow transition-colors disabled:opacity-60"
+                    data-testid="button-quick-login"
+                  >
+                    {quickLoading ? (
+                      <span className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin inline-block" />
+                    ) : (
+                      <LogIn className="w-4 h-4" />
+                    )}
+                    Giriş Yap
+                  </button>
+                  <button
+                    onClick={removeSaved}
+                    className="text-white/60 hover:text-white transition-colors"
+                    data-testid="button-remove-saved"
+                    title="Kayıtlı hesabı sil"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Card className="shadow-2xl border-0 rounded-3xl overflow-hidden">
           <CardHeader className="text-center pb-2 pt-8 px-8">
@@ -160,7 +260,7 @@ export default function TeacherLogin() {
                   name="teacherCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Kurum Kodu</FormLabel>
+                      <FormLabel className="font-bold">Öğretmen Kodu</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -192,6 +292,24 @@ export default function TeacherLogin() {
                     </div>
                   </motion.div>
                 )}
+
+                {/* Remember Me */}
+                <div className="flex items-center gap-3 pt-1">
+                  <Checkbox
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onCheckedChange={v => setRememberMe(!!v)}
+                    data-testid="checkbox-remember-me"
+                    className="rounded-md"
+                  />
+                  <label
+                    htmlFor="rememberMe"
+                    className="text-sm font-semibold text-muted-foreground cursor-pointer select-none flex items-center gap-1.5"
+                  >
+                    <UserCircle2 className="w-4 h-4" />
+                    Beni hatırla
+                  </label>
+                </div>
 
                 <Button
                   type="submit"
