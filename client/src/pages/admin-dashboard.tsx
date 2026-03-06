@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, RotateCcw } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import type { Institution, Teacher } from "@shared/schema";
 
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
 
   const instForm = useForm<InstitutionForm>({
     resolver: zodResolver(institutionSchema),
-    defaultValues: { name: "", licenseStart: "", licenseEnd: "", maxTeachers: 10, maxStudents: 200 },
+    defaultValues: { name: "", licenseStart: "", licenseEnd: "", maxTeachers: 2000, maxStudents: 6000 },
   });
 
   const teacherForm = useForm<TeacherForm>({
@@ -130,10 +130,28 @@ export default function AdminDashboard() {
       const res = await apiRequest("PATCH", `/api/admin/institutions/${id}`, { isActive });
       return res.json();
     },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/institutions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      if (data?.quotaReset) {
+        toast({ title: "Abonelik Yenilendi", description: "Kontenjan sıfırlandı, tüm sınıf ve öğrenci verileri temizlendi." });
+      } else {
+        toast({ title: "Güncellendi!" });
+      }
+    },
+  });
+
+  const resetQuota = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/admin/institutions/${id}/reset-quota`, {});
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/institutions"] });
-      toast({ title: "Güncellendi!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({ title: "Kontenjan Sıfırlandı", description: "Tüm sınıf ve öğrenci verileri temizlendi." });
     },
+    onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
 
   const handleLogout = async () => {
@@ -293,16 +311,33 @@ export default function AdminDashboard() {
                             Maks. Öğrenci: {(inst as any).maxStudents ?? 200}
                           </span>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={`w-full rounded-xl font-bold gap-2 ${active ? "text-red-500" : "text-green-600"}`}
-                          onClick={() => toggleInstitution.mutate({ id: inst.id, isActive: !inst.isActive })}
-                          data-testid={`button-toggle-institution-${inst.id}`}
-                        >
-                          {active ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                          {active ? "Devre Dışı Bırak" : "Etkinleştir"}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={`flex-1 rounded-xl font-bold gap-1.5 ${active ? "text-red-500" : "text-green-600"}`}
+                            onClick={() => toggleInstitution.mutate({ id: inst.id, isActive: !inst.isActive })}
+                            data-testid={`button-toggle-institution-${inst.id}`}
+                          >
+                            {active ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                            {active ? "Devre Dışı" : "Etkinleştir"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl font-bold gap-1.5 text-orange-500"
+                            onClick={() => {
+                              if (window.confirm(`"${inst.name}" kurumunun tüm sınıf ve öğrenci verileri silinecek. Emin misiniz?`)) {
+                                resetQuota.mutate(inst.id);
+                              }
+                            }}
+                            disabled={resetQuota.isPending}
+                            data-testid={`button-reset-quota-${inst.id}`}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Sıfırla
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   </motion.div>

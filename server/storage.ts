@@ -41,6 +41,8 @@ export interface IStorage {
   getProgressByStudentAndType(studentId: string, appType: string): Promise<StudentProgress | undefined>;
   upsertProgress(studentId: string, appType: string, data: Partial<InsertProgress>): Promise<StudentProgress>;
   getClassProgress(classId: string): Promise<Array<Student & { rhythmProgress?: StudentProgress; notesProgress?: StudentProgress }>>;
+  // Reset institution quota (delete all students/classes for all teachers in institution)
+  resetInstitutionQuota(institutionId: string): Promise<void>;
   // Stats
   getAdminStats(): Promise<{
     institutionCount: number;
@@ -204,6 +206,16 @@ export class DatabaseStorage implements IStorage {
       result.push({ ...student, rhythmProgress, notesProgress });
     }
     return result;
+  }
+
+  async resetInstitutionQuota(institutionId: string): Promise<void> {
+    const institutionTeachers = await this.getTeachersByInstitution(institutionId);
+    for (const teacher of institutionTeachers) {
+      const teacherClasses = await this.getClassesByTeacher(teacher.id);
+      for (const cls of teacherClasses) {
+        await this.deleteClass(cls.id);
+      }
+    }
   }
 
   async getAdminStats() {

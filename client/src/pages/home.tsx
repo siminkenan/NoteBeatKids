@@ -119,7 +119,7 @@ export default function Home() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
       >
-        {/* Logo */}
+        {/* Logo — click secretly opens admin login */}
         <motion.div
           className="flex flex-col items-center gap-3"
           animate={{ y: [0, -8, 0] }}
@@ -128,7 +128,8 @@ export default function Home() {
           <img
             src={logoPath}
             alt="NoteBeat Kids"
-            className="w-52 h-52 object-contain drop-shadow-2xl"
+            className="w-52 h-52 object-contain drop-shadow-2xl cursor-pointer"
+            onClick={() => navigate("/admin/login")}
             data-testid="img-logo"
           />
           {/* Bilingual tagline */}
@@ -185,15 +186,6 @@ export default function Home() {
           </motion.button>
         </div>
 
-        {/* Admin link */}
-        <motion.button
-          data-testid="link-admin"
-          className="text-white/55 text-xs font-bold underline cursor-pointer"
-          onClick={() => navigate("/admin/login")}
-          whileHover={{ color: "rgba(255,255,255,0.9)" }}
-        >
-          Admin Access · Yönetici Girişi
-        </motion.button>
       </motion.div>
     </div>
   );

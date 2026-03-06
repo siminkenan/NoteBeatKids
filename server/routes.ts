@@ -194,8 +194,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/admin/institutions/:id", async (req: Request, res: Response) => {
     const adminId = (req.session as any).adminId;
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const current = await storage.getInstitution(req.params.id);
+    const wasExpired = current && new Date(current.licenseEnd) < new Date();
+    const newLicenseEnd = req.body.licenseEnd ? new Date(req.body.licenseEnd) : null;
+    const isRenewal = wasExpired && newLicenseEnd && newLicenseEnd > new Date();
+    if (isRenewal) {
+      await storage.resetInstitutionQuota(req.params.id);
+    }
     const inst = await storage.updateInstitution(req.params.id, req.body);
-    res.json(inst);
+    res.json({ ...inst, quotaReset: isRenewal });
+  });
+
+  app.post("/api/admin/institutions/:id/reset-quota", async (req: Request, res: Response) => {
+    const adminId = (req.session as any).adminId;
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.resetInstitutionQuota(req.params.id);
+    res.json({ ok: true });
   });
 
   app.get("/api/admin/teachers", async (req: Request, res: Response) => {
