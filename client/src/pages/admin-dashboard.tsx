@@ -15,7 +15,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import type { Institution, Teacher } from "@shared/schema";
 
@@ -387,7 +388,7 @@ export default function AdminDashboard() {
                           <p>Başlangıç: {new Date(inst.licenseStart).toLocaleDateString("tr-TR")}</p>
                           <p>Bitiş: {new Date(inst.licenseEnd).toLocaleDateString("tr-TR")}</p>
                         </div>
-                        <div className="flex gap-2 text-xs">
+                        <div className="flex gap-2 text-xs flex-wrap">
                           <span className="bg-purple-50 text-purple-700 font-bold px-2 py-1 rounded-lg">
                             Maks. Öğretmen: {(inst as any).maxTeachers ?? 10}
                           </span>
@@ -395,6 +396,27 @@ export default function AdminDashboard() {
                             Maks. Öğrenci: {(inst as any).maxStudents ?? 200}
                           </span>
                         </div>
+
+                        {(inst as any).teacherCode && (
+                          <div className="flex items-center gap-2 p-2 bg-indigo-50 rounded-xl">
+                            <QrCode className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs text-indigo-500 font-semibold">Öğretmen Kodu</p>
+                              <code className="font-extrabold text-indigo-700 text-base tracking-widest" data-testid={`text-teacher-code-${inst.id}`}>
+                                {(inst as any).teacherCode}
+                              </code>
+                            </div>
+                            <button
+                              className="ml-auto text-indigo-400 hover:text-indigo-700 transition-colors"
+                              onClick={() => { navigator.clipboard.writeText((inst as any).teacherCode); toast({ title: "Kod kopyalandı!" }); }}
+                              data-testid={`button-copy-code-${inst.id}`}
+                              title="Kopyala"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
@@ -619,6 +641,35 @@ export default function AdminDashboard() {
 
           {institutionDetails && !detailsLoading && (
             <div className="space-y-4 pt-2">
+              {/* Öğretmen Kodu + QR */}
+              {(institutionDetails.institution as any).teacherCode && (
+                <div className="flex gap-4 items-center p-4 bg-indigo-50 rounded-2xl border border-indigo-200">
+                  <div className="bg-white rounded-xl p-2 shadow-sm flex-shrink-0">
+                    <QRCodeSVG
+                      value={(institutionDetails.institution as any).teacherCode}
+                      size={100}
+                      level="M"
+                      data-testid="qr-teacher-code"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-1">Öğretmen Giriş Kodu</p>
+                    <code className="text-3xl font-extrabold text-indigo-700 tracking-widest block" data-testid="text-detail-teacher-code">
+                      {(institutionDetails.institution as any).teacherCode}
+                    </code>
+                    <p className="text-xs text-indigo-500 mt-1">Bu kodu öğretmenlerinizle paylaşın. QR kodu okutarak veya kodu yazarak giriş yapabilirler.</p>
+                    <button
+                      className="mt-2 flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                      onClick={() => { navigator.clipboard.writeText((institutionDetails.institution as any).teacherCode); toast({ title: "Kod kopyalandı!" }); }}
+                      data-testid="button-copy-detail-code"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Kopyala
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Özet */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-slate-50 rounded-xl p-3">

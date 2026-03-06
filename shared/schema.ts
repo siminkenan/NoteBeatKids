@@ -11,6 +11,7 @@ export const institutions = pgTable("institutions", {
   isActive: boolean("is_active").default(true).notNull(),
   maxTeachers: integer("max_teachers").notNull().default(2000),
   maxStudents: integer("max_students").notNull().default(6000),
+  teacherCode: varchar("teacher_code", { length: 10 }).unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -25,8 +26,8 @@ export const teachers = pgTable("teachers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   institutionId: varchar("institution_id").references(() => institutions.id),
   name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  email: text("email").unique(),
+  password: text("password"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -61,7 +62,10 @@ export const studentProgress = pgTable("student_progress", {
 });
 
 export const insertInstitutionSchema = createInsertSchema(institutions).omit({ id: true, createdAt: true });
-export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true, createdAt: true });
+export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true, createdAt: true }).extend({
+  email: z.string().email().optional().nullable(),
+  password: z.string().optional().nullable(),
+});
 export const insertClassSchema = createInsertSchema(classes).omit({ id: true, classCode: true, createdAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
 export const insertProgressSchema = createInsertSchema(studentProgress).omit({ id: true, updatedAt: true });

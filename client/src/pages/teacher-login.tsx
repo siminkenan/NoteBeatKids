@@ -4,19 +4,21 @@ import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Lock, Mail } from "lucide-react";
+import { ArrowLeft, User, Hash, Building2 } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import { useQuery } from "@tanstack/react-query";
 
 const loginSchema = z.object({
-  email: z.string().email("Geçerli bir e-posta girin"),
-  password: z.string().min(1, "Şifre gerekli"),
+  firstName: z.string().min(1, "Ad gerekli"),
+  lastName: z.string().min(1, "Soyad gerekli"),
+  teacherCode: z.string().min(6, "Kurum kodu en az 6 karakter").toUpperCase(),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -26,23 +28,37 @@ export default function TeacherLogin() {
   const { setTeacher } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [codePreview, setCodePreview] = useState("");
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { firstName: "", lastName: "", teacherCode: "" },
+  });
+
+  const watchedCode = form.watch("teacherCode");
+  const previewCode = watchedCode?.trim().toUpperCase();
+
+  const { data: instPreview } = useQuery<{ id: string; name: string; isActive: boolean } | null>({
+    queryKey: ["/api/institution/by-teacher-code", previewCode],
+    enabled: previewCode?.length >= 6,
+    retry: false,
   });
 
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      const result = await apiRequest("POST", "/api/auth/teacher/login", data);
+      const result = await apiRequest("POST", "/api/auth/teacher/login", {
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        teacherCode: data.teacherCode.trim().toUpperCase(),
+      });
       const teacher = await result.json();
       setTeacher(teacher);
       navigate("/teacher/dashboard");
     } catch (e: any) {
       toast({
         title: "Giriş başarısız",
-        description: e.message || "Geçersiz e-posta veya şifre",
+        description: e.message || "Bilgilerinizi kontrol edin",
         variant: "destructive",
       });
     } finally {
@@ -90,28 +106,70 @@ export default function TeacherLogin() {
             </div>
             <CardTitle className="text-2xl font-extrabold text-foreground">Öğretmen Girişi</CardTitle>
             <CardDescription className="text-base text-muted-foreground">
-              Sınıflarınızı yönetmek için giriş yapın
+              Adınızı ve kurumunuzun kodunu girin
             </CardDescription>
           </CardHeader>
 
           <CardContent className="px-8 pb-8">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-bold">E-posta Adresi</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-bold">Ad</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              {...field}
+                              placeholder="Ayşe"
+                              className="pl-9 rounded-xl h-12"
+                              data-testid="input-first-name"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-bold">Soyad</FormLabel>
+                        <FormControl>
                           <Input
                             {...field}
-                            type="email"
-                            placeholder="ogretmen@okul.edu.tr"
-                            className="pl-10 rounded-xl h-12"
-                            data-testid="input-email"
+                            placeholder="Yılmaz"
+                            className="rounded-xl h-12"
+                            data-testid="input-last-name"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="teacherCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-bold">Kurum Kodu</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            placeholder="ABCD1234"
+                            className="pl-9 rounded-xl h-12 font-mono tracking-widest uppercase"
+                            onChange={e => field.onChange(e.target.value.toUpperCase())}
+                            data-testid="input-teacher-code"
                           />
                         </div>
                       </FormControl>
@@ -119,28 +177,22 @@ export default function TeacherLogin() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-bold">Şifre</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            {...field}
-                            type="password"
-                            placeholder="••••••••"
-                            className="pl-10 rounded-xl h-12"
-                            data-testid="input-password"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+                {previewCode && previewCode.length >= 6 && instPreview && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-200"
+                    data-testid="preview-institution"
+                  >
+                    <Building2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-green-700">Kurum bulundu</p>
+                      <p className="text-sm font-extrabold text-green-800">{instPreview.name}</p>
+                    </div>
+                  </motion.div>
+                )}
+
                 <Button
                   type="submit"
                   disabled={loading}
@@ -152,10 +204,9 @@ export default function TeacherLogin() {
               </form>
             </Form>
 
-            <div className="mt-6 p-4 bg-muted rounded-xl text-sm text-muted-foreground">
-              <p className="font-bold text-foreground mb-1">Demo bilgileri:</p>
-              <p>E-posta: <span className="font-mono text-foreground">sarah@sunshine.edu</span></p>
-              <p>Şifre: <span className="font-mono text-foreground">teacher123</span></p>
+            <div className="mt-5 p-3 bg-blue-50 rounded-xl text-sm">
+              <p className="font-bold text-blue-800 mb-1">Nasıl giriş yapılır?</p>
+              <p className="text-blue-700 text-xs">Kurum kodunuzu yöneticinizden alın (QR kod veya yazılı olarak). Adınız ve soyadınızla birlikte girin.</p>
             </div>
           </CardContent>
         </Card>

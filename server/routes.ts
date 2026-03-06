@@ -41,24 +41,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ id: admin.id, name: admin.name, email: admin.email, role: "admin" });
   });
 
-  // Teacher auth
+  // Teacher auth — ad + soyad + kurum kodu
   app.post("/api/auth/teacher/login", async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
-      const teacher = await storage.getTeacherByEmail(email);
-      if (!teacher) return res.status(401).json({ message: "Geçersiz e-posta veya şifre." });
-      const valid = await bcrypt.compare(password, teacher.password);
-      if (!valid) return res.status(401).json({ message: "Geçersiz e-posta veya şifre." });
-      if (teacher.institutionId) {
-        const institution = await storage.getInstitution(teacher.institutionId);
-        if (institution) {
-          if (!institution.isActive) {
-            return res.status(403).json({ message: "Erişim engellendi. Kurum aboneliği pasif durumda. Yöneticinizle iletişime geçin." });
-          }
-          if (new Date(institution.licenseEnd) < new Date()) {
-            return res.status(403).json({ message: "Abonelik süresi doldu. Lütfen yöneticinizle iletişime geçin." });
-          }
+      const { firstName, lastName, teacherCode } = req.body;
+      if (!firstName?.trim() || !lastName?.trim() || !teacherCode?.trim()) {
+        return res.status(400).json({ message: "Ad, soyad ve kurum kodu gereklidir." });
+      }
+      const institution = await storage.getInstitutionByTeacherCode(teacherCode.trim().toUpperCase());
+      if (!institution) return res.status(404).json({ message: "Geçersiz kurum kodu. Lütfen yöneticinizden alın." });
+      if (!institution.isActive) {
+        return res.status(403).json({ message: "Kurumun aboneliği pasif durumda. Yöneticinizle iletişime geçin." });
+      }
+      if (new Date(institution.licenseEnd) < new Date()) {
+        return res.status(403).json({ message: "Kurumun abonelik süresi dolmuş. Yöneticinizle iletişime geçin." });
+      }
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
+      let teacher = await storage.findTeacherByNameAndInstitution(fullName, institution.id);
+      if (!teacher) {
+        const existing = await storage.getTeachersByInstitution(institution.id);
+        if (existing.length >= institution.maxTeachers) {
+          return res.status(403).json({ message: `Kurum öğretmen kapasitesi doldu (Maks: ${institution.maxTeachers}).` });
         }
+        teacher = await storage.createTeacherByCode({ name: fullName, institutionId: institution.id });
       }
       (req.session as any).teacherId = teacher.id;
       const { password: _, ...safeTeacher } = teacher;
@@ -66,6 +71,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e) {
       res.status(500).json({ message: "Server error" });
     }
+  });
+
+  // Public endpoint to verify a teacher code (shows institution name)
+  app.get("/api/institution/by-teacher-code/:code", async (req: Request, res: Response) => {
+    const inst = await storage.getInstitutionByTeacherCode(req.params.code.toUpperCase());
+    if (!inst) return res.status(404).json({ message: "Geçersiz kod" });
+    res.json({ id: inst.id, name: inst.name, isActive: inst.isActive });
   });
 
   app.post("/api/auth/teacher/logout", (req: Request, res: Response) => {

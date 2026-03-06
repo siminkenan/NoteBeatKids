@@ -24,6 +24,10 @@ export interface IStorage {
   getTeacherByEmail(email: string): Promise<Teacher | undefined>;
   getTeacher(id: string): Promise<Teacher | undefined>;
   createTeacher(data: InsertTeacher): Promise<Teacher>;
+  findTeacherByNameAndInstitution(name: string, institutionId: string): Promise<Teacher | undefined>;
+  createTeacherByCode(data: { name: string; institutionId: string }): Promise<Teacher>;
+  // Institution code lookup
+  getInstitutionByTeacherCode(code: string): Promise<Institution | undefined>;
   // Classes
   getAllClasses(): Promise<Array<Class & { teacherName: string; teacherEmail: string; institutionName: string | null; studentCount: number }>>;
   getClassesByTeacher(teacherId: string): Promise<Class[]>;
@@ -88,8 +92,28 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  private generateTeacherCode(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+  }
+
   async createInstitution(data: InsertInstitution): Promise<Institution> {
-    const result = await db.insert(institutions).values(data).returning();
+    let teacherCode = this.generateTeacherCode();
+    let attempts = 0;
+    while (attempts < 10) {
+      const existing = await db.select().from(institutions).where(eq(institutions.teacherCode, teacherCode)).limit(1);
+      if (existing.length === 0) break;
+      teacherCode = this.generateTeacherCode();
+      attempts++;
+    }
+    const result = await db.insert(institutions).values({ ...data, teacherCode }).returning();
+    return result[0];
+  }
+
+  async getInstitutionByTeacherCode(code: string): Promise<Institution | undefined> {
+    const result = await db.select().from(institutions).where(eq(institutions.teacherCode, code.toUpperCase())).limit(1);
     return result[0];
   }
 
@@ -117,8 +141,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTeacher(data: InsertTeacher): Promise<Teacher> {
-    const hashed = await bcrypt.hash(data.password, 10);
+    const hashed = data.password ? await bcrypt.hash(data.password, 10) : null;
     const result = await db.insert(teachers).values({ ...data, password: hashed }).returning();
+    return result[0];
+  }
+
+  async findTeacherByNameAndInstitution(name: string, institutionId: string): Promise<Teacher | undefined> {
+    const result = await db.select().from(teachers).where(
+      and(eq(sql`LOWER(${teachers.name})`, name.toLowerCase()), eq(teachers.institutionId, institutionId))
+    ).limit(1);
+    return result[0];
+  }
+
+  async createTeacherByCode(data: { name: string; institutionId: string }): Promise<Teacher> {
+    const result = await db.insert(teachers).values({ name: data.name, institutionId: data.institutionId }).returning();
     return result[0];
   }
 
