@@ -257,10 +257,10 @@ export default function StudentLogin() {
 
         <Card className="shadow-2xl border-0 rounded-3xl">
           <CardHeader className="text-center pb-2 pt-8 px-8">
-            <div className="flex justify-center mb-4">
-              <img src={logoPath} alt="NoteBeat Kids" className="w-20 h-20 object-contain" />
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <img src={logoPath} alt="NoteBeat Kids" className="h-8 w-auto object-contain" />
+              <CardTitle className="text-2xl font-extrabold">Öğrenci Girişi</CardTitle>
             </div>
-            <CardTitle className="text-2xl font-extrabold">Öğrenci Girişi</CardTitle>
             <CardDescription className="text-base">
               Adını ve sınıf kodunu girerek oynamaya başla!
             </CardDescription>
@@ -354,12 +354,6 @@ export default function StudentLogin() {
                 </Button>
               </form>
             </Form>
-
-            <div className="mt-6 p-4 bg-muted rounded-xl text-sm text-muted-foreground">
-              <p className="font-bold text-foreground mb-1">Demo için dene:</p>
-              <p>Ad: <span className="font-bold text-foreground">Emma</span>, Soyad: <span className="font-bold text-foreground">Wilson</span></p>
-              <p>Sınıf Kodu: <span className="font-mono font-bold text-foreground">SUN2A1</span></p>
-            </div>
           </CardContent>
         </Card>
       </motion.div>
