@@ -11,8 +11,20 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, QrCode, X } from "lucide-react";
+import { ArrowLeft, QrCode, X, LogIn } from "lucide-react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+
+const STORAGE_KEY = "notebeat_student_saved";
+const MAX_SAVED = 3;
+
+const AVATAR_COLORS = [
+  "from-pink-400 to-red-400",
+  "from-violet-400 to-indigo-400",
+  "from-amber-400 to-orange-400",
+  "from-emerald-400 to-teal-400",
+];
+
+type SavedStudent = { firstName: string; lastName: string; classCode: string; savedAt: number };
 
 const loginSchema = z.object({
   firstName: z.string().min(1, "Ad gerekli"),
@@ -22,14 +34,46 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+function getInitials(firstName: string, lastName: string) {
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+}
+
+function loadSaved(): SavedStudent[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as SavedStudent[];
+  } catch {}
+  return [];
+}
+
+function upsertSaved(student: SavedStudent) {
+  let list = loadSaved();
+  list = list.filter(s => !(s.firstName === student.firstName && s.lastName === student.lastName && s.classCode === student.classCode));
+  list.unshift({ ...student, savedAt: Date.now() });
+  if (list.length > MAX_SAVED) list = list.slice(0, MAX_SAVED);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function removeSavedStudent(student: SavedStudent) {
+  let list = loadSaved();
+  list = list.filter(s => !(s.firstName === student.firstName && s.lastName === student.lastName && s.classCode === student.classCode));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
 export default function StudentLogin() {
   const [, navigate] = useLocation();
   const { setStudent } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [quickLoadingIdx, setQuickLoadingIdx] = useState<number | null>(null);
+  const [savedStudents, setSavedStudents] = useState<SavedStudent[]>([]);
   const [showScanner, setShowScanner] = useState(false);
   const scannerRef = useRef<any>(null);
   const scannerInitRef = useRef(false);
+
+  useEffect(() => {
+    setSavedStudents(loadSaved());
+  }, []);
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -78,22 +122,43 @@ export default function StudentLogin() {
     setShowScanner(false);
   };
 
+  const doLogin = async (firstName: string, lastName: string, classCode: string) => {
+    const result = await apiRequest("POST", "/api/auth/student/login", {
+      firstName,
+      lastName,
+      classCode: classCode.toUpperCase(),
+    });
+    const session = await result.json();
+    upsertSaved({ firstName, lastName, classCode: classCode.toUpperCase(), savedAt: Date.now() });
+    setStudent(session);
+    navigate("/student/home");
+  };
+
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      const result = await apiRequest("POST", "/api/auth/student/login", data);
-      const session = await result.json();
-      setStudent(session);
-      navigate("/student/home");
+      await doLogin(data.firstName.trim(), data.lastName.trim(), data.classCode);
     } catch (e: any) {
-      toast({
-        title: "Giriş başarısız",
-        description: e.message || "Adını ve sınıf kodunu kontrol et",
-        variant: "destructive",
-      });
+      toast({ title: "Giriş başarısız", description: e.message || "Adını ve sınıf kodunu kontrol et", variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const onQuickLogin = async (student: SavedStudent, idx: number) => {
+    setQuickLoadingIdx(idx);
+    try {
+      await doLogin(student.firstName, student.lastName, student.classCode);
+    } catch (e: any) {
+      toast({ title: "Giriş başarısız", description: e.message || "Kayıtlı bilgilerle giriş yapılamadı.", variant: "destructive" });
+    } finally {
+      setQuickLoadingIdx(null);
+    }
+  };
+
+  const handleRemoveSaved = (student: SavedStudent) => {
+    removeSavedStudent(student);
+    setSavedStudents(loadSaved());
   };
 
   return (
@@ -128,6 +193,67 @@ export default function StudentLogin() {
           <ArrowLeft className="w-4 h-4" />
           Ana Sayfaya Dön
         </button>
+
+        {/* Saved student quick-login cards */}
+        <AnimatePresence>
+          {savedStudents.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              className="mb-4 space-y-2"
+            >
+              <p className="text-white/70 text-xs font-bold uppercase tracking-wide px-1 mb-1">
+                Kayıtlı Öğrenciler
+              </p>
+              {savedStudents.map((s, idx) => (
+                <motion.div
+                  key={`${s.firstName}-${s.lastName}-${s.classCode}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ delay: idx * 0.07 }}
+                  className="bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-md"
+                >
+                  <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${AVATAR_COLORS[idx % AVATAR_COLORS.length]} flex items-center justify-center flex-shrink-0 shadow`}>
+                    <span className="text-white font-extrabold text-base">
+                      {getInitials(s.firstName, s.lastName)}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-extrabold text-sm truncate">
+                      {s.firstName} {s.lastName}
+                    </p>
+                    <p className="text-white/60 text-xs font-mono tracking-widest">{s.classCode}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => onQuickLogin(s, idx)}
+                      disabled={quickLoadingIdx !== null}
+                      className="flex items-center gap-1.5 bg-white text-pink-600 hover:bg-pink-50 font-extrabold text-sm px-3 py-1.5 rounded-xl shadow transition-colors disabled:opacity-60"
+                      data-testid={`button-quick-login-${idx}`}
+                    >
+                      {quickLoadingIdx === idx ? (
+                        <span className="w-4 h-4 border-2 border-pink-400 border-t-transparent rounded-full animate-spin inline-block" />
+                      ) : (
+                        <LogIn className="w-3.5 h-3.5" />
+                      )}
+                      Giriş
+                    </button>
+                    <button
+                      onClick={() => handleRemoveSaved(s)}
+                      className="text-white/50 hover:text-white transition-colors"
+                      data-testid={`button-remove-saved-${idx}`}
+                      title="Profili sil"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Card className="shadow-2xl border-0 rounded-3xl">
           <CardHeader className="text-center pb-2 pt-8 px-8">
@@ -224,7 +350,7 @@ export default function StudentLogin() {
                   style={{ background: "linear-gradient(135deg, #f093fb, #f5576c)" }}
                   data-testid="button-submit-login"
                 >
-                  {loading ? "Katılınıyor..." : "Hadi Oynayalım!"}
+                  {loading ? "Katılınıyor..." : "Hadi Oynayalım! 🎵"}
                 </Button>
               </form>
             </Form>
