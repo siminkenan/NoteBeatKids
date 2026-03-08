@@ -3,9 +3,10 @@ import { useLocation, useRoute } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Star, Clock, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Star, Clock, CheckCircle, XCircle, Share2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Student, StudentProgress } from "@shared/schema";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
@@ -32,10 +33,35 @@ function accuracy(correct: number, wrong: number) {
   return Math.round((correct / total) * 100);
 }
 
+function buildShareText(
+  student: StudentWithProgress,
+  className: string,
+  rAcc: number,
+  nAcc: number,
+) {
+  const totalStars = (student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0);
+  const totalTime = formatTime(
+    (student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0),
+  );
+  const starsRow = "⭐".repeat(Math.min(totalStars, 10));
+
+  return [
+    `🎵 NoteBeat Kids — Öğrenci Raporu`,
+    `👤 ${student.firstName} ${student.lastName} (${className})`,
+    ``,
+    `🥁 Ritim  →  Seviye ${student.rhythmProgress?.level ?? 1}  |  ${rAcc}% doğruluk  |  ✅${student.rhythmProgress?.correctAnswers ?? 0} ❌${student.rhythmProgress?.wrongAnswers ?? 0}`,
+    `🎵 Notalar →  Seviye ${student.notesProgress?.level ?? 1}  |  ${nAcc}% doğruluk  |  ✅${student.notesProgress?.correctAnswers ?? 0} ❌${student.notesProgress?.wrongAnswers ?? 0}`,
+    ``,
+    `${starsRow || "—"}  (${totalStars} yıldız)`,
+    `⏱ Toplam süre: ${totalTime}`,
+  ].join("\n");
+}
+
 export default function ClassDetail() {
   const [, navigate] = useLocation();
   const [, params] = useRoute("/teacher/class/:classId");
   const { teacher, setTeacher } = useAuth();
+  const { toast } = useToast();
   const classId = params?.classId;
 
   useEffect(() => {
@@ -138,6 +164,19 @@ export default function ClassDetail() {
                 {data?.students.map((student, i) => {
                   const rAcc = accuracy(student.rhythmProgress?.correctAnswers ?? 0, student.rhythmProgress?.wrongAnswers ?? 0);
                   const nAcc = accuracy(student.notesProgress?.correctAnswers ?? 0, student.notesProgress?.wrongAnswers ?? 0);
+                  const shareText = buildShareText(student, data.class.name, rAcc, nAcc);
+
+                  const handleShare = async () => {
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({ title: `NoteBeat Kids — ${student.firstName} ${student.lastName}`, text: shareText });
+                      } catch {}
+                    } else {
+                      await navigator.clipboard.writeText(shareText);
+                      toast({ title: "Rapor kopyalandı!", description: `${student.firstName} ${student.lastName} performans özeti panoya kopyalandı.` });
+                    }
+                  };
+
                   return (
                     <motion.div key={student.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}>
                       <Card className="rounded-2xl" data-testid={`card-student-${student.id}`}>
@@ -185,6 +224,17 @@ export default function ClassDetail() {
                                 {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0))}
                               </p>
                             </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-xl gap-1.5 text-xs font-bold border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 flex-shrink-0"
+                              onClick={handleShare}
+                              data-testid={`button-share-student-${student.id}`}
+                              title="Performans raporunu paylaş"
+                            >
+                              <Share2 className="w-3.5 h-3.5" />
+                              Paylaş
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
