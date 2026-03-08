@@ -49,10 +49,15 @@ export default function ClassDetail() {
   const { data, isLoading } = useQuery<ClassDetailData>({
     queryKey: ["/api/teacher/classes", classId, "students"],
     queryFn: async () => {
-      const res = await fetch(`/api/teacher/classes/${classId}/students`);
+      const res = await fetch(`/api/teacher/classes/${classId}/students`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
     enabled: !!classId && !!teacher,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const chartData = data?.students.map(s => ({

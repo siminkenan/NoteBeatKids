@@ -44,6 +44,8 @@ export default function TeacherDashboard() {
   const { data: classes, isLoading } = useQuery<Class[]>({
     queryKey: ["/api/teacher/classes"],
     enabled: !!teacher,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const form = useForm<ClassForm>({
