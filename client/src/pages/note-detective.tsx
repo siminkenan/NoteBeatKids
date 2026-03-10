@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import type { StudentProgress } from "@shared/schema";
 
-// 10 consecutive correct answers advances the level (all levels)
-const CONSECUTIVE_REQUIRED = 10;
+// Every 10 questions answered (correct or wrong) → +3 stars
+const BATCH_SIZE = 10;
 
 // Total question targets per level (for progress display)
 const LEVEL_QUESTIONS = [15, 30, 45, 15, 30, 55];
@@ -99,7 +99,7 @@ export default function NoteDetective() {
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [totalStars, setTotalStars] = useState(0);
   const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
-  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
+  const [batchQuestions, setBatchQuestions] = useState(0); // 0-9, progress toward next +3 batch
   const [answeredThisRound, setAnsweredThisRound] = useState(false);
   const [levelQuestions, setLevelQuestions] = useState(0);
   const [celebration, setCelebration] = useState<{ emoji: string; title: string; sub: string } | null>(null);
@@ -130,7 +130,7 @@ export default function NoteDetective() {
         setScore({ correct: notesProgress.correctAnswers, wrong: notesProgress.wrongAnswers });
         setTotalStars(notesProgress.starsEarned);
       }
-      setConsecutiveCorrect(0);
+      setBatchQuestions(0);
     }
   }, [student, progress]);
 
@@ -193,8 +193,6 @@ export default function NoteDetective() {
 
     const newCorrect = score.correct + (correct ? 1 : 0);
     const newWrong = score.wrong + (correct ? 0 : 1);
-    const newConsecutive = correct ? consecutiveCorrect + 1 : 0;
-    setConsecutiveCorrect(newConsecutive);
     setScore({ correct: newCorrect, wrong: newWrong });
 
     const newLevelQuestions = levelQuestions + 1;
@@ -202,24 +200,32 @@ export default function NoteDetective() {
 
     const levelTarget = LEVEL_QUESTIONS[level - 1] ?? 55;
     const completedByTarget = newLevelQuestions >= levelTarget;
-    const streakBonus = newConsecutive >= CONSECUTIVE_REQUIRED && correct;
-    const isLevel6StreakFinish = completedByTarget && level === 6 && streakBonus;
 
-    // Bonus stars: +2 for reaching question target
-    // +3 for 10-streak (normal levels), +30 for 10-streak on level 6 completion
+    // Batch counter: every BATCH_SIZE questions → +3 stars (resets on exit or level up)
+    const newBatch = batchQuestions + 1;
+    const batchComplete = newBatch >= BATCH_SIZE;
+
     let bonusStars = 0;
-    if (completedByTarget) bonusStars += 2;
-    if (streakBonus) bonusStars += isLevel6StreakFinish ? 30 : 3;
-    const starsToAdd = (correct ? 1 : 0) + bonusStars;
-    const newStars = totalStars + starsToAdd;
-    setTotalStars(newStars);
 
-    // Show streak celebration for normal levels (no level change)
-    if (streakBonus && !isLevel6StreakFinish) {
-      setConsecutiveCorrect(0);
-      setCelebration({ emoji: "🔥", title: "Mükemmel Seri!", sub: "+3 Bonus Yıldız Kazandın ⭐⭐⭐" });
-      setTimeout(() => setCelebration(null), 2500);
+    // +3 for completing a batch of 10 questions (any correct/wrong mix)
+    if (batchComplete) {
+      bonusStars += 3;
+      setBatchQuestions(0);
+      // Only show batch celebration if we're NOT also completing the level right now
+      if (!completedByTarget) {
+        setCelebration({ emoji: "⭐", title: "10 Soru Tamamlandı!", sub: "+3 Yıldız Kazandın ⭐⭐⭐" });
+        setTimeout(() => setCelebration(null), 2500);
+      }
+    } else {
+      setBatchQuestions(newBatch);
     }
+
+    // +2 for completing the level's question target
+    if (completedByTarget) bonusStars += 2;
+
+    // Stars only come from milestones — no +1 per correct answer
+    const newStars = totalStars + bonusStars;
+    setTotalStars(newStars);
 
     // Level up ONLY when question target is reached (levels 1-5)
     const shouldLevelUp = completedByTarget && level < 6;
@@ -227,14 +233,17 @@ export default function NoteDetective() {
     if (shouldLevelUp) {
       setLevel(newLevel);
       setLevelQuestions(0);
-      if (!streakBonus) setConsecutiveCorrect(0);
-      setCelebration({ emoji: "🎉", title: "Seviye Tamamlandı!", sub: "+2 Bonus Yıldız Kazandın ⭐" });
+      setBatchQuestions(0); // reset batch on level change
+      const sub = batchComplete
+        ? "+3 Soru Bonusu & +2 Seviye Bonusu = +5 Yıldız 🌟"
+        : "+2 Yıldız Kazandın ⭐⭐";
+      setCelebration({ emoji: "🎉", title: "Seviye Tamamlandı!", sub });
       setTimeout(() => setCelebration(null), 2500);
     }
 
     // Level 6 final completion
     if (completedByTarget && level === 6) {
-      setConsecutiveCorrect(0);
+      setBatchQuestions(0);
       setGameComplete({ badge: newStars >= 30, stars: newStars });
     }
 
@@ -254,14 +263,14 @@ export default function NoteDetective() {
     if (!isLevel6Done) {
       setTimeout(() => pickRandomNote(newLevel), shouldLevelUp ? 2600 : 1500);
     }
-  }, [currentNote, answeredThisRound, score, consecutiveCorrect, totalStars, level, levelQuestions, student, qc, playNote, pickRandomNote]);
+  }, [currentNote, answeredThisRound, score, batchQuestions, totalStars, level, levelQuestions, student, qc, playNote, pickRandomNote]);
 
   // Reset to level 1 when no badge earned after level 6
   const handleReset = useCallback(() => {
     setGameComplete(null);
     setLevel(1);
     setLevelQuestions(0);
-    setConsecutiveCorrect(0);
+    setBatchQuestions(0);
     setTotalStars(0);
     setScore({ correct: 0, wrong: 0 });
     lastNoteRef.current = null;
@@ -418,20 +427,22 @@ export default function NoteDetective() {
             </div>
             <span className="text-xs font-bold text-purple-400 w-12">{LEVEL_QUESTIONS[level - 1] ?? 55} soru</span>
           </div>
-          {/* Consecutive streak display */}
-          <div className="flex items-center justify-center gap-1.5">
-            {Array.from({ length: CONSECUTIVE_REQUIRED }).map((_, i) => (
+          {/* Batch star progress: every 10 questions → +3 stars */}
+          <div className="flex items-center justify-center gap-1">
+            <span className="text-xs font-bold text-yellow-500 mr-1">+3⭐</span>
+            {Array.from({ length: BATCH_SIZE }).map((_, i) => (
               <motion.div
                 key={i}
-                className={`w-5 h-5 rounded-full border-2 ${
-                  i < consecutiveCorrect
+                className={`w-4 h-4 rounded-full border-2 ${
+                  i < batchQuestions
                     ? "bg-yellow-400 border-yellow-500"
                     : "bg-gray-100 border-gray-200"
                 }`}
-                animate={i < consecutiveCorrect ? { scale: [1, 1.3, 1] } : {}}
-                transition={{ duration: 0.3 }}
+                animate={i === batchQuestions - 1 ? { scale: [1, 1.4, 1] } : {}}
+                transition={{ duration: 0.25 }}
               />
             ))}
+            <span className="text-xs font-bold text-gray-400 ml-1">{batchQuestions}/{BATCH_SIZE}</span>
           </div>
         </div>
 
