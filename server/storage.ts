@@ -1,13 +1,13 @@
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
-  institutions, admins, teachers, classes, students, studentProgress, teacherCodes,
+  institutions, admins, teachers, classes, students, studentProgress, teacherCodes, studentCodes,
   type Institution, type InsertInstitution,
   type Admin, type Teacher, type InsertTeacher,
   type Class, type InsertClass,
   type Student, type InsertStudent,
   type StudentProgress, type InsertProgress,
-  type TeacherCode,
+  type TeacherCode, type StudentCode,
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
@@ -41,6 +41,10 @@ export interface IStorage {
   getClassByCode(code: string): Promise<Class | undefined>;
   createClass(data: InsertClass & { classCode: string }): Promise<Class>;
   deleteClass(id: string): Promise<void>;
+  // Student codes
+  generateStudentCodesForClass(classId: string, count: number): Promise<StudentCode[]>;
+  getStudentCodesByClass(classId: string): Promise<StudentCode[]>;
+  findStudentCodeByValue(code: string): Promise<StudentCode | undefined>;
   // Students
   getStudentsByClass(classId: string): Promise<Student[]>;
   getStudent(id: string): Promise<Student | undefined>;
@@ -169,6 +173,38 @@ export class DatabaseStorage implements IStorage {
     await db.update(teacherCodes).set({ teacherId }).where(eq(teacherCodes.id, codeId));
   }
 
+  private async uniqueStudentCode(): Promise<string> {
+    let code = this.generateCode(8);
+    let attempts = 0;
+    while (attempts < 20) {
+      const existing = await db.select({ id: studentCodes.id }).from(studentCodes).where(eq(studentCodes.code, code)).limit(1);
+      if (existing.length === 0) return code;
+      code = this.generateCode(8);
+      attempts++;
+    }
+    return code;
+  }
+
+  async generateStudentCodesForClass(classId: string, count: number): Promise<StudentCode[]> {
+    const rows = [];
+    for (let i = 0; i < count; i++) {
+      const code = await this.uniqueStudentCode();
+      rows.push({ classId, code, slotNumber: i + 1 });
+    }
+    if (rows.length === 0) return [];
+    const result = await db.insert(studentCodes).values(rows).returning();
+    return result;
+  }
+
+  async getStudentCodesByClass(classId: string): Promise<StudentCode[]> {
+    return db.select().from(studentCodes).where(eq(studentCodes.classId, classId)).orderBy(studentCodes.slotNumber);
+  }
+
+  async findStudentCodeByValue(code: string): Promise<StudentCode | undefined> {
+    const result = await db.select().from(studentCodes).where(eq(studentCodes.code, code.toUpperCase())).limit(1);
+    return result[0];
+  }
+
   async updateInstitution(id: string, data: Partial<InsertInstitution>): Promise<Institution | undefined> {
     const result = await db.update(institutions).set(data).where(eq(institutions.id, id)).returning();
     return result[0];
@@ -260,7 +296,10 @@ export class DatabaseStorage implements IStorage {
 
   async createClass(data: InsertClass & { classCode: string }): Promise<Class> {
     const result = await db.insert(classes).values(data).returning();
-    return result[0];
+    const cls = result[0];
+    const count = Math.min(cls.maxStudents, 200);
+    await this.generateStudentCodesForClass(cls.id, count);
+    return cls;
   }
 
   async deleteClass(id: string): Promise<void> {
@@ -270,6 +309,7 @@ export class DatabaseStorage implements IStorage {
       await db.delete(studentProgress).where(eq(studentProgress.studentId, student.id));
     }
     await db.delete(students).where(eq(students.classId, id));
+    await db.delete(studentCodes).where(eq(studentCodes.classId, id));
     await db.delete(classes).where(eq(classes.id, id));
   }
 

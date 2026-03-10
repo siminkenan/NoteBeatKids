@@ -29,7 +29,11 @@ type SavedStudent = { firstName: string; lastName: string; classCode: string; sa
 const loginSchema = z.object({
   firstName: z.string().min(1, "Ad gerekli"),
   lastName: z.string().min(1, "Soyad gerekli"),
-  classCode: z.string().min(6, "Sınıf kodu 6 karakter olmalı").max(6).transform(v => v.toUpperCase()),
+  code: z
+    .string()
+    .min(6, "Kod en az 6 karakter olmalı")
+    .max(8, "Kod en fazla 8 karakter olmalı")
+    .transform(v => v.toUpperCase()),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -77,7 +81,7 @@ export default function StudentLogin() {
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { firstName: "", lastName: "", classCode: "" },
+    defaultValues: { firstName: "", lastName: "", code: "" },
   });
 
   useEffect(() => {
@@ -91,8 +95,8 @@ export default function StudentLogin() {
         );
         scanner.render(
           (decodedText: string) => {
-            const code = decodedText.trim().toUpperCase().slice(0, 6);
-            form.setValue("classCode", code);
+            const code = decodedText.trim().toUpperCase().slice(0, 8);
+            form.setValue("code", code);
             scanner.clear().catch(() => {});
             setShowScanner(false);
             scannerInitRef.current = false;
@@ -122,14 +126,14 @@ export default function StudentLogin() {
     setShowScanner(false);
   };
 
-  const doLogin = async (firstName: string, lastName: string, classCode: string) => {
-    const result = await apiRequest("POST", "/api/auth/student/login", {
-      firstName,
-      lastName,
-      classCode: classCode.toUpperCase(),
-    });
+  const doLogin = async (firstName: string, lastName: string, code: string) => {
+    const isStudentCode = code.length === 8;
+    const body = isStudentCode
+      ? { firstName, lastName, studentCode: code }
+      : { firstName, lastName, classCode: code };
+    const result = await apiRequest("POST", "/api/auth/student/login", body);
     const session = await result.json();
-    upsertSaved({ firstName, lastName, classCode: classCode.toUpperCase(), savedAt: Date.now() });
+    upsertSaved({ firstName, lastName, classCode: code, savedAt: Date.now() });
     setStudent(session);
     navigate("/student/home");
   };
@@ -137,9 +141,9 @@ export default function StudentLogin() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      await doLogin(data.firstName.trim(), data.lastName.trim(), data.classCode);
+      await doLogin(data.firstName.trim(), data.lastName.trim(), data.code);
     } catch (e: any) {
-      toast({ title: "Giriş başarısız", description: e.message || "Adını ve sınıf kodunu kontrol et", variant: "destructive" });
+      toast({ title: "Giriş başarısız", description: e.message || "Adını ve kodu kontrol et", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -320,17 +324,17 @@ export default function StudentLogin() {
 
                 <FormField
                   control={form.control}
-                  name="classCode"
+                  name="code"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Sınıf Kodu</FormLabel>
+                      <FormLabel className="font-bold">Sınıf Kodu / Öğrenci Kodum</FormLabel>
                       <div className="flex gap-2">
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder="SUN2A1"
-                            className="rounded-xl h-14 text-center text-2xl font-mono font-extrabold tracking-widest uppercase"
-                            maxLength={6}
+                            placeholder="6 veya 8 haneli kod"
+                            className="rounded-xl h-14 text-center text-xl font-mono font-extrabold tracking-widest uppercase"
+                            maxLength={8}
                             onChange={e => field.onChange(e.target.value.toUpperCase())}
                             data-testid="input-class-code"
                           />
@@ -347,7 +351,7 @@ export default function StudentLogin() {
                       </div>
                       <FormMessage />
                       <p className="text-xs text-muted-foreground text-center">
-                        6 haneli sınıf kodu için öğretmenine sor ya da QR kodu tara
+                        Öğretmeninden aldığın 6 haneli sınıf kodunu veya 8 haneli kişisel kodunu gir
                       </p>
                     </FormItem>
                   )}

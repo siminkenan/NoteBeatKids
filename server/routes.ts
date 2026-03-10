@@ -107,17 +107,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Student login (no session, stored client-side)
   app.post("/api/auth/student/login", async (req: Request, res: Response) => {
     try {
-      const { firstName, lastName, classCode } = req.body;
-      const cls = await storage.getClassByCode(classCode);
-      if (!cls) return res.status(404).json({ message: "Class not found. Check the code." });
+      const { firstName, lastName, classCode, studentCode } = req.body;
+
+      let cls: Awaited<ReturnType<typeof storage.getClassByCode>> | undefined;
+
+      if (studentCode) {
+        // Individual student code flow
+        const codeRecord = await storage.findStudentCodeByValue(studentCode.trim().toUpperCase());
+        if (!codeRecord) return res.status(404).json({ message: "Geçersiz öğrenci kodu. Öğretmeninizden aldığınız kodu kontrol edin." });
+        cls = await storage.getClass(codeRecord.classId);
+      } else {
+        // Legacy class code flow
+        cls = await storage.getClassByCode(classCode);
+      }
+
+      if (!cls) return res.status(404).json({ message: "Sınıf bulunamadı. Kodu kontrol edin." });
       if (cls.expiresAt && new Date(cls.expiresAt) < new Date()) {
-        return res.status(403).json({ message: "This class has expired." });
+        return res.status(403).json({ message: "Bu sınıfın süresi dolmuş." });
       }
       let student = await storage.findStudent(cls.id, firstName, lastName);
       if (!student) {
         const studentCount = (await storage.getStudentsByClass(cls.id)).length;
         if (studentCount >= cls.maxStudents) {
-          return res.status(403).json({ message: "This class is full." });
+          return res.status(403).json({ message: "Sınıf kapasitesi dolu." });
         }
         student = await storage.createStudent({ classId: cls.id, firstName, lastName });
       }
@@ -181,6 +193,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
     await storage.deleteClass(req.params.classId);
     res.json({ ok: true });
+  });
+
+  app.get("/api/teacher/classes/:classId/student-codes", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const cls = await storage.getClass(req.params.classId);
+    if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
+    const codes = await storage.getStudentCodesByClass(req.params.classId);
+    res.json({ class: cls, codes });
+  });
+
+  app.post("/api/teacher/classes/:classId/student-codes/generate", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const cls = await storage.getClass(req.params.classId);
+    if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
+    const existing = await storage.getStudentCodesByClass(req.params.classId);
+    if (existing.length > 0) return res.json({ class: cls, codes: existing });
+    const count = Math.min(cls.maxStudents, 200);
+    const codes = await storage.generateStudentCodesForClass(req.params.classId, count);
+    res.json({ class: cls, codes });
   });
 
   app.get("/api/teacher/classes/:classId/students", async (req: Request, res: Response) => {
