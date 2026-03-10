@@ -166,12 +166,22 @@ export default function StudentLogin() {
       style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 40%, #fda085 100%)" }}
     >
       <div className="absolute inset-0 pointer-events-none select-none">
+        {/* Fa (bass) clef — top left */}
+        <motion.span
+          className="absolute text-white/20 font-bold select-none"
+          style={{ left: "12px", top: "8px", fontSize: "96px", lineHeight: 1 }}
+          animate={{ y: [0, -8, 0], opacity: [0.20, 0.32, 0.20] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        >
+          𝄢
+        </motion.span>
+        {/* Animated background notes */}
         {[...Array(6)].map((_, i) => (
           <motion.span
             key={i}
-            className="absolute text-white/25 text-2xl"
+            className="absolute text-white/40 text-2xl"
             style={{ left: `${10 + i * 16}%`, top: `${15 + (i % 3) * 25}%` }}
-            animate={{ rotate: [0, 360], scale: [1, 1.2, 1] }}
+            animate={{ rotate: [0, 360], scale: [1, 1.3, 1] }}
             transition={{ duration: 4 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 }}
           >
             ★

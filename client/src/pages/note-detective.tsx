@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import type { StudentProgress } from "@shared/schema";
 
+// Consecutive correct answers needed to advance from each level (index 0 = level 1)
+const LEVEL_ROUNDS = [20, 28, 36, 45, 54, 62];
+
 // Notes by level
 const LEVEL_NOTES: Record<number, { vexKey: string; label: string; solfa: string }[]> = {
   1: [
@@ -173,7 +176,7 @@ export default function NoteDetective() {
     const newStars = totalStars + starsToAdd;
     setTotalStars(newStars);
 
-    const shouldLevelUp = newConsecutive >= levelNotes.length * 2 && correct;
+    const shouldLevelUp = newConsecutive >= (LEVEL_ROUNDS[level - 1] ?? 62) && correct;
     const newLevel = shouldLevelUp ? Math.min(level + 1, 6) : level;
     if (shouldLevelUp) setLevel(newLevel);
 
