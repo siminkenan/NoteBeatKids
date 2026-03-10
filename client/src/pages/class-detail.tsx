@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useRoute } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -22,6 +22,32 @@ type ClassDetailData = {
   class: { id: string; name: string; classCode: string; maxStudents: number };
   students: StudentWithProgress[];
 };
+
+function copyText(text: string): Promise<void> {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  const el = document.createElement("textarea");
+  el.value = text;
+  el.style.cssText = "position:fixed;left:-9999px;top:-9999px;opacity:0";
+  document.body.appendChild(el);
+  el.focus();
+  el.select();
+  document.execCommand("copy");
+  document.body.removeChild(el);
+  return Promise.resolve();
+}
+
+async function shareOrCopy(title: string, text: string): Promise<"shared" | "copied"> {
+  if (navigator.share && navigator.canShare && navigator.canShare({ text })) {
+    try {
+      await navigator.share({ title, text });
+      return "shared";
+    } catch {}
+  }
+  await copyText(text);
+  return "copied";
+}
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -67,6 +93,8 @@ export default function ClassDetail() {
   const classId = params?.classId;
   const [showCodes, setShowCodes] = useState(false);
   const [codeSearch, setCodeSearch] = useState("");
+  const [copiedSlot, setCopiedSlot] = useState<number | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!teacher) {
@@ -232,7 +260,7 @@ export default function ClassDetail() {
                             .map(c => `Öğrenci ${c.slotNumber}: ${c.code}`)
                             .join("\n");
                           const header = `🎵 NoteBeat Kids — ${codesData.class.name}\nSınıf Kodu: ${codesData.class.classCode}\n\n${text}`;
-                          await navigator.clipboard.writeText(header);
+                          await copyText(header);
                           toast({ title: "Tüm kodlar kopyalandı!", description: `${codesData.codes.length} öğrenci kodu panoya kopyalandı.` });
                         }}
                       >
@@ -267,16 +295,25 @@ export default function ClassDetail() {
                           `Giriş ekranında adınızı ve bu kodu girin.`,
                         ].join("\n");
 
+                        const handleCopyCode = async () => {
+                          await copyText(c.code);
+                          setCopiedSlot(c.slotNumber);
+                          if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+                          copyTimerRef.current = setTimeout(() => setCopiedSlot(null), 2000);
+                          toast({ title: `Kod kopyalandı!`, description: c.code });
+                        };
+
                         const handleShareCode = async () => {
-                          if (navigator.share) {
-                            try {
-                              await navigator.share({ title: "NoteBeat Kids — Öğrenci Kodu", text: shareText });
-                            } catch {}
-                          } else {
-                            await navigator.clipboard.writeText(shareText);
-                            toast({ title: `Kod ${c.slotNumber} kopyalandı!`, description: c.code });
+                          const result = await shareOrCopy(
+                            "NoteBeat Kids — Öğrenci Davet Kodu",
+                            shareText
+                          );
+                          if (result === "copied") {
+                            toast({ title: "Davet mesajı kopyalandı!", description: `${c.code} — panoya kopyalandı.` });
                           }
                         };
+
+                        const isCopied = copiedSlot === c.slotNumber;
 
                         return (
                           <motion.div
@@ -284,23 +321,35 @@ export default function ClassDetail() {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: (c.slotNumber - 1) * 0.015 }}
-                            className="bg-indigo-50 border border-indigo-100 rounded-xl p-2.5 flex flex-col items-center gap-1.5 group"
+                            className="bg-indigo-50 border border-indigo-100 rounded-xl p-2.5 flex flex-col items-center gap-1.5"
                             data-testid={`card-student-code-${c.slotNumber}`}
                           >
                             <span className="text-[10px] font-bold text-indigo-400">#{c.slotNumber}</span>
                             <span className="font-mono font-extrabold text-indigo-700 text-sm tracking-widest">
                               {c.code}
                             </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 rounded-lg text-indigo-500 hover:bg-indigo-100 hover:text-indigo-700 w-full gap-1 text-xs font-bold"
-                              onClick={handleShareCode}
-                              data-testid={`button-share-code-${c.slotNumber}`}
-                            >
-                              <Share2 className="w-3 h-3" />
-                              Paylaş
-                            </Button>
+                            <div className="flex gap-1 w-full">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-7 flex-1 rounded-lg text-xs font-bold gap-0.5 transition-colors ${isCopied ? "text-green-600 bg-green-50 hover:bg-green-100" : "text-indigo-500 hover:bg-indigo-100 hover:text-indigo-700"}`}
+                                onClick={handleCopyCode}
+                                data-testid={`button-copy-code-${c.slotNumber}`}
+                                title="Kodu kopyala"
+                              >
+                                {isCopied ? <CheckCircle className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 flex-1 rounded-lg text-indigo-500 hover:bg-indigo-100 hover:text-indigo-700 text-xs font-bold gap-0.5"
+                                onClick={handleShareCode}
+                                data-testid={`button-share-code-${c.slotNumber}`}
+                                title="Davet mesajını paylaş"
+                              >
+                                <Share2 className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </motion.div>
                         );
                       })}
@@ -377,12 +426,11 @@ export default function ClassDetail() {
                   const isHighlighted = !!searchTrimmed && student.id === matchedStudentId;
 
                   const handleShare = async () => {
-                    if (navigator.share) {
-                      try {
-                        await navigator.share({ title: `NoteBeat Kids — ${student.firstName} ${student.lastName}`, text: shareText });
-                      } catch {}
-                    } else {
-                      await navigator.clipboard.writeText(shareText);
+                    const result = await shareOrCopy(
+                      `NoteBeat Kids — ${student.firstName} ${student.lastName}`,
+                      shareText
+                    );
+                    if (result === "copied") {
                       toast({ title: "Rapor kopyalandı!", description: `${student.firstName} ${student.lastName} performans özeti panoya kopyalandı.` });
                     }
                   };
