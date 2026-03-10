@@ -1,0 +1,170 @@
+}
+Add a new dashboard module to the existing NoteBeat Kids platform called:
+
+Rhythm Trainer
+
+This module must be added as a new icon on both the Teacher Dashboard and Student Dashboard.
+
+Do NOT modify the existing Metronome module.  
+This module must run independently but it may optionally read the current BPM value from the Metronome if available.
+
+------------------------------------------------
+
+DASHBOARD ICON
+
+Add a colorful child-friendly icon named:
+
+Rhythm Trainer
+
+Icon design elements:
+
+Drum
+Clapping hands
+Music rhythm waves
+
+Place the icon next to the Metronome icon.
+
+Clicking the icon opens the Rhythm Trainer screen.
+
+------------------------------------------------
+
+RHYTHM TRAINER PURPOSE
+
+Rhythm Trainer is a practice module where students listen to a rhythm and repeat it.
+
+This is NOT a game.  
+It is an interactive rhythm exercise tool.
+
+------------------------------------------------
+
+TEMPO ENGINE
+
+The module must support BPM values between:
+
+40 and 208 BPM.
+
+If the Metronome is active, the Rhythm Trainer should read the current BPM.
+
+If the Metronome is not active, the module should provide its own tempo control.
+
+------------------------------------------------
+
+RHYTHM GENERATOR
+
+The system must generate simple rhythm patterns.
+
+Examples:
+
+Quarter notes
+Eighth notes
+Quarter + eighth combinations
+Simple rests
+
+Display rhythms visually using large child-friendly rhythm symbols.
+
+------------------------------------------------
+
+LISTEN PHASE
+
+When an exercise begins:
+
+The rhythm pattern is played once using click sounds.
+
+Students listen first.
+
+------------------------------------------------
+
+REPEAT PHASE
+
+After listening, the student must repeat the rhythm.
+
+Input methods:
+
+Screen tap (primary input)
+Keyboard tap
+Touch input
+Optional microphone clap detection
+
+Each tap must be timestamped.
+
+------------------------------------------------
+
+TIMING ANALYSIS
+
+Compare expected rhythm timing with student taps.
+
+Allow timing tolerance:
+
+±80 milliseconds.
+
+Score results:
+
+Perfect
+Good
+Late
+Early
+Miss
+
+------------------------------------------------
+
+FEEDBACK SYSTEM
+
+After each rhythm attempt show:
+
+Accuracy percentage
+Star rating
+Friendly feedback message
+
+Examples:
+
+Great Rhythm!
+Nice Timing!
+Try Again!
+
+------------------------------------------------
+
+LEVEL STRUCTURE
+
+Create progressive difficulty levels.
+
+Level 1
+Quarter notes
+
+Level 2
+Quarter + eighth notes
+
+Level 3
+Add rests
+
+Level 4
+Simple syncopation
+
+Students unlock the next level after successful completion.
+
+------------------------------------------------
+
+CHILD FRIENDLY DESIGN
+
+Use large buttons and pastel colors.
+
+Interface must be simple for primary school children.
+
+------------------------------------------------
+
+DATA TRACKING
+
+Save student results including:
+
+Accuracy percentage
+Completed rhythm exercises
+Level progress
+
+Teachers must be able to view this progress inside the Teacher Panel.
+
+------------------------------------------------
+
+FINAL RESULT
+
+Students listen to a rhythm pattern and repeat it by tapping.
+
+The system analyzes timing accuracy and provides feedback to help improve rhythm skills

@@ -16,6 +16,7 @@ import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-pre
 type StudentWithProgress = Student & {
   rhythmProgress?: StudentProgress;
   notesProgress?: StudentProgress;
+  rhythmTrainerProgress?: StudentProgress;
 };
 
 type ClassDetailData = {
@@ -463,34 +464,45 @@ export default function ClassDetail() {
                                 </div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div className="bg-orange-50 rounded-xl p-3 text-center">
-                                <p className="text-xs font-bold text-orange-500 mb-1">Ritim</p>
-                                <p className="font-extrabold text-orange-600">Seviye {student.rhythmProgress?.level ?? 1}</p>
-                                <p className="text-xs text-muted-foreground font-semibold">{rAcc}% doğruluk</p>
-                                <div className="flex items-center justify-center gap-1.5 mt-1">
+                            <div className="grid grid-cols-3 gap-2 text-sm">
+                              <div className="bg-orange-50 rounded-xl p-2.5 text-center">
+                                <p className="text-xs font-bold text-orange-500 mb-1">🥁 Ritim</p>
+                                <p className="font-extrabold text-orange-600 text-sm">Sv. {student.rhythmProgress?.level ?? 1}</p>
+                                <p className="text-xs text-muted-foreground font-semibold">{rAcc}%</p>
+                                <div className="flex items-center justify-center gap-1 mt-1">
                                   <CheckCircle className="w-3 h-3 text-green-500" />
                                   <span className="text-xs font-bold text-green-600">{student.rhythmProgress?.correctAnswers ?? 0}</span>
                                   <XCircle className="w-3 h-3 text-red-500" />
                                   <span className="text-xs font-bold text-red-500">{student.rhythmProgress?.wrongAnswers ?? 0}</span>
                                 </div>
                               </div>
-                              <div className="bg-purple-50 rounded-xl p-3 text-center">
-                                <p className="text-xs font-bold text-purple-500 mb-1">Notalar</p>
-                                <p className="font-extrabold text-purple-600">Seviye {student.notesProgress?.level ?? 1}</p>
-                                <p className="text-xs text-muted-foreground font-semibold">{nAcc}% doğruluk</p>
-                                <div className="flex items-center justify-center gap-1.5 mt-1">
+                              <div className="bg-purple-50 rounded-xl p-2.5 text-center">
+                                <p className="text-xs font-bold text-purple-500 mb-1">🎵 Notalar</p>
+                                <p className="font-extrabold text-purple-600 text-sm">Sv. {student.notesProgress?.level ?? 1}</p>
+                                <p className="text-xs text-muted-foreground font-semibold">{nAcc}%</p>
+                                <div className="flex items-center justify-center gap-1 mt-1">
                                   <CheckCircle className="w-3 h-3 text-green-500" />
                                   <span className="text-xs font-bold text-green-600">{student.notesProgress?.correctAnswers ?? 0}</span>
                                   <XCircle className="w-3 h-3 text-red-500" />
                                   <span className="text-xs font-bold text-red-500">{student.notesProgress?.wrongAnswers ?? 0}</span>
                                 </div>
                               </div>
+                              <div className="bg-amber-50 rounded-xl p-2.5 text-center">
+                                <p className="text-xs font-bold text-amber-500 mb-1">🎯 Antrenör</p>
+                                <p className="font-extrabold text-amber-600 text-sm">Sv. {student.rhythmTrainerProgress?.level ?? 1}</p>
+                                <p className="text-xs text-muted-foreground font-semibold">{accuracy(student.rhythmTrainerProgress?.correctAnswers ?? 0, student.rhythmTrainerProgress?.wrongAnswers ?? 0)}%</p>
+                                <div className="flex items-center justify-center gap-1 mt-1">
+                                  <CheckCircle className="w-3 h-3 text-green-500" />
+                                  <span className="text-xs font-bold text-green-600">{student.rhythmTrainerProgress?.correctAnswers ?? 0}</span>
+                                  <XCircle className="w-3 h-3 text-red-500" />
+                                  <span className="text-xs font-bold text-red-500">{student.rhythmTrainerProgress?.wrongAnswers ?? 0}</span>
+                                </div>
+                              </div>
                             </div>
                             <div className="text-center">
                               <Clock className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
                               <p className="text-xs font-bold text-muted-foreground">
-                                {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0))}
+                                {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0) + (student.rhythmTrainerProgress?.timeSpentSeconds ?? 0))}
                               </p>
                             </div>
                             <Button
