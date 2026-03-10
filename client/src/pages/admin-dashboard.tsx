@@ -254,9 +254,7 @@ export default function AdminDashboard() {
   };
 
   const isLicenseActive = (inst: Institution) => {
-    return inst.isActive &&
-      new Date(inst.licenseStart) <= new Date() &&
-      new Date(inst.licenseEnd) >= new Date();
+    return inst.isActive && new Date(inst.licenseEnd) >= new Date();
   };
 
   return (
