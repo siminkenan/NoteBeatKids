@@ -102,6 +102,7 @@ export default function NoteDetective() {
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
   const [answeredThisRound, setAnsweredThisRound] = useState(false);
   const [levelQuestions, setLevelQuestions] = useState(0);
+  const [levelComplete, setLevelComplete] = useState(false);
 
   const sessionStartRef = useRef(Date.now());
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -185,19 +186,27 @@ export default function NoteDetective() {
     setConsecutiveCorrect(newConsecutive);
     setScore({ correct: newCorrect, wrong: newWrong });
 
-    const starsToAdd = correct ? 1 : 0;
-    const newStars = totalStars + starsToAdd;
-    setTotalStars(newStars);
-
     const newLevelQuestions = levelQuestions + 1;
     setLevelQuestions(newLevelQuestions);
 
-    const shouldLevelUp = newConsecutive >= CONSECUTIVE_REQUIRED && correct && level < 6;
+    const levelTarget = LEVEL_QUESTIONS[level - 1] ?? 55;
+    const completedByTarget = newLevelQuestions >= levelTarget;
+    const completedByStreak = newConsecutive >= CONSECUTIVE_REQUIRED && correct;
+    const shouldLevelUp = (completedByTarget || completedByStreak) && level < 6;
+
+    // Bonus stars: +5 for completing the level by target, +3 for consecutive streak
+    const bonusStars = shouldLevelUp ? (completedByTarget ? 5 : 3) : 0;
+    const starsToAdd = (correct ? 1 : 0) + bonusStars;
+    const newStars = totalStars + starsToAdd;
+    setTotalStars(newStars);
+
     const newLevel = shouldLevelUp ? level + 1 : level;
     if (shouldLevelUp) {
       setLevel(newLevel);
       setLevelQuestions(0);
       setConsecutiveCorrect(0);
+      setLevelComplete(true);
+      setTimeout(() => setLevelComplete(false), 2500);
     }
 
     if (student) {
@@ -212,7 +221,7 @@ export default function NoteDetective() {
       }).then(() => qc.invalidateQueries({ queryKey: ["/api/student", student.student.id, "progress"] }));
     }
 
-    setTimeout(() => pickRandomNote(newLevel), 1500);
+    setTimeout(() => pickRandomNote(newLevel), shouldLevelUp ? 2600 : 1500);
   }, [currentNote, answeredThisRound, score, consecutiveCorrect, totalStars, level, levelQuestions, student, qc, playNote, pickRandomNote]);
 
   const accuracy = score.correct + score.wrong > 0
@@ -225,6 +234,30 @@ export default function NoteDetective() {
     <div className="min-h-screen select-none"
       style={{ background: "linear-gradient(160deg, #f3e8ff 0%, #e0d7ff 50%, #ddd6fe 100%)" }}
     >
+      {/* Level complete overlay */}
+      <AnimatePresence>
+        {levelComplete && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl px-10 py-8 shadow-2xl text-center"
+              initial={{ scale: 0.5, y: 40 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <p className="text-5xl mb-3">🎉</p>
+              <p className="text-2xl font-extrabold text-purple-700">Seviye Tamamlandı!</p>
+              <p className="text-base font-bold text-yellow-500 mt-1">+5 Yıldız Kazandın ⭐</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="bg-white/80 backdrop-blur border-b sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
