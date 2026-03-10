@@ -102,9 +102,10 @@ interface SingleNoteRendererProps {
   noteKey: string;
   width?: number;
   height?: number;
+  scale?: number;
 }
 
-export function SingleNoteRenderer({ noteKey, width = 280, height = 160 }: SingleNoteRendererProps) {
+export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale = 1 }: SingleNoteRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -138,5 +139,30 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160 }: Singl
     }
   }, [noteKey, width, height]);
 
-  return <div ref={containerRef} style={{ width, minHeight: height }} />;
+  if (scale === 1) {
+    return <div ref={containerRef} style={{ width, minHeight: height }} />;
+  }
+
+  return (
+    <div style={{
+      width: width * scale,
+      height: height * scale,
+      overflow: "hidden",
+      position: "relative",
+      flexShrink: 0,
+    }}>
+      <div
+        ref={containerRef}
+        style={{
+          width,
+          height,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+          position: "absolute",
+          top: 0,
+          left: 0,
+        }}
+      />
+    </div>
+  );
 }

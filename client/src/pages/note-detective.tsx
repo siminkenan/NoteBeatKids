@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import type { StudentProgress } from "@shared/schema";
 
-// 6 consecutive correct answers advances the level (all levels)
-const CONSECUTIVE_REQUIRED = 6;
+// 10 consecutive correct answers advances the level (all levels)
+const CONSECUTIVE_REQUIRED = 10;
 
 // Total question targets per level (for progress display)
 const LEVEL_QUESTIONS = [15, 30, 45, 15, 30, 55];
@@ -102,23 +102,6 @@ export default function NoteDetective() {
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
   const [answeredThisRound, setAnsweredThisRound] = useState(false);
   const [levelQuestions, setLevelQuestions] = useState(0);
-
-  // Responsive staff width
-  const staffContainerRef = useRef<HTMLDivElement>(null);
-  const [staffWidth, setStaffWidth] = useState(500);
-
-  useEffect(() => {
-    const el = staffContainerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        setStaffWidth(Math.floor(entry.contentRect.width) || 500);
-      }
-    });
-    observer.observe(el);
-    setStaffWidth(el.clientWidth || 500);
-    return () => observer.disconnect();
-  }, []);
 
   const sessionStartRef = useRef(Date.now());
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -315,12 +298,13 @@ export default function NoteDetective() {
           <p className="text-xs font-extrabold text-center text-muted-foreground uppercase tracking-widest mb-3">
             Bu nota hangisi?
           </p>
-          <div ref={staffContainerRef} className="w-full">
+          <div className="flex justify-center">
             {currentNote && (
               <SingleNoteRenderer
                 noteKey={currentNote.vexKey}
-                width={staffWidth}
-                height={180}
+                width={220}
+                height={130}
+                scale={1.5}
               />
             )}
           </div>
