@@ -541,7 +541,7 @@ export default function RhythmAdventure() {
 
             {/* Beat guide markers — horizontal lines synced to BPM */}
             {beatGuides.map(g => {
-              const topPct = (1 - g.pos) * 100;
+              const topPct = g.pos * 100;
               return (
                 <div key={g.id} className="absolute left-0 right-0" style={{
                   top: `${topPct}%`,
@@ -561,7 +561,7 @@ export default function RhythmAdventure() {
               const rawPos = (now - spawnTime) / TRAVEL_MS;
               const pos = Math.max(0, Math.min(1, rawPos));
               if (rawPos < -0.1 || rawPos > 1.2) return null;
-              const topPct = (1 - pos) * 100;
+              const topPct = pos * 100;
               const blockH = Math.round(18 + pos * 26);
               const blockW = Math.round(LANE_W * 0.55 + pos * LANE_W * 0.35);
               const opacity = pos < 0.08 ? pos / 0.08 : block.state === "hit" ? 0 : 1;
