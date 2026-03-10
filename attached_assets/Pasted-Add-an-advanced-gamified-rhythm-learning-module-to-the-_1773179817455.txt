@@ -1,0 +1,235 @@
+Add an advanced gamified rhythm learning module to the existing NoteBeat Kids platform called:
+
+Rhythm Adventure
+
+This module must appear as a separate icon in both the Teacher Dashboard and Student Dashboard.
+
+Do NOT modify the existing Metronome or Rhythm Trainer modules.
+
+------------------------------------------------
+
+DASHBOARD ICON
+
+Create a colorful child-friendly icon named:
+
+Rhythm Adventure
+
+Icon visuals may include:
+
+Drum
+Music stars
+Rhythm waves
+
+When clicked it opens the Rhythm Adventure 3D rhythm game.
+
+------------------------------------------------
+
+GAME STYLE
+
+The game must use a 3D perspective rhythm lane.
+
+Rhythm blocks travel from the distance toward a target bar at the front of the screen.
+
+The perspective should resemble a musical road moving toward the player.
+
+Rhythm blocks must move continuously according to BPM tempo.
+
+------------------------------------------------
+
+INPUT METHODS
+
+Students perform rhythm using:
+
+Screen taps
+Touch input
+Optional microphone clap detection
+
+Each rhythm action must be timestamped.
+
+------------------------------------------------
+
+AI RHYTHM LISTENER
+
+Integrate an intelligent rhythm analysis system called:
+
+AI Rhythm Listener
+
+This system listens to the student's rhythm performance and analyzes timing accuracy in real time.
+
+The AI Rhythm Listener must detect percussive sounds such as:
+
+Claps
+Desk taps
+Hand hits
+
+Use audio peak detection and transient detection to identify rhythm hits.
+
+Each detected sound must create a precise timestamp.
+
+------------------------------------------------
+
+RHYTHM TIMING ANALYSIS
+
+Compare expected rhythm timing with the student performance.
+
+Timing tolerance:
+
+±100 milliseconds.
+
+Score results:
+
+Perfect
+Good
+Early
+Late
+Miss
+
+The AI Rhythm Listener must calculate rhythm accuracy percentage.
+
+Example:
+
+Rhythm Accuracy: 91%
+
+------------------------------------------------
+
+VISUAL RHYTHM FEEDBACK
+
+Provide visual feedback after each rhythm attempt.
+
+Display timing indicators such as:
+
+Early
+Late
+Perfect
+
+Show graphical timing markers on the rhythm lane to help students see where their rhythm was early or late.
+
+------------------------------------------------
+
+RHYTHM BLOCK INTERACTION
+
+If the student hits the rhythm correctly:
+
+The rhythm block breaks with a fun animation.
+
+Animations may include:
+
+Star particles
+Spark bursts
+Sound effects
+
+If the student misses:
+
+The rhythm block passes through the target line.
+
+------------------------------------------------
+
+COMBO SYSTEM
+
+Correct hits increase a combo counter.
+
+Example:
+
+Combo x3
+Combo x6
+Combo x10
+
+Higher combos increase score multipliers.
+
+------------------------------------------------
+
+REWARD SYSTEM
+
+Students earn rewards including:
+
+Stars
+Coins
+Badges
+Trophies
+
+Rewards unlock new rhythm worlds and visual themes.
+
+------------------------------------------------
+
+LEVEL STRUCTURE
+
+Create a progression of 40 levels from easy to advanced.
+
+Levels 1–5
+
+Quarter notes only
+
+Levels 6–10
+
+Quarter + eighth notes
+
+Levels 11–15
+
+Add rests
+
+Levels 16–20
+
+Mixed rhythms
+
+Levels 21–25
+
+Faster BPM
+
+Levels 26–30
+
+Complex rhythm patterns
+
+Levels 31–35
+
+Syncopation
+
+Levels 36–40
+
+Advanced rhythm combinations
+
+------------------------------------------------
+
+3D VISUAL ENVIRONMENTS
+
+Create fun musical environments such as:
+
+Music Forest
+Rhythm City
+Space Music World
+
+Use child-friendly pastel colors and playful animations.
+
+------------------------------------------------
+
+LEVEL MAP
+
+Create a level progression map showing 40 levels.
+
+Completed levels show stars.
+
+Locked levels unlock after successful completion.
+
+------------------------------------------------
+
+TEACHER ANALYTICS
+
+Teachers must be able to see student progress including:
+
+Completed levels
+Rhythm accuracy
+Game scores
+Timing performance
+
+------------------------------------------------
+
+FINAL RESULT
+
+Students play a 3D rhythm game where rhythm blocks move along a musical road.
+
+Students clap or tap rhythms.
+
+The AI Rhythm Listener analyzes their rhythm timing in real time.
+
+Correct timing breaks rhythm blocks and increases score.
+
+Students progress through 40 levels while improving rhythm accuracy and musical timing.
