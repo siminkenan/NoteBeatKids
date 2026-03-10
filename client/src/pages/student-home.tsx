@@ -32,6 +32,13 @@ export default function StudentHome() {
   if (studentLoading || !student) return null;
 
   const totalStars = (rhythmProgress?.starsEarned ?? 0) + (notesProgress?.starsEarned ?? 0);
+  const notesBadge = notesProgress?.notesBadge as "bronze" | "silver" | "gold" | null | undefined;
+
+  const BADGE_INFO = {
+    bronze: { emoji: "🥉", label: "Bronz Rozet", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
+    silver: { emoji: "🥈", label: "Gümüş Rozet", color: "text-slate-500", bg: "bg-slate-50", border: "border-slate-200" },
+    gold:   { emoji: "🥇", label: "Altın Rozet",  color: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-200" },
+  };
 
   return (
     <div className="min-h-screen relative overflow-hidden"
@@ -98,6 +105,42 @@ export default function StudentHome() {
             </motion.div>
           ))}
         </div>
+
+        {/* Rozetler */}
+        {notesBadge && BADGE_INFO[notesBadge] && (
+          <motion.div
+            className="bg-white/80 backdrop-blur rounded-2xl p-3 shadow-md"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <p className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-2 text-center">Nota Dedektifi Rozetleri</p>
+            <div className="flex gap-2 justify-center flex-wrap">
+              {(["bronze", "silver", "gold"] as const).map((tier) => {
+                const info = BADGE_INFO[tier];
+                const earned = tier === "bronze"
+                  ? ["bronze","silver","gold"].includes(notesBadge ?? "")
+                  : tier === "silver"
+                  ? ["silver","gold"].includes(notesBadge ?? "")
+                  : notesBadge === "gold";
+                return (
+                  <div
+                    key={tier}
+                    data-testid={`badge-${tier}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${
+                      earned
+                        ? `${info.bg} ${info.border} ${info.color}`
+                        : "bg-gray-100 border-gray-200 text-gray-300 opacity-50"
+                    }`}
+                  >
+                    <span className={earned ? "" : "grayscale"}>{info.emoji}</span>
+                    <span>{info.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
         {/* Oyun butonları */}
         <div className="flex flex-col gap-5 flex-1">

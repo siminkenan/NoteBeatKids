@@ -384,6 +384,7 @@ export class DatabaseStorage implements IStorage {
         correctAnswers: data.correctAnswers ?? 0,
         wrongAnswers: data.wrongAnswers ?? 0,
         timeSpentSeconds: data.timeSpentSeconds ?? 0,
+        notesBadge: data.notesBadge ?? null,
       }).returning();
       return result[0];
     }

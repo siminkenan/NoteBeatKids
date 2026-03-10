@@ -58,6 +58,7 @@ export const studentProgress = pgTable("student_progress", {
   correctAnswers: integer("correct_answers").notNull().default(0),
   wrongAnswers: integer("wrong_answers").notNull().default(0),
   timeSpentSeconds: integer("time_spent_seconds").notNull().default(0),
+  notesBadge: text("notes_badge"), // "bronze" | "silver" | "gold" | null
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

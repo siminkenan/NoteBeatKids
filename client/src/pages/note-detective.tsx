@@ -10,8 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import type { StudentProgress } from "@shared/schema";
 
-// Every 10 questions answered (correct or wrong) → +3 stars
-const BATCH_SIZE = 10;
+// 10 consecutive correct answers → +3 stars
+const CONSECUTIVE_REQUIRED = 10;
+
+// Badge thresholds at level 6 completion
+const BADGE_THRESHOLDS = { bronze: 30, silver: 50, gold: 60 };
 
 // Total question targets per level (for progress display)
 const LEVEL_QUESTIONS = [15, 30, 45, 15, 30, 55];
@@ -99,11 +102,17 @@ export default function NoteDetective() {
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [totalStars, setTotalStars] = useState(0);
   const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
-  const [batchQuestions, setBatchQuestions] = useState(0); // 0-9, progress toward next +3 batch
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
   const [answeredThisRound, setAnsweredThisRound] = useState(false);
   const [levelQuestions, setLevelQuestions] = useState(0);
   const [celebration, setCelebration] = useState<{ emoji: string; title: string; sub: string } | null>(null);
-  const [gameComplete, setGameComplete] = useState<{ badge: boolean; stars: number } | null>(null);
+  const [notesBadge, setNotesBadge] = useState<"bronze" | "silver" | "gold" | null>(null); // best badge ever earned
+  const [gameComplete, setGameComplete] = useState<{
+    tier: "bronze" | "silver" | "gold" | null;
+    stars: number;
+    correct: number;
+    wrong: number;
+  } | null>(null);
 
   const sessionStartRef = useRef(Date.now());
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -129,8 +138,9 @@ export default function NoteDetective() {
         setLevel(notesProgress.level);
         setScore({ correct: notesProgress.correctAnswers, wrong: notesProgress.wrongAnswers });
         setTotalStars(notesProgress.starsEarned);
+        setNotesBadge(notesProgress.notesBadge as "bronze" | "silver" | "gold" | null);
       }
-      setBatchQuestions(0);
+      setConsecutiveCorrect(0);
     }
   }, [student, progress]);
 
@@ -193,6 +203,8 @@ export default function NoteDetective() {
 
     const newCorrect = score.correct + (correct ? 1 : 0);
     const newWrong = score.wrong + (correct ? 0 : 1);
+    const newConsecutive = correct ? consecutiveCorrect + 1 : 0;
+    setConsecutiveCorrect(newConsecutive);
     setScore({ correct: newCorrect, wrong: newWrong });
 
     const newLevelQuestions = levelQuestions + 1;
@@ -200,30 +212,23 @@ export default function NoteDetective() {
 
     const levelTarget = LEVEL_QUESTIONS[level - 1] ?? 55;
     const completedByTarget = newLevelQuestions >= levelTarget;
-
-    // Batch counter: every BATCH_SIZE questions → +3 stars (resets on exit or level up)
-    const newBatch = batchQuestions + 1;
-    const batchComplete = newBatch >= BATCH_SIZE;
+    const streakBonus = newConsecutive >= CONSECUTIVE_REQUIRED && correct;
 
     let bonusStars = 0;
 
-    // +3 for completing a batch of 10 questions (any correct/wrong mix)
-    if (batchComplete) {
+    // +3 for 10 consecutive correct answers
+    if (streakBonus) {
       bonusStars += 3;
-      setBatchQuestions(0);
-      // Only show batch celebration if we're NOT also completing the level right now
+      setConsecutiveCorrect(0);
       if (!completedByTarget) {
-        setCelebration({ emoji: "⭐", title: "10 Soru Tamamlandı!", sub: "+3 Yıldız Kazandın ⭐⭐⭐" });
+        setCelebration({ emoji: "🔥", title: "Mükemmel Seri!", sub: "+3 Bonus Yıldız Kazandın ⭐⭐⭐" });
         setTimeout(() => setCelebration(null), 2500);
       }
-    } else {
-      setBatchQuestions(newBatch);
     }
 
     // +2 for completing the level's question target
     if (completedByTarget) bonusStars += 2;
 
-    // Stars only come from milestones — no +1 per correct answer
     const newStars = totalStars + bonusStars;
     setTotalStars(newStars);
 
@@ -233,22 +238,43 @@ export default function NoteDetective() {
     if (shouldLevelUp) {
       setLevel(newLevel);
       setLevelQuestions(0);
-      setBatchQuestions(0); // reset batch on level change
-      const sub = batchComplete
-        ? "+3 Soru Bonusu & +2 Seviye Bonusu = +5 Yıldız 🌟"
+      if (!streakBonus) setConsecutiveCorrect(0);
+      const sub = streakBonus
+        ? "+3 Seri Bonusu & +2 Seviye Bonusu = +5 Yıldız 🌟"
         : "+2 Yıldız Kazandın ⭐⭐";
       setCelebration({ emoji: "🎉", title: "Seviye Tamamlandı!", sub });
       setTimeout(() => setCelebration(null), 2500);
     }
 
-    // Level 6 final completion
+    // Level 6 final completion → compute badge tier
     if (completedByTarget && level === 6) {
-      setBatchQuestions(0);
-      setGameComplete({ badge: newStars >= 30, stars: newStars });
+      setConsecutiveCorrect(0);
+      const tier: "bronze" | "silver" | "gold" | null =
+        newStars >= BADGE_THRESHOLDS.gold ? "gold" :
+        newStars >= BADGE_THRESHOLDS.silver ? "silver" :
+        newStars >= BADGE_THRESHOLDS.bronze ? "bronze" : null;
+
+      // Persist best badge ever (never downgrade)
+      const badgeRank = { null: 0, bronze: 1, silver: 2, gold: 3 } as Record<string, number>;
+      const bestBadge = (badgeRank[tier ?? "null"] ?? 0) >= (badgeRank[notesBadge ?? "null"] ?? 0) ? tier : notesBadge;
+      setNotesBadge(bestBadge);
+
+      setGameComplete({ tier, stars: newStars, correct: newCorrect, wrong: newWrong });
     }
 
     if (student) {
       const elapsed = Math.floor((Date.now() - sessionStartRef.current) / 1000);
+      const isLevel6Done = completedByTarget && level === 6;
+      const tier: "bronze" | "silver" | "gold" | null = isLevel6Done
+        ? (newStars >= BADGE_THRESHOLDS.gold ? "gold" :
+           newStars >= BADGE_THRESHOLDS.silver ? "silver" :
+           newStars >= BADGE_THRESHOLDS.bronze ? "bronze" : null)
+        : undefined as unknown as null;
+      const badgeRank = { null: 0, bronze: 1, silver: 2, gold: 3 } as Record<string, number>;
+      const bestBadge = isLevel6Done
+        ? ((badgeRank[tier ?? "null"] ?? 0) >= (badgeRank[notesBadge ?? "null"] ?? 0) ? tier : notesBadge)
+        : notesBadge;
+
       apiRequest("POST", `/api/student/${student.student.id}/progress`, {
         appType: "notes",
         level: newLevel,
@@ -256,6 +282,7 @@ export default function NoteDetective() {
         correctAnswers: newCorrect,
         wrongAnswers: newWrong,
         timeSpentSeconds: elapsed,
+        notesBadge: bestBadge,
       }).then(() => qc.invalidateQueries({ queryKey: ["/api/student", student.student.id, "progress"] }));
     }
 
@@ -263,14 +290,14 @@ export default function NoteDetective() {
     if (!isLevel6Done) {
       setTimeout(() => pickRandomNote(newLevel), shouldLevelUp ? 2600 : 1500);
     }
-  }, [currentNote, answeredThisRound, score, batchQuestions, totalStars, level, levelQuestions, student, qc, playNote, pickRandomNote]);
+  }, [currentNote, answeredThisRound, score, consecutiveCorrect, totalStars, notesBadge, level, levelQuestions, student, qc, playNote, pickRandomNote]);
 
-  // Reset to level 1 when no badge earned after level 6
+  // Reset to level 1 after level 6 — preserve notesBadge
   const handleReset = useCallback(() => {
     setGameComplete(null);
     setLevel(1);
     setLevelQuestions(0);
-    setBatchQuestions(0);
+    setConsecutiveCorrect(0);
     setTotalStars(0);
     setScore({ correct: 0, wrong: 0 });
     lastNoteRef.current = null;
@@ -278,10 +305,11 @@ export default function NoteDetective() {
       apiRequest("POST", `/api/student/${student.student.id}/progress`, {
         appType: "notes", level: 1, starsEarned: 0,
         correctAnswers: 0, wrongAnswers: 0, timeSpentSeconds: 0,
+        notesBadge: notesBadge, // keep the best badge ever
       }).then(() => qc.invalidateQueries({ queryKey: ["/api/student", student.student.id, "progress"] }));
     }
     setTimeout(() => pickRandomNote(1), 300);
-  }, [student, qc, pickRandomNote]);
+  }, [student, qc, pickRandomNote, notesBadge]);
 
   const accuracy = score.correct + score.wrong > 0
     ? Math.round((score.correct / (score.correct + score.wrong)) * 100)
@@ -293,63 +321,72 @@ export default function NoteDetective() {
     <div className="min-h-screen select-none"
       style={{ background: "linear-gradient(160deg, #f3e8ff 0%, #e0d7ff 50%, #ddd6fe 100%)" }}
     >
-      {/* Game complete overlay: badge earned or reset to level 1 */}
+      {/* Game complete overlay: 3-tier badge or no badge */}
       <AnimatePresence>
-        {gameComplete && (
-          <motion.div
-            className="fixed inset-0 z-[60] flex items-center justify-center"
-            style={{ background: gameComplete.badge ? "rgba(79,40,120,0.85)" : "rgba(30,30,60,0.85)" }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+        {gameComplete && (() => {
+          const tierConfig = {
+            gold:   { emoji: "🥇", color: "text-yellow-500", bg: "rgba(120,90,0,0.88)", label: "Altın Rozet", btnClass: "bg-yellow-500 hover:bg-yellow-600" },
+            silver: { emoji: "🥈", color: "text-slate-400",  bg: "rgba(40,60,80,0.88)",  label: "Gümüş Rozet", btnClass: "bg-slate-500 hover:bg-slate-600" },
+            bronze: { emoji: "🥉", color: "text-orange-600", bg: "rgba(80,40,10,0.88)", label: "Bronz Rozet", btnClass: "bg-orange-500 hover:bg-orange-600" },
+          };
+          const cfg = gameComplete.tier ? tierConfig[gameComplete.tier] : null;
+          return (
             <motion.div
-              className="bg-white rounded-3xl px-10 py-10 shadow-2xl text-center max-w-sm w-full mx-4"
-              initial={{ scale: 0.5, y: 60 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+              style={{ background: cfg ? cfg.bg : "rgba(30,30,60,0.88)" }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             >
-              {gameComplete.badge ? (
-                <>
-                  <motion.p
-                    className="text-7xl mb-4"
-                    animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.2, 1] }}
-                    transition={{ duration: 0.8, delay: 0.3 }}
-                  >🏅</motion.p>
-                  <p className="text-3xl font-extrabold text-purple-700 mb-1">Tebrikler!</p>
-                  <p className="text-xl font-bold text-yellow-500 mb-2">Nota Dedektifi Rozeti! 🌟</p>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {gameComplete.stars} yıldız topladın!
-                  </p>
-                  <p className="text-xs font-semibold text-purple-400 mb-6">
-                    Tüm veriler sıfırlanarak seviye 1'den başlıyorsun.
-                  </p>
-                  <Button
-                    className="w-full rounded-2xl font-extrabold text-base py-5 bg-purple-600 hover:bg-purple-700"
-                    onClick={handleReset}
-                  >
-                    Baştan Başla 🔄
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <p className="text-6xl mb-4">😔</p>
-                  <p className="text-2xl font-extrabold text-gray-700 mb-1">30 Yıldıza Ulaşamadın</p>
-                  <p className="text-base text-muted-foreground mb-1">
-                    {gameComplete.stars} yıldız kazandın, 30 yıldız gerekli.
-                  </p>
-                  <p className="text-sm font-semibold text-orange-500 mb-6">Seviye 1'den tekrar başlıyorsun!</p>
-                  <Button
-                    className="w-full rounded-2xl font-extrabold text-base py-5 bg-orange-500 hover:bg-orange-600"
-                    onClick={handleReset}
-                  >
-                    Baştan Başla 🔄
-                  </Button>
-                </>
-              )}
+              <motion.div
+                className="bg-white rounded-3xl px-8 py-8 shadow-2xl text-center max-w-sm w-full"
+                initial={{ scale: 0.5, y: 60 }} animate={{ scale: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              >
+                {cfg ? (
+                  <>
+                    <motion.p className="text-7xl mb-3"
+                      animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.25, 1] }}
+                      transition={{ duration: 0.8, delay: 0.3 }}
+                    >{cfg.emoji}</motion.p>
+                    <p className="text-3xl font-extrabold text-purple-700 mb-1">Tebrikler! 🎉</p>
+                    <p className={`text-xl font-extrabold mb-4 ${cfg.color}`}>{cfg.label} Kazandın!</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-6xl mb-3">😔</p>
+                    <p className="text-2xl font-extrabold text-gray-700 mb-1">Rozet Kazanamadın</p>
+                    <p className="text-sm text-muted-foreground mb-4">30 yıldız = Bronz, 50 = Gümüş, 60 = Altın</p>
+                  </>
+                )}
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-3 gap-2 mb-5">
+                  {[
+                    { icon: "⭐", label: "Yıldız", value: gameComplete.stars },
+                    { icon: "✅", label: "Doğru",  value: gameComplete.correct },
+                    { icon: "❌", label: "Yanlış", value: gameComplete.wrong },
+                  ].map((s, i) => (
+                    <div key={i} className="bg-gray-50 rounded-2xl p-2">
+                      <p className="text-xl">{s.icon}</p>
+                      <p className="text-lg font-extrabold text-gray-700">{s.value}</p>
+                      <p className="text-xs text-gray-400 font-bold">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-xs font-semibold text-gray-400 mb-4">
+                  Rozetler profilinde saklanır. Seviye 1'den başlıyorsun!
+                </p>
+                <Button
+                  data-testid="button-restart-game"
+                  className={`w-full rounded-2xl font-extrabold text-base py-5 text-white ${cfg ? cfg.btnClass : "bg-purple-600 hover:bg-purple-700"}`}
+                  onClick={handleReset}
+                >
+                  Hadi Oynayalım! 🎮
+                </Button>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
       {/* Level complete / streak celebration overlay */}
@@ -427,22 +464,22 @@ export default function NoteDetective() {
             </div>
             <span className="text-xs font-bold text-purple-400 w-12">{LEVEL_QUESTIONS[level - 1] ?? 55} soru</span>
           </div>
-          {/* Batch star progress: every 10 questions → +3 stars */}
+          {/* Consecutive correct streak → +3 stars at 10 */}
           <div className="flex items-center justify-center gap-1">
-            <span className="text-xs font-bold text-yellow-500 mr-1">+3⭐</span>
-            {Array.from({ length: BATCH_SIZE }).map((_, i) => (
+            <span className="text-xs font-bold text-orange-400 mr-1">🔥</span>
+            {Array.from({ length: CONSECUTIVE_REQUIRED }).map((_, i) => (
               <motion.div
                 key={i}
                 className={`w-4 h-4 rounded-full border-2 ${
-                  i < batchQuestions
-                    ? "bg-yellow-400 border-yellow-500"
+                  i < consecutiveCorrect
+                    ? "bg-orange-400 border-orange-500"
                     : "bg-gray-100 border-gray-200"
                 }`}
-                animate={i === batchQuestions - 1 ? { scale: [1, 1.4, 1] } : {}}
-                transition={{ duration: 0.25 }}
+                animate={i < consecutiveCorrect ? { scale: [1, 1.3, 1] } : {}}
+                transition={{ duration: 0.3 }}
               />
             ))}
-            <span className="text-xs font-bold text-gray-400 ml-1">{batchQuestions}/{BATCH_SIZE}</span>
+            <span className="text-xs font-bold text-gray-400 ml-1">+3⭐</span>
           </div>
         </div>
 
