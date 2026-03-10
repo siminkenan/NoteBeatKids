@@ -2,43 +2,38 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 
-// All note value symbols — size matches the tagline text (~18px)
+// Note symbols at fa-anahtarı scale
 const NOTE_SYMBOLS = [
-  { symbol: "𝅜",  color: "rgba(255,255,255,0.09)" },
-  { symbol: "𝅗𝅥", color: "rgba(255,220,100,0.10)" },
-  { symbol: "♩",  color: "rgba(255,255,255,0.10)" },
-  { symbol: "♪",  color: "rgba(255,200,255,0.09)" },
-  { symbol: "♫",  color: "rgba(200,255,255,0.08)" },
-  { symbol: "♬",  color: "rgba(255,255,180,0.09)" },
-  { symbol: "𝄽",  color: "rgba(255,180,200,0.08)" },
-  { symbol: "𝄾",  color: "rgba(180,200,255,0.09)" },
-  { symbol: "𝄿",  color: "rgba(255,255,255,0.07)" },
-  { symbol: "𝄻",  color: "rgba(255,220,120,0.08)" },
-  { symbol: "𝄼",  color: "rgba(200,255,200,0.08)" },
-  { symbol: "♭",  color: "rgba(255,200,255,0.09)" },
-  { symbol: "♯",  color: "rgba(255,255,200,0.09)" },
-  { symbol: "♮",  color: "rgba(200,230,255,0.08)" },
+  { symbol: "♩",  color: "rgba(255,255,255,0.22)" },
+  { symbol: "♪",  color: "rgba(255,200,255,0.20)" },
+  { symbol: "♫",  color: "rgba(200,255,255,0.20)" },
+  { symbol: "♬",  color: "rgba(255,255,180,0.22)" },
+  { symbol: "♭",  color: "rgba(255,200,255,0.20)" },
+  { symbol: "♯",  color: "rgba(255,255,200,0.21)" },
+  { symbol: "𝄽",  color: "rgba(255,180,200,0.20)" },
+  { symbol: "𝄾",  color: "rgba(180,200,255,0.21)" },
+  { symbol: "𝅗𝅥", color: "rgba(255,220,100,0.20)" },
+  { symbol: "𝄻",  color: "rgba(255,220,120,0.21)" },
+  { symbol: "♮",  color: "rgba(200,230,255,0.20)" },
+  { symbol: "𝅜",  color: "rgba(255,255,255,0.21)" },
 ];
 
-// 30 notes spread across 10 columns, alternating up/down direction
-const FLOATING_NOTES = Array.from({ length: 30 }, (_, i) => {
+// 12 large notes spread across the screen
+const FLOATING_NOTES = Array.from({ length: 12 }, (_, i) => {
   const noteData = NOTE_SYMBOLS[i % NOTE_SYMBOLS.length];
-  const col = i % 10;
-  const leftPercent = col * 10 + 2 + (i % 3) * 2; // slight jitter per column
+  const leftPercent = (i % 6) * 16 + 2 + (i % 3) * 3;
   const goingDown = i % 2 === 0;
-  // Very slow: 40–65 seconds per pass
-  const duration = 40 + (i % 10) * 2.5;
-  // Stagger start so screen is always populated
-  const delay = -(((i * 2.3) % duration));
+  const duration = 38 + (i % 6) * 4;
+  const delay = -(((i * 3.1) % duration));
 
   return {
     id: i,
     ...noteData,
-    left: `${Math.max(1, Math.min(97, leftPercent))}%`,
+    left: `${Math.max(1, Math.min(88, leftPercent))}%`,
     goingDown,
     duration,
     delay,
-    rotate: -10 + (i % 5) * 5, // subtle tilt
+    rotate: -8 + (i % 5) * 4,
   };
 });
 
@@ -71,8 +66,7 @@ export default function Home() {
             className="absolute font-bold leading-none"
             style={{
               left: n.left,
-              /* match tagline font size: text-lg ≈ 18px */
-              fontSize: "18px",
+              fontSize: "96px",
               color: n.color,
               rotate: n.rotate,
               top:    n.goingDown ? "-30px" : "unset",
