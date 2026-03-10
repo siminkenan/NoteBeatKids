@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Map, Star, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, Mic, MicOff } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import type { StudentProgress } from "@shared/schema";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
-const TRAVEL_MS = 2000;         // block travel time from spawn to hit line
+const TRAVEL_MS = 2200;         // block travel time from spawn to hit line
 const TOLERANCE_PERFECT = 80;   // ms
 const TOLERANCE_GOOD = 160;     // ms
 const TOLERANCE_MISS = 280;     // ms
@@ -145,6 +145,10 @@ export default function RhythmAdventure() {
   const [micError, setMicError] = useState(false);
   const [sessionStart] = useState(Date.now());
 
+  const [beatFlash, setBeatFlash] = useState(false);
+  const [currentBeat, setCurrentBeat] = useState(0); // 0-3 in measure
+  const [roadOffset, setRoadOffset] = useState(0);
+
   const blocksRef = useRef<Block[]>([]);
   const scoreRef = useRef(0);
   const comboRef = useRef(0);
@@ -158,6 +162,7 @@ export default function RhythmAdventure() {
   const lastPeakRef = useRef(0);
   const floatIdRef = useRef(0);
   const tapUsedRef = useRef<Set<number>>(new Set());
+  const lastBeatIndexRef = useRef(-1);
   const hitLineRef = useRef<HTMLDivElement | null>(null);
 
   const { data: progress } = useQuery<StudentProgress[]>({
@@ -243,6 +248,21 @@ export default function RhythmAdventure() {
   // ── Game loop ─────────────────────────────────────────────────────────────────
   const gameLoop = useCallback(() => {
     const now = Date.now() - gameStartRef.current;
+    const msPerBeat = 60000 / LEVELS[selectedLevel].bpm;
+
+    // Beat tracking for metronome pulse
+    const beatIdx = Math.floor(now / msPerBeat);
+    if (beatIdx !== lastBeatIndexRef.current) {
+      lastBeatIndexRef.current = beatIdx;
+      setCurrentBeat(beatIdx % 4);
+      setBeatFlash(true);
+      setTimeout(() => setBeatFlash(false), 80);
+    }
+
+    // Road scroll offset (0-100, resets each beat)
+    const beatProgress = (now % msPerBeat) / msPerBeat;
+    setRoadOffset(beatProgress * 100);
+
     const updated = blocksRef.current.map(b => {
       if (b.state !== "active") return b;
       if (now > b.hitTime + TOLERANCE_MISS) {
@@ -262,7 +282,7 @@ export default function RhythmAdventure() {
     setBlocks([...updated]);
     if (analyserRef.current) detectMicPeak();
     rafRef.current = requestAnimationFrame(gameLoop);
-  }, [detectMicPeak]);
+  }, [detectMicPeak, selectedLevel]);
 
   // ── Tap processing ────────────────────────────────────────────────────────────
   const processTap = useCallback(() => {
@@ -415,6 +435,30 @@ export default function RhythmAdventure() {
   />;
 
   const now = phase === "playing" ? Date.now() - gameStartRef.current : 0;
+  const msPerBeat = 60000 / level.bpm;
+
+  // Beat guide markers — faint lines at every beat, travel like blocks
+  const beatGuides: Array<{ id: number; pos: number; isBeat1: boolean }> = [];
+  if (phase === "playing") {
+    const firstBeat = Math.floor(now / msPerBeat) - 1;
+    for (let b = firstBeat; b <= firstBeat + Math.ceil(TRAVEL_MS / msPerBeat) + 2; b++) {
+      const beatTime = b * msPerBeat;
+      const spawnTime = beatTime - TRAVEL_MS;
+      const rawPos = (now - spawnTime) / TRAVEL_MS;
+      if (rawPos >= -0.02 && rawPos <= 1.05) {
+        beatGuides.push({ id: b, pos: Math.max(0, Math.min(1, rawPos)), isBeat1: b % 4 === 0 });
+      }
+    }
+  }
+
+  // Road scroll stripes — 5 stripes spaced 20% apart, moving down with roadOffset
+  const roadStripes = [0, 20, 40, 60, 80].map(p => {
+    const offset = (p + roadOffset * 0.2) % 100;
+    return offset;
+  });
+
+  const LANE_W = 300;
+  const LANE_H = 540;
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden select-none" style={{ background: theme.sky }}>
@@ -424,10 +468,27 @@ export default function RhythmAdventure() {
           className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center" data-testid="button-back">
           <ArrowLeft className="w-4 h-4 text-white" />
         </button>
-        <div className="text-center">
-          <p className="text-white font-extrabold text-sm leading-tight">Seviye {selectedLevel + 1}</p>
-          <p className="text-white/60 text-xs">{theme.name}</p>
+
+        {/* Centre: level + beat counter */}
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-white font-extrabold text-sm leading-tight">Seviye {selectedLevel + 1} · {level.bpm} BPM</p>
+          {/* Beat counter dots 1–4 */}
+          <div className="flex items-center gap-1.5">
+            {[0, 1, 2, 3].map(b => (
+              <motion.div
+                key={b}
+                animate={phase === "playing" && beatFlash && currentBeat === b
+                  ? { scale: [1, 1.7, 1], opacity: [0.5, 1, 0.5] }
+                  : { scale: 1, opacity: currentBeat === b && phase === "playing" ? 0.85 : 0.25 }
+                }
+                transition={{ duration: 0.12 }}
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ background: b === 0 ? "#fff" : theme.accentColor }}
+              />
+            ))}
+          </div>
         </div>
+
         <div className="flex flex-col items-end">
           <span className="text-white font-extrabold text-sm">{score.toLocaleString()}</span>
           {combo > 1 && (
@@ -440,65 +501,141 @@ export default function RhythmAdventure() {
       </div>
 
       {/* 3D Lane */}
-      <div className="flex-1 relative overflow-hidden" style={{ perspective: "500px" }}>
-        {/* Lane floor with 3D rotation */}
-        <div className="absolute inset-0 flex justify-center items-end pb-24"
-          style={{ perspective: "500px" }}>
-          <div className="relative" style={{ width: "280px", height: "520px", transform: "rotateX(40deg)", transformOrigin: "bottom center" }}>
-            {/* Road */}
-            <div className="absolute inset-0 rounded-t-3xl"
-              style={{ background: `linear-gradient(180deg, ${theme.laneColor}11 0%, ${theme.laneColor}88 100%)`, border: `2px solid ${theme.laneColor}66` }} />
-            {/* Lane lines */}
-            {[33, 67].map(pct => (
-              <div key={pct} className="absolute top-0 bottom-0 w-px opacity-30"
-                style={{ left: `${pct}%`, background: theme.accentColor }} />
+      <div className="flex-1 relative overflow-hidden">
+        <div className="absolute inset-0 flex justify-center items-end pb-20">
+          <div className="relative overflow-hidden" style={{
+            width: LANE_W,
+            height: LANE_H,
+            transform: "perspective(420px) rotateX(38deg)",
+            transformOrigin: "bottom center",
+            borderRadius: "24px 24px 0 0",
+          }}>
+            {/* Road surface */}
+            <div className="absolute inset-0" style={{
+              background: `linear-gradient(180deg, ${theme.laneColor}18 0%, ${theme.laneColor}70 60%, ${theme.laneColor}cc 100%)`,
+              borderLeft: `3px solid ${theme.laneColor}cc`,
+              borderRight: `3px solid ${theme.laneColor}cc`,
+              borderTop: `3px solid ${theme.laneColor}44`,
+            }} />
+
+            {/* Side rails - strong vertical lines */}
+            {[8, 92].map(pct => (
+              <div key={pct} className="absolute top-0 bottom-0" style={{
+                left: `${pct}%`, width: 3,
+                background: `linear-gradient(180deg, ${theme.accentColor}33, ${theme.accentColor}cc)`,
+              }} />
             ))}
-            {/* Moving road stripes */}
-            {[0, 20, 40, 60, 80].map(p => (
-              <div key={p} className="absolute left-1/2 w-4 h-12 -translate-x-1/2 rounded-sm opacity-20"
-                style={{ bottom: `${p}%`, background: theme.accentColor }} />
+
+            {/* Center divider - dashed */}
+            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2" style={{ width: 2, opacity: 0.2, background: theme.accentColor }} />
+
+            {/* Scrolling road stripes */}
+            {roadStripes.map((bottomPct, i) => (
+              <div key={i} className="absolute left-1/2 -translate-x-1/2 rounded" style={{
+                bottom: `${bottomPct}%`,
+                width: 6,
+                height: "8%",
+                background: `linear-gradient(180deg, transparent, ${theme.accentColor}66, transparent)`,
+              }} />
             ))}
+
+            {/* Beat guide markers — horizontal lines synced to BPM */}
+            {beatGuides.map(g => {
+              const topPct = (1 - g.pos) * 100;
+              return (
+                <div key={g.id} className="absolute left-0 right-0" style={{
+                  top: `${topPct}%`,
+                  height: g.isBeat1 ? 3 : 2,
+                  background: g.isBeat1
+                    ? `linear-gradient(90deg, transparent 5%, ${theme.accentColor}99 20%, ${theme.accentColor}cc 50%, ${theme.accentColor}99 80%, transparent 95%)`
+                    : `linear-gradient(90deg, transparent 10%, ${theme.accentColor}44 30%, ${theme.accentColor}66 50%, ${theme.accentColor}44 70%, transparent 90%)`,
+                  boxShadow: g.isBeat1 ? `0 0 6px ${theme.accentColor}88` : "none",
+                }} />
+              );
+            })}
 
             {/* Blocks */}
             {blocks.map(block => {
               if (block.state === "missed") return null;
-              const elapsed = now;
               const spawnTime = block.hitTime - TRAVEL_MS;
-              const rawPos = (elapsed - spawnTime) / TRAVEL_MS;
+              const rawPos = (now - spawnTime) / TRAVEL_MS;
               const pos = Math.max(0, Math.min(1, rawPos));
               if (rawPos < -0.1 || rawPos > 1.2) return null;
               const topPct = (1 - pos) * 100;
-              const blockH = 20 + pos * 30;
-              const blockW = 140 + pos * 100;
-              const opacity = pos < 0.1 ? pos * 10 : block.state === "hit" ? 0 : 1;
+              const blockH = Math.round(18 + pos * 26);
+              const blockW = Math.round(LANE_W * 0.55 + pos * LANE_W * 0.35);
+              const opacity = pos < 0.08 ? pos / 0.08 : block.state === "hit" ? 0 : 1;
+              const glowSize = Math.round(6 + pos * 18);
 
               return (
                 <motion.div
                   key={block.id}
-                  className="absolute left-1/2 -translate-x-1/2 rounded-xl flex items-center justify-center font-extrabold"
+                  className="absolute left-1/2 -translate-x-1/2 rounded-xl flex items-center justify-center"
                   style={{
                     top: `${topPct}%`,
                     height: blockH,
                     width: blockW,
-                    background: block.state === "hit" ? "transparent" : `linear-gradient(135deg, ${theme.blockColor}, ${theme.blockGlow})`,
-                    boxShadow: block.state !== "hit" ? `0 0 ${8 + pos * 16}px ${theme.blockGlow}` : "none",
+                    background: block.state === "hit" ? "transparent"
+                      : `linear-gradient(135deg, ${theme.blockColor}ee, ${theme.blockGlow}dd)`,
+                    boxShadow: block.state !== "hit"
+                      ? `0 0 ${glowSize}px ${theme.blockGlow}, inset 0 1px 0 ${theme.accentColor}66`
+                      : "none",
                     opacity,
-                    border: block.state !== "hit" ? `2px solid ${theme.accentColor}88` : "none",
-                    transition: "opacity 0.15s",
+                    border: block.state !== "hit" ? `2px solid ${theme.accentColor}` : "none",
                   }}
-                  animate={block.state === "hit" ? { scale: [1, 1.4, 0], opacity: [1, 1, 0] } : {}}
-                  transition={{ duration: 0.2 }}
+                  animate={block.state === "hit" ? {
+                    scale: [1, 1.6, 0], opacity: [1, 1, 0],
+                  } : {}}
+                  transition={{ duration: 0.18 }}
                 >
-                  {block.state !== "hit" && <span style={{ color: "#fff", fontSize: 14, opacity: 0.8 }}>♩</span>}
+                  {block.state !== "hit" && (
+                    <span style={{ color: "#fff", fontSize: Math.round(10 + pos * 6), fontWeight: 900, opacity: 0.95 }}>
+                      ♩
+                    </span>
+                  )}
                 </motion.div>
               );
             })}
           </div>
         </div>
 
-        {/* Hit line */}
-        <div ref={hitLineRef} className="absolute left-1/2 -translate-x-1/2 w-72 h-1 rounded-full"
-          style={{ bottom: 96, background: `linear-gradient(90deg, transparent, ${theme.accentColor}, transparent)`, boxShadow: `0 0 12px ${theme.accentColor}` }} />
+        {/* Hit zone — pulsing ring on beat */}
+        <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: 80 }}>
+          {/* Outer glow ring on beat */}
+          <motion.div
+            animate={beatFlash && phase === "playing" ? {
+              scale: [1, 1.3, 1], opacity: [0.3, 0.9, 0.3],
+            } : { scale: 1, opacity: 0.25 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              width: LANE_W + 20,
+              height: 32,
+              border: `3px solid ${theme.accentColor}`,
+              boxShadow: `0 0 20px ${theme.accentColor}88`,
+            }}
+          />
+          {/* Main hit line */}
+          <div ref={hitLineRef} style={{
+            width: LANE_W,
+            height: 4,
+            borderRadius: 2,
+            background: `linear-gradient(90deg, transparent, ${theme.accentColor}cc 20%, ${theme.accentColor} 50%, ${theme.accentColor}cc 80%, transparent)`,
+            boxShadow: beatFlash && phase === "playing"
+              ? `0 0 24px ${theme.accentColor}, 0 0 6px #fff`
+              : `0 0 10px ${theme.accentColor}88`,
+            transition: "box-shadow 0.08s",
+          }} />
+          {/* Beat label under hit line */}
+          {phase === "playing" && (
+            <div className="flex justify-center mt-1">
+              <motion.span key={currentBeat} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 0.7, y: 0 }}
+                className="text-xs font-extrabold" style={{ color: theme.accentColor, letterSpacing: 2 }}>
+                {currentBeat === 0 ? "1 ▶" : currentBeat === 1 ? "2" : currentBeat === 2 ? "3" : "4"}
+              </motion.span>
+            </div>
+          )}
+        </div>
 
         {/* Float texts */}
         <AnimatePresence>
@@ -518,20 +655,22 @@ export default function RhythmAdventure() {
       </div>
 
       {/* Tap button */}
-      <div className="flex flex-col items-center pb-8 pt-2 z-20 gap-3">
+      <div className="flex flex-col items-center pb-6 pt-2 z-20 gap-2">
         <div className="flex items-center gap-3">
           <motion.button
             onPointerDown={processTap}
             className="w-24 h-24 rounded-full flex flex-col items-center justify-center font-extrabold text-white shadow-2xl"
             style={{
               background: tapFlash
-                ? `radial-gradient(circle, #fff 0%, ${theme.blockColor} 100%)`
+                ? `radial-gradient(circle, #fff 0%, ${theme.blockColor} 60%)`
                 : `radial-gradient(circle, ${theme.blockColor} 0%, ${theme.laneColor} 100%)`,
-              boxShadow: tapFlash ? `0 0 40px ${theme.blockGlow}` : `0 8px 32px ${theme.laneColor}88`,
-              border: `3px solid ${theme.accentColor}88`,
-              transition: "all 0.08s",
+              boxShadow: tapFlash
+                ? `0 0 48px ${theme.blockGlow}, 0 0 12px #fff`
+                : `0 8px 32px ${theme.laneColor}88`,
+              border: `3px solid ${theme.accentColor}`,
+              transition: "all 0.07s",
             }}
-            whileTap={{ scale: 0.88 }}
+            whileTap={{ scale: 0.85 }}
             data-testid="button-tap"
           >
             <span className="text-3xl">{tapFlash ? "💥" : "🥁"}</span>
@@ -539,25 +678,27 @@ export default function RhythmAdventure() {
 
           <button onClick={micActive ? stopMic : setupMic}
             className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ background: micActive ? "#22c55e44" : "#ffffff22", border: `2px solid ${micActive ? "#22c55e" : "#ffffff44"}` }}
+            style={{ background: micActive ? "#22c55e33" : "#ffffff15", border: `2px solid ${micActive ? "#22c55e" : "#ffffff33"}` }}
             data-testid="button-mic">
-            {micActive ? <Mic className="w-5 h-5 text-green-400" /> : <MicOff className="w-5 h-5 text-white/50" />}
+            {micActive ? <Mic className="w-5 h-5 text-green-400" /> : <MicOff className="w-5 h-5 text-white/40" />}
           </button>
         </div>
-        <p className="text-white/40 text-xs">Dokun veya SPACE tuşuna bas</p>
+        <p className="text-white/30 text-xs tracking-wide">DOKUN · SPACE · MİKROFON</p>
       </div>
 
       {/* Countdown overlay */}
       <AnimatePresence>
         {phase === "countdown" && (
-          <motion.div className="absolute inset-0 flex items-center justify-center bg-black/60 z-40"
+          <motion.div className="absolute inset-0 flex flex-col items-center justify-center bg-black/65 z-40 gap-4"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <p className="text-white/60 font-extrabold text-lg tracking-widest">HAZIR OL</p>
             <motion.div key={countdown}
-              initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.2 }}
-              className="text-9xl font-extrabold" style={{ color: theme.accentColor }}>
+              initial={{ scale: 2.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.6, opacity: 0 }} transition={{ duration: 0.18 }}
+              className="font-extrabold" style={{ color: theme.accentColor, fontSize: 96, lineHeight: 1 }}>
               {countdown > 0 ? countdown : "GİT!"}
             </motion.div>
+            <p className="text-white/40 text-sm">{level.bpm} BPM · {theme.name}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -565,17 +706,21 @@ export default function RhythmAdventure() {
       {/* Idle / Result overlay */}
       <AnimatePresence>
         {(phase === "idle" || phase === "result") && (
-          <motion.div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-40 px-6 gap-5"
+          <motion.div className="absolute inset-0 flex flex-col items-center justify-center bg-black/72 z-40 px-6 gap-5"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {phase === "idle" ? (
               <>
                 <p className="text-4xl font-extrabold text-white text-center">Seviye {selectedLevel + 1}</p>
-                <p className="text-white/70 font-semibold text-center">{theme.name}</p>
-                <p className="text-white/50 text-sm">{level.bpm} BPM · {level.beats.length * 3} vuruş</p>
+                <p className="font-semibold text-center" style={{ color: theme.accentColor }}>{theme.name}</p>
+                <p className="text-white/50 text-sm">{level.bpm} BPM · {level.beats.length * 3} vuruş · 3 ölçü</p>
                 <motion.button onClick={startGame}
-                  className="w-36 h-36 rounded-full flex flex-col items-center justify-center font-extrabold text-white text-xl shadow-2xl mt-4"
-                  style={{ background: `linear-gradient(135deg, ${theme.blockColor}, ${theme.laneColor})`, border: `4px solid ${theme.accentColor}88` }}
-                  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  className="w-36 h-36 rounded-full flex flex-col items-center justify-center font-extrabold text-white text-xl shadow-2xl mt-2"
+                  style={{
+                    background: `linear-gradient(135deg, ${theme.blockColor}, ${theme.laneColor})`,
+                    border: `4px solid ${theme.accentColor}aa`,
+                    boxShadow: `0 0 32px ${theme.blockGlow}66`,
+                  }}
+                  whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
                   data-testid="button-start">
                   <span className="text-4xl">▶</span>
                   OYNA
@@ -593,14 +738,14 @@ export default function RhythmAdventure() {
                 </div>
                 <div className="text-center">
                   <p className="text-5xl font-extrabold text-white">%{resultData.accuracy}</p>
-                  <p className="text-white/60 text-sm mt-1">doğruluk</p>
+                  <p className="text-white/60 text-sm mt-1">ritim doğruluğu</p>
                 </div>
                 <p className="text-white font-extrabold text-2xl">{resultData.score.toLocaleString()} puan</p>
                 <p style={{ color: theme.accentColor }} className="font-bold">Max Kombo: x{resultData.maxCombo}</p>
                 <p className="text-lg font-extrabold text-white text-center">
                   {resultData.accuracy >= 90 ? "🎉 Muhteşem!" : resultData.accuracy >= 70 ? "🌟 Harika!" : resultData.accuracy >= 50 ? "💪 İyi Gidiyorsun!" : "🔄 Tekrar Dene!"}
                 </p>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap justify-center">
                   <button onClick={() => setPhase("idle")}
                     className="px-6 py-3 rounded-xl font-extrabold text-white"
                     style={{ background: theme.laneColor }} data-testid="button-retry">
