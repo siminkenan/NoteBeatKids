@@ -161,6 +161,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Teacher institution info
+  app.get("/api/teacher/institution", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const teacher = await storage.getTeacher(teacherId);
+    if (!teacher || !teacher.institutionId) return res.status(404).json({ message: "Kurum bulunamadı" });
+    const inst = await storage.getInstitution(teacher.institutionId);
+    if (!inst) return res.status(404).json({ message: "Kurum bulunamadı" });
+    res.json({ id: inst.id, name: inst.name, maxStudents: inst.maxStudents, maxTeachers: inst.maxTeachers });
+  });
+
   // Teacher classes
   app.get("/api/teacher/classes", async (req: Request, res: Response) => {
     const teacherId = (req.session as any).teacherId;
@@ -173,9 +184,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const teacherId = (req.session as any).teacherId;
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     try {
+      const teacher = await storage.getTeacher(teacherId);
+      let instMaxStudents = 10000000;
+      if (teacher?.institutionId) {
+        const inst = await storage.getInstitution(teacher.institutionId);
+        if (inst?.maxStudents) instMaxStudents = inst.maxStudents;
+      }
+      const requestedMax = Number(req.body.maxStudents ?? 30);
+      if (requestedMax > instMaxStudents) {
+        return res.status(400).json({ message: `Maksimum öğrenci sayısı kurumun izin verdiği sınırı (${instMaxStudents}) aşamaz.` });
+      }
       const body = {
         ...req.body,
         teacherId,
+        maxStudents: requestedMax,
         expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : null,
       };
       const parsed = insertClassSchema.parse(body);
@@ -217,8 +239,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
     const existing = await storage.getStudentCodesByClass(req.params.classId);
     if (existing.length > 0) return res.json({ class: cls, codes: existing });
-    const count = Math.min(cls.maxStudents, 200);
-    const codes = await storage.generateStudentCodesForClass(req.params.classId, count);
+    const teacher = await storage.getTeacher(teacherId);
+    let instMaxStudents = cls.maxStudents;
+    if (teacher?.institutionId) {
+      const inst = await storage.getInstitution(teacher.institutionId);
+      if (inst?.maxStudents) instMaxStudents = Math.min(cls.maxStudents, inst.maxStudents);
+    }
+    const codes = await storage.generateStudentCodesForClass(req.params.classId, instMaxStudents);
     res.json({ class: cls, codes });
   });
 

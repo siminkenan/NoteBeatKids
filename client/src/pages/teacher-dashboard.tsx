@@ -22,7 +22,7 @@ import type { Class } from "@shared/schema";
 
 const classSchema = z.object({
   name: z.string().min(1, "Sınıf adı gerekli"),
-  maxStudents: z.coerce.number().min(1).max(100).default(30),
+  maxStudents: z.coerce.number().min(1, "En az 1 olmalı"),
   expiresAt: z.string().optional(),
 });
 type ClassForm = z.infer<typeof classSchema>;
@@ -49,10 +49,26 @@ export default function TeacherDashboard() {
     refetchOnMount: true,
   });
 
+  const { data: instData } = useQuery<{ id: string; name: string; maxStudents: number; maxTeachers: number }>({
+    queryKey: ["/api/teacher/institution"],
+    enabled: !!teacher,
+    staleTime: 0,
+    refetchOnMount: true,
+  });
+
+  const instMax = instData?.maxStudents ?? 10000000;
+
   const form = useForm<ClassForm>({
     resolver: zodResolver(classSchema),
     defaultValues: { name: "", maxStudents: 30, expiresAt: "" },
   });
+
+  useEffect(() => {
+    if (instData) {
+      const cur = form.getValues("maxStudents");
+      if (cur > instMax) form.setValue("maxStudents", instMax);
+    }
+  }, [instMax]);
 
   const createClass = useMutation({
     mutationFn: async (data: ClassForm) => {
@@ -70,7 +86,9 @@ export default function TeacherDashboard() {
       toast({ title: "Sınıf oluşturuldu!", description: "Sınıf kodunu öğrencilerinizle paylaşın." });
     },
     onError: (e: any) => {
-      toast({ title: "Hata", description: e.message, variant: "destructive" });
+      let msg = e.message ?? "Bilinmeyen hata";
+      try { msg = JSON.parse(msg.replace(/^\d+: /, "")).message ?? msg; } catch {}
+      toast({ title: "Hata", description: msg, variant: "destructive" });
     },
   });
 
@@ -236,8 +254,13 @@ export default function TeacherDashboard() {
                   )} />
                   <FormField control={form.control} name="maxStudents" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Maksimum Öğrenci</FormLabel>
-                      <FormControl><Input {...field} type="number" min={1} max={100} className="rounded-xl" data-testid="input-max-students" /></FormControl>
+                      <FormLabel className="font-bold">
+                        Maksimum Öğrenci
+                        {instData && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">(Kurum limiti: {instMax})</span>
+                        )}
+                      </FormLabel>
+                      <FormControl><Input {...field} type="number" min={1} max={instMax} className="rounded-xl" data-testid="input-max-students" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
