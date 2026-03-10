@@ -62,8 +62,8 @@ const institutionSchema = z.object({
   name: z.string().min(1, "Kurum adı gerekli"),
   licenseStart: z.string().min(1, "Başlangıç tarihi gerekli"),
   licenseEnd: z.string().min(1, "Bitiş tarihi gerekli"),
-  maxTeachers: z.coerce.number().min(0, "En az 0 olmalı").max(2000, "En fazla 2000").default(2000),
-  maxStudents: z.coerce.number().min(0, "En az 0 olmalı").max(6000, "En fazla 6000").default(6000),
+  maxTeachers: z.coerce.number().min(0, "En az 0 olmalı").max(10000, "En fazla 10000").default(10000),
+  maxStudents: z.coerce.number().min(0, "En az 0 olmalı").max(10000000, "En fazla 10.000.000").default(10000000),
 });
 type InstitutionForm = z.infer<typeof institutionSchema>;
 
@@ -148,7 +148,7 @@ export default function AdminDashboard() {
 
   const instForm = useForm<InstitutionForm>({
     resolver: zodResolver(institutionSchema),
-    defaultValues: { name: "", licenseStart: "", licenseEnd: "", maxTeachers: 2000, maxStudents: 6000 },
+    defaultValues: { name: "", licenseStart: "", licenseEnd: "", maxTeachers: 10000, maxStudents: 10000000 },
   });
 
   const teacherForm = useForm<TeacherForm>({
@@ -353,15 +353,15 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-2 gap-3">
                         <FormField control={instForm.control} name="maxTeachers" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-bold">Maks. Öğretmen (0–2000)</FormLabel>
-                            <FormControl><Input {...field} type="number" min={0} max={2000} className="rounded-xl" data-testid="input-max-teachers" /></FormControl>
+                            <FormLabel className="font-bold">Maks. Öğretmen (0–10.000)</FormLabel>
+                            <FormControl><Input {...field} type="number" min={0} max={10000} className="rounded-xl" data-testid="input-max-teachers" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={instForm.control} name="maxStudents" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-bold">Maks. Öğrenci (0–6000)</FormLabel>
-                            <FormControl><Input {...field} type="number" min={0} max={6000} className="rounded-xl" data-testid="input-max-students" /></FormControl>
+                            <FormLabel className="font-bold">Maks. Öğrenci (0–10.000.000)</FormLabel>
+                            <FormControl><Input {...field} type="number" min={0} max={10000000} className="rounded-xl" data-testid="input-max-students" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />

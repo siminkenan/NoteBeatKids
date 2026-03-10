@@ -266,8 +266,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         ...req.body,
         licenseStart: req.body.licenseStart ? new Date(req.body.licenseStart) : undefined,
         licenseEnd: req.body.licenseEnd ? new Date(req.body.licenseEnd) : undefined,
-        maxTeachers: req.body.maxTeachers !== undefined ? Number(req.body.maxTeachers) : 2000,
-        maxStudents: req.body.maxStudents !== undefined ? Number(req.body.maxStudents) : 6000,
+        maxTeachers: req.body.maxTeachers !== undefined ? Number(req.body.maxTeachers) : 10000,
+        maxStudents: req.body.maxStudents !== undefined ? Number(req.body.maxStudents) : 10000000,
         isActive: true, // Always start active; auto-managed by licenseEnd
       };
       const parsed = insertInstitutionSchema.parse(body);
