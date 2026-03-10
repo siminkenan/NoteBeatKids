@@ -53,7 +53,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const institution = await storage.getInstitution(codeRecord.institutionId);
       if (!institution) return res.status(404).json({ message: "Kurum bulunamadı." });
-      if (!institution.isActive) return res.status(403).json({ message: "Kurumun aboneliği pasif durumda. Yöneticinizle iletişime geçin." });
       if (new Date(institution.licenseEnd) < new Date()) return res.status(403).json({ message: "Kurumun abonelik süresi dolmuş. Yöneticinizle iletişime geçin." });
 
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
@@ -240,11 +239,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(stats);
   });
 
+  // Helper: isActive is determined solely by licenseEnd date
+  const computeInstitutionActive = (inst: { licenseEnd: Date | string }) =>
+    new Date(inst.licenseEnd) >= new Date();
+
   app.get("/api/admin/institutions", async (req: Request, res: Response) => {
     const adminId = (req.session as any).adminId;
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const list = await storage.getInstitutions();
-    res.json(list);
+    // Auto-sync isActive based on licenseEnd and return computed value
+    const updated = await Promise.all(list.map(async inst => {
+      const active = computeInstitutionActive(inst);
+      if (inst.isActive !== active) {
+        await storage.updateInstitution(inst.id, { isActive: active });
+      }
+      return { ...inst, isActive: active };
+    }));
+    res.json(updated);
   });
 
   app.post("/api/admin/institutions", async (req: Request, res: Response) => {
@@ -257,10 +268,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         licenseEnd: req.body.licenseEnd ? new Date(req.body.licenseEnd) : undefined,
         maxTeachers: req.body.maxTeachers !== undefined ? Number(req.body.maxTeachers) : 2000,
         maxStudents: req.body.maxStudents !== undefined ? Number(req.body.maxStudents) : 6000,
+        isActive: true, // Always start active; auto-managed by licenseEnd
       };
       const parsed = insertInstitutionSchema.parse(body);
       const inst = await storage.createInstitution(parsed);
-      res.json(inst);
+      res.json({ ...inst, isActive: computeInstitutionActive(inst) });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
@@ -270,14 +282,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const adminId = (req.session as any).adminId;
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const current = await storage.getInstitution(req.params.id);
-    const wasExpired = current && new Date(current.licenseEnd) < new Date();
+    if (!current) return res.status(404).json({ message: "Institution not found" });
+    const wasExpired = new Date(current.licenseEnd) < new Date();
     const newLicenseEnd = req.body.licenseEnd ? new Date(req.body.licenseEnd) : null;
     const isRenewal = wasExpired && newLicenseEnd && newLicenseEnd > new Date();
     if (isRenewal) {
       await storage.resetInstitutionQuota(req.params.id);
     }
-    const inst = await storage.updateInstitution(req.params.id, req.body);
-    res.json({ ...inst, quotaReset: isRenewal });
+    // Auto-compute isActive from effective licenseEnd
+    const effectiveLicenseEnd = newLicenseEnd ?? new Date(current.licenseEnd);
+    const effectiveIsActive = effectiveLicenseEnd >= new Date();
+    const inst = await storage.updateInstitution(req.params.id, { ...req.body, isActive: effectiveIsActive });
+    res.json({ ...inst, isActive: effectiveIsActive, quotaReset: isRenewal });
   });
 
   app.post("/api/admin/institutions/:id/reset-quota", async (req: Request, res: Response) => {
@@ -302,7 +318,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const inst = await storage.getInstitution(req.params.id);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
     const details = await storage.getInstitutionDetails(req.params.id);
-    res.json({ institution: inst, ...details });
+    const effectiveInst = { ...inst, isActive: computeInstitutionActive(inst) };
+    res.json({ institution: effectiveInst, ...details });
   });
 
   app.get("/api/admin/institutions/:id/teacher-codes", async (req: Request, res: Response) => {
