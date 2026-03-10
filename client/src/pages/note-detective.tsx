@@ -102,7 +102,7 @@ export default function NoteDetective() {
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
   const [answeredThisRound, setAnsweredThisRound] = useState(false);
   const [levelQuestions, setLevelQuestions] = useState(0);
-  const [levelComplete, setLevelComplete] = useState(false);
+  const [celebration, setCelebration] = useState<{ emoji: string; title: string; sub: string } | null>(null);
 
   const sessionStartRef = useRef(Date.now());
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -194,8 +194,8 @@ export default function NoteDetective() {
     const completedByStreak = newConsecutive >= CONSECUTIVE_REQUIRED && correct;
     const shouldLevelUp = (completedByTarget || completedByStreak) && level < 6;
 
-    // Bonus stars: +5 for completing the level by target, +3 for consecutive streak
-    const bonusStars = shouldLevelUp ? (completedByTarget ? 5 : 3) : 0;
+    // Bonus stars: +2 for completing by question target, +3 for 10-streak
+    const bonusStars = shouldLevelUp ? (completedByTarget ? 2 : 3) : 0;
     const starsToAdd = (correct ? 1 : 0) + bonusStars;
     const newStars = totalStars + starsToAdd;
     setTotalStars(newStars);
@@ -205,8 +205,11 @@ export default function NoteDetective() {
       setLevel(newLevel);
       setLevelQuestions(0);
       setConsecutiveCorrect(0);
-      setLevelComplete(true);
-      setTimeout(() => setLevelComplete(false), 2500);
+      const msg = completedByTarget
+        ? { emoji: "🎉", title: "Seviye Tamamlandı!", sub: "+2 Bonus Yıldız Kazandın ⭐" }
+        : { emoji: "🔥", title: "Mükemmel Seri!", sub: "+3 Bonus Yıldız Kazandın ⭐⭐⭐" };
+      setCelebration(msg);
+      setTimeout(() => setCelebration(null), 2500);
     }
 
     if (student) {
@@ -234,9 +237,9 @@ export default function NoteDetective() {
     <div className="min-h-screen select-none"
       style={{ background: "linear-gradient(160deg, #f3e8ff 0%, #e0d7ff 50%, #ddd6fe 100%)" }}
     >
-      {/* Level complete overlay */}
+      {/* Level complete / streak celebration overlay */}
       <AnimatePresence>
-        {levelComplete && (
+        {celebration && (
           <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
             initial={{ opacity: 0 }}
@@ -250,9 +253,9 @@ export default function NoteDetective() {
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
-              <p className="text-5xl mb-3">🎉</p>
-              <p className="text-2xl font-extrabold text-purple-700">Seviye Tamamlandı!</p>
-              <p className="text-base font-bold text-yellow-500 mt-1">+5 Yıldız Kazandın ⭐</p>
+              <p className="text-5xl mb-3">{celebration.emoji}</p>
+              <p className="text-2xl font-extrabold text-purple-700">{celebration.title}</p>
+              <p className="text-base font-bold text-yellow-500 mt-1">{celebration.sub}</p>
             </motion.div>
           </motion.div>
         )}
