@@ -17,7 +17,6 @@ import LevelMap from "@/pages/level-map";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import Metronome from "@/pages/metronome";
-import RhythmTrainer from "@/pages/rhythm-trainer";
 
 function Router() {
   return (
@@ -34,7 +33,6 @@ function Router() {
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/metronome" component={Metronome} />
-      <Route path="/rhythm-trainer" component={RhythmTrainer} />
       <Route component={NotFound} />
     </Switch>
   );
