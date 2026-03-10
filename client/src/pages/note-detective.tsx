@@ -308,15 +308,18 @@ export default function NoteDetective() {
                     transition={{ duration: 0.8, delay: 0.3 }}
                   >🏅</motion.p>
                   <p className="text-3xl font-extrabold text-purple-700 mb-1">Tebrikler!</p>
-                  <p className="text-xl font-bold text-yellow-500 mb-2">Rozet Kazandın! 🌟</p>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    {gameComplete.stars} yıldız topladın ve Nota Dedektifi rozetini hak ettin!
+                  <p className="text-xl font-bold text-yellow-500 mb-2">Nota Dedektifi Rozeti! 🌟</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {gameComplete.stars} yıldız topladın!
+                  </p>
+                  <p className="text-xs font-semibold text-purple-400 mb-6">
+                    Tüm veriler sıfırlanarak seviye 1'den başlıyorsun.
                   </p>
                   <Button
                     className="w-full rounded-2xl font-extrabold text-base py-5 bg-purple-600 hover:bg-purple-700"
-                    onClick={() => navigate("/student/home")}
+                    onClick={handleReset}
                   >
-                    Ana Sayfaya Dön 🏠
+                    Baştan Başla 🔄
                   </Button>
                 </>
               ) : (
@@ -331,7 +334,7 @@ export default function NoteDetective() {
                     className="w-full rounded-2xl font-extrabold text-base py-5 bg-orange-500 hover:bg-orange-600"
                     onClick={handleReset}
                   >
-                    Tekrar Dene 🔄
+                    Baştan Başla 🔄
                   </Button>
                 </>
               )}
