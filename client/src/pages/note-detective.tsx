@@ -201,24 +201,31 @@ export default function NoteDetective() {
 
     const levelTarget = LEVEL_QUESTIONS[level - 1] ?? 55;
     const completedByTarget = newLevelQuestions >= levelTarget;
-    const completedByStreak = newConsecutive >= CONSECUTIVE_REQUIRED && correct;
-    const shouldLevelUp = (completedByTarget || completedByStreak) && level < 6;
+    const streakBonus = newConsecutive >= CONSECUTIVE_REQUIRED && correct;
 
-    // Bonus stars: +2 for completing by question target, +3 for 10-streak
-    const bonusStars = shouldLevelUp ? (completedByTarget ? 2 : 3) : 0;
+    // Bonus stars: +2 for reaching question target, +3 for 10-streak
+    let bonusStars = 0;
+    if (completedByTarget) bonusStars += 2;
+    if (streakBonus) bonusStars += 3;
     const starsToAdd = (correct ? 1 : 0) + bonusStars;
     const newStars = totalStars + starsToAdd;
     setTotalStars(newStars);
 
+    // Show streak celebration (no level change)
+    if (streakBonus) {
+      setConsecutiveCorrect(0);
+      setCelebration({ emoji: "🔥", title: "Mükemmel Seri!", sub: "+3 Bonus Yıldız Kazandın ⭐⭐⭐" });
+      setTimeout(() => setCelebration(null), 2500);
+    }
+
+    // Level up ONLY when question target is reached
+    const shouldLevelUp = completedByTarget && level < 6;
     const newLevel = shouldLevelUp ? level + 1 : level;
     if (shouldLevelUp) {
       setLevel(newLevel);
       setLevelQuestions(0);
-      setConsecutiveCorrect(0);
-      const msg = completedByTarget
-        ? { emoji: "🎉", title: "Seviye Tamamlandı!", sub: "+2 Bonus Yıldız Kazandın ⭐" }
-        : { emoji: "🔥", title: "Mükemmel Seri!", sub: "+3 Bonus Yıldız Kazandın ⭐⭐⭐" };
-      setCelebration(msg);
+      if (!streakBonus) setConsecutiveCorrect(0);
+      setCelebration({ emoji: "🎉", title: "Seviye Tamamlandı!", sub: "+2 Bonus Yıldız Kazandın ⭐" });
       setTimeout(() => setCelebration(null), 2500);
     }
 
