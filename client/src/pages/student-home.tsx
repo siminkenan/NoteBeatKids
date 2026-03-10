@@ -38,6 +38,15 @@ export default function StudentHome() {
       style={{ background: "linear-gradient(160deg, #a8edea 0%, #fed6e3 50%, #ffecd2 100%)" }}
     >
       <div className="absolute inset-0 pointer-events-none select-none">
+        {/* Fa (bass) clef — top left */}
+        <motion.span
+          className="absolute font-bold select-none"
+          style={{ left: "12px", top: "8px", fontSize: "96px", lineHeight: 1, color: "rgba(255,255,255,0.22)" }}
+          animate={{ y: [0, -8, 0], opacity: [0.20, 0.32, 0.20] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        >
+          𝄢
+        </motion.span>
         {["⭐", "🎵", "🎶", "🌟", "✨"].map((emoji, i) => (
           <motion.span
             key={i}
