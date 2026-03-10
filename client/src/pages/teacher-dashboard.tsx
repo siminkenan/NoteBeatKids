@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
-import metronomeImgPath from "@assets/WhatsApp_Image_2026-03-08_at_12.44.53_1773164393107.jpeg";
+import metronomeImgPath from "@assets/metronome-logo.png";
 import type { Class } from "@shared/schema";
 
 const classSchema = z.object({
@@ -202,8 +202,8 @@ export default function TeacherDashboard() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className="w-14 h-14 bg-white/20 rounded-xl flex-shrink-0 overflow-hidden">
-              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-cover rounded-xl" />
+            <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center">
+              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" />
             </div>
             <div>
               <p className="text-white font-extrabold text-lg leading-tight">Metronom</p>

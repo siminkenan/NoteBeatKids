@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
-import metronomeImgPath from "@assets/WhatsApp_Image_2026-03-08_at_12.44.53_1773164393107.jpeg";
+import metronomeImgPath from "@assets/metronome-logo.png";
 import type { StudentProgress } from "@shared/schema";
 
 export default function StudentHome() {
@@ -204,8 +204,8 @@ export default function StudentHome() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6 }}
           >
-            <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
-              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-cover rounded-xl" />
+            <div className="w-16 h-16 flex items-center justify-center flex-shrink-0">
+              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" />
             </div>
             <div>
               <h2 className="text-xl font-extrabold text-white">Metronom</h2>
