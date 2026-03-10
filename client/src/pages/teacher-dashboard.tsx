@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import metronomeImgPath from "@assets/WhatsApp_Image_2026-03-08_at_12.44.53_1773164393107.jpeg";
 import type { Class } from "@shared/schema";
 
 const classSchema = z.object({
@@ -184,6 +185,32 @@ export default function TeacherDashboard() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Tools */}
+        <div className="mb-8">
+          <h3 className="text-xl font-extrabold text-foreground mb-4">Araçlar</h3>
+          <motion.button
+            data-testid="button-metronome"
+            className="flex items-center gap-4 p-4 rounded-2xl shadow-md w-full sm:w-auto text-left"
+            style={{
+              background: "linear-gradient(135deg, #c084fc 0%, #818cf8 100%)",
+              border: "3px solid rgba(255,255,255,0.4)",
+            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/metronome")}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="w-14 h-14 bg-white/20 rounded-xl flex-shrink-0 overflow-hidden">
+              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-cover rounded-xl" />
+            </div>
+            <div>
+              <p className="text-white font-extrabold text-lg leading-tight">Metronom</p>
+              <p className="text-white/80 text-sm font-semibold">Sınıfta tempo aracı</p>
+            </div>
+          </motion.button>
+        </div>
 
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-extrabold text-foreground">Sınıflarım</h3>

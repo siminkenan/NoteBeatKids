@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import metronomeImgPath from "@assets/WhatsApp_Image_2026-03-08_at_12.44.53_1773164393107.jpeg";
 import type { StudentProgress } from "@shared/schema";
 
 export default function StudentHome() {
@@ -185,6 +186,30 @@ export default function StudentHome() {
             <div>
               <h2 className="text-xl font-extrabold text-white">İlerleme Haritam</h2>
               <p className="text-white/85 font-semibold text-sm">Öğrenme yolculuğunu gör!</p>
+            </div>
+          </motion.button>
+
+          {/* Metronom */}
+          <motion.button
+            data-testid="button-metronome"
+            className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
+            style={{
+              background: "linear-gradient(135deg, #c084fc 0%, #818cf8 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/metronome")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-cover rounded-xl" />
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-white">Metronom</h2>
+              <p className="text-white/85 font-semibold text-sm">Ritim için tempo ayarla!</p>
             </div>
           </motion.button>
         </div>

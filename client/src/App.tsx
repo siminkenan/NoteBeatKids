@@ -16,6 +16,7 @@ import NoteDetective from "@/pages/note-detective";
 import LevelMap from "@/pages/level-map";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
+import Metronome from "@/pages/metronome";
 
 function Router() {
   return (
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/student/map" component={LevelMap} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/metronome" component={Metronome} />
       <Route component={NotFound} />
     </Switch>
   );

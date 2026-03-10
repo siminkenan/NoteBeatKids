@@ -1,0 +1,171 @@
+Add a Metronome module to the NoteBeat Kids music education platform.
+
+The metronome must be accessible from both Teacher Dashboard and Student Dashboard.
+
+------------------------------------------------
+
+METRONOME ICON IN DASHBOARD
+
+Place a large icon button in the dashboard.
+
+Icon design:
+
+Use the colorful cartoon metronome illustration already provided.
+
+Icon label:
+
+Metronome
+
+Position:
+
+Main dashboard tool section.
+
+When the icon is clicked, open the Metronome Screen.
+
+------------------------------------------------
+
+METRONOME SCREEN DESIGN
+
+Design must be child friendly.
+
+Use pastel colors and rounded shapes.
+
+Screen elements:
+
+Large BPM display in the center
+
+Start button  
+Stop button  
+
+Tempo slider
+
+Tap tempo button
+
+Visual pendulum animation.
+
+------------------------------------------------
+
+METRONOME FUNCTIONALITY
+
+The metronome must work like a classic mechanical metronome.
+
+Features:
+
+Adjustable BPM
+
+Minimum BPM: 40  
+Maximum BPM: 208
+
+Tempo slider allows users to change BPM smoothly.
+
+The BPM value must update live.
+
+------------------------------------------------
+
+CONTINUOUS METRONOME PLAYBACK
+
+When the metronome starts:
+
+It must continue playing without interruption.
+
+Changing BPM must not stop the metronome.
+
+Instead the tempo must adjust smoothly.
+
+------------------------------------------------
+
+METRONOME SOUND
+
+Use a clean click sound similar to a real metronome.
+
+Two sounds required:
+
+Beat sound (tick)
+
+Accent sound (strong beat)
+
+Accent should occur on the first beat of the measure.
+
+------------------------------------------------
+
+TIME SIGNATURE SUPPORT
+
+Add time signature options:
+
+2/4  
+3/4  
+4/4
+
+User can choose the time signature.
+
+The first beat must be accented.
+
+------------------------------------------------
+
+VISUAL METRONOME
+
+Include a swinging pendulum animation.
+
+Pendulum must move left and right according to BPM.
+
+Animation speed must sync with tempo.
+
+------------------------------------------------
+
+TAP TEMPO FEATURE
+
+Add a button:
+
+Tap Tempo
+
+Users can tap the button repeatedly to calculate BPM automatically.
+
+System must detect average interval and set BPM.
+
+------------------------------------------------
+
+CHILD FRIENDLY DESIGN
+
+Interface must include:
+
+Large buttons  
+Bright colors  
+Simple layout
+
+Students must easily start and stop the metronome.
+
+------------------------------------------------
+
+AUDIO ENGINE REQUIREMENTS
+
+Use Web Audio API or equivalent audio system.
+
+Audio must be precise and low latency.
+
+Ensure metronome timing remains accurate even when BPM changes.
+
+------------------------------------------------
+
+USER ACCESS
+
+Metronome must be available for:
+
+Teachers  
+Students
+
+No login restrictions required.
+
+------------------------------------------------
+
+FINAL RESULT
+
+Clicking the Metronome icon in the dashboard opens a fully functional metronome tool.
+
+Users can:
+
+Start / Stop  
+Adjust BPM  
+Use Tap Tempo  
+Select Time Signature
+
+Metronome runs smoothly and continuously without interruption.
