@@ -106,6 +106,8 @@ export default function NoteDetective() {
 
   const sessionStartRef = useRef(Date.now());
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const progressLoadedRef = useRef(false);
+  const lastNoteRef = useRef<string | null>(null);
 
   const { data: progress } = useQuery<StudentProgress[]>({
     queryKey: ["/api/student", student?.student.id, "progress"],
@@ -118,11 +120,15 @@ export default function NoteDetective() {
 
   useEffect(() => {
     if (!student) { navigate("/student/login"); return; }
+    if (progressLoadedRef.current) return;
     const notesProgress = progress?.find(p => p.appType === "notes");
-    if (notesProgress) {
-      setLevel(notesProgress.level);
-      setScore({ correct: notesProgress.correctAnswers, wrong: notesProgress.wrongAnswers });
-      setTotalStars(notesProgress.starsEarned);
+    if (notesProgress || progress !== undefined) {
+      progressLoadedRef.current = true;
+      if (notesProgress) {
+        setLevel(notesProgress.level);
+        setScore({ correct: notesProgress.correctAnswers, wrong: notesProgress.wrongAnswers });
+        setTotalStars(notesProgress.starsEarned);
+      }
       setConsecutiveCorrect(0);
     }
   }, [student, progress]);
@@ -153,7 +159,11 @@ export default function NoteDetective() {
 
   const pickRandomNote = useCallback((lvl: number) => {
     const notes = LEVEL_NOTES[Math.min(lvl, 6)] ?? LEVEL_NOTES[6];
-    const note = notes[Math.floor(Math.random() * notes.length)];
+    const candidates = notes.length > 1
+      ? notes.filter(n => n.vexKey !== lastNoteRef.current)
+      : notes;
+    const note = candidates[Math.floor(Math.random() * candidates.length)];
+    lastNoteRef.current = note.vexKey;
     setCurrentNote(note);
     setFeedback(null);
     setAnsweredThisRound(false);
