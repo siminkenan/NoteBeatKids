@@ -48,12 +48,13 @@ export default function Home() {
           "linear-gradient(135deg, #667eea 0%, #764ba2 30%, #f093fb 60%, #f5576c 100%)",
       }}
     >
-      {/* Fa (bass) clef — top left */}
+      {/* Fa (bass) clef — top left — admin giriş */}
       <motion.span
-        className="absolute font-bold select-none pointer-events-none z-0"
+        className="absolute font-bold select-none cursor-pointer z-10"
         style={{ left: "12px", top: "8px", fontSize: "96px", lineHeight: 1, color: "rgba(255,255,255,0.20)" }}
         animate={{ y: [0, -8, 0], opacity: [0.18, 0.30, 0.18] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        onClick={() => navigate("/admin/login")}
       >
         𝄢
       </motion.span>
@@ -132,8 +133,7 @@ export default function Home() {
           <img
             src={logoPath}
             alt="NoteBeat Kids"
-            className="w-52 h-52 object-contain drop-shadow-2xl cursor-pointer"
-            onClick={() => navigate("/admin/login")}
+            className="w-52 h-52 object-contain drop-shadow-2xl"
             data-testid="img-logo"
           />
           {/* Bilingual tagline */}
