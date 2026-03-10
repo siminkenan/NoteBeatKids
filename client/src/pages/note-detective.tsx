@@ -103,6 +103,7 @@ export default function NoteDetective() {
   const [answeredThisRound, setAnsweredThisRound] = useState(false);
   const [levelQuestions, setLevelQuestions] = useState(0);
   const [celebration, setCelebration] = useState<{ emoji: string; title: string; sub: string } | null>(null);
+  const [gameComplete, setGameComplete] = useState<{ badge: boolean; stars: number } | null>(null);
 
   const sessionStartRef = useRef(Date.now());
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -202,23 +203,25 @@ export default function NoteDetective() {
     const levelTarget = LEVEL_QUESTIONS[level - 1] ?? 55;
     const completedByTarget = newLevelQuestions >= levelTarget;
     const streakBonus = newConsecutive >= CONSECUTIVE_REQUIRED && correct;
+    const isLevel6StreakFinish = completedByTarget && level === 6 && streakBonus;
 
-    // Bonus stars: +2 for reaching question target, +3 for 10-streak
+    // Bonus stars: +2 for reaching question target
+    // +3 for 10-streak (normal levels), +30 for 10-streak on level 6 completion
     let bonusStars = 0;
     if (completedByTarget) bonusStars += 2;
-    if (streakBonus) bonusStars += 3;
+    if (streakBonus) bonusStars += isLevel6StreakFinish ? 30 : 3;
     const starsToAdd = (correct ? 1 : 0) + bonusStars;
     const newStars = totalStars + starsToAdd;
     setTotalStars(newStars);
 
-    // Show streak celebration (no level change)
-    if (streakBonus) {
+    // Show streak celebration for normal levels (no level change)
+    if (streakBonus && !isLevel6StreakFinish) {
       setConsecutiveCorrect(0);
       setCelebration({ emoji: "🔥", title: "Mükemmel Seri!", sub: "+3 Bonus Yıldız Kazandın ⭐⭐⭐" });
       setTimeout(() => setCelebration(null), 2500);
     }
 
-    // Level up ONLY when question target is reached
+    // Level up ONLY when question target is reached (levels 1-5)
     const shouldLevelUp = completedByTarget && level < 6;
     const newLevel = shouldLevelUp ? level + 1 : level;
     if (shouldLevelUp) {
@@ -227,6 +230,12 @@ export default function NoteDetective() {
       if (!streakBonus) setConsecutiveCorrect(0);
       setCelebration({ emoji: "🎉", title: "Seviye Tamamlandı!", sub: "+2 Bonus Yıldız Kazandın ⭐" });
       setTimeout(() => setCelebration(null), 2500);
+    }
+
+    // Level 6 final completion
+    if (completedByTarget && level === 6) {
+      setConsecutiveCorrect(0);
+      setGameComplete({ badge: newStars >= 30, stars: newStars });
     }
 
     if (student) {
@@ -241,8 +250,29 @@ export default function NoteDetective() {
       }).then(() => qc.invalidateQueries({ queryKey: ["/api/student", student.student.id, "progress"] }));
     }
 
-    setTimeout(() => pickRandomNote(newLevel), shouldLevelUp ? 2600 : 1500);
+    const isLevel6Done = completedByTarget && level === 6;
+    if (!isLevel6Done) {
+      setTimeout(() => pickRandomNote(newLevel), shouldLevelUp ? 2600 : 1500);
+    }
   }, [currentNote, answeredThisRound, score, consecutiveCorrect, totalStars, level, levelQuestions, student, qc, playNote, pickRandomNote]);
+
+  // Reset to level 1 when no badge earned after level 6
+  const handleReset = useCallback(() => {
+    setGameComplete(null);
+    setLevel(1);
+    setLevelQuestions(0);
+    setConsecutiveCorrect(0);
+    setTotalStars(0);
+    setScore({ correct: 0, wrong: 0 });
+    lastNoteRef.current = null;
+    if (student) {
+      apiRequest("POST", `/api/student/${student.student.id}/progress`, {
+        appType: "notes", level: 1, starsEarned: 0,
+        correctAnswers: 0, wrongAnswers: 0, timeSpentSeconds: 0,
+      }).then(() => qc.invalidateQueries({ queryKey: ["/api/student", student.student.id, "progress"] }));
+    }
+    setTimeout(() => pickRandomNote(1), 300);
+  }, [student, qc, pickRandomNote]);
 
   const accuracy = score.correct + score.wrong > 0
     ? Math.round((score.correct / (score.correct + score.wrong)) * 100)
@@ -254,6 +284,62 @@ export default function NoteDetective() {
     <div className="min-h-screen select-none"
       style={{ background: "linear-gradient(160deg, #f3e8ff 0%, #e0d7ff 50%, #ddd6fe 100%)" }}
     >
+      {/* Game complete overlay: badge earned or reset to level 1 */}
+      <AnimatePresence>
+        {gameComplete && (
+          <motion.div
+            className="fixed inset-0 z-[60] flex items-center justify-center"
+            style={{ background: gameComplete.badge ? "rgba(79,40,120,0.85)" : "rgba(30,30,60,0.85)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-3xl px-10 py-10 shadow-2xl text-center max-w-sm w-full mx-4"
+              initial={{ scale: 0.5, y: 60 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            >
+              {gameComplete.badge ? (
+                <>
+                  <motion.p
+                    className="text-7xl mb-4"
+                    animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.8, delay: 0.3 }}
+                  >🏅</motion.p>
+                  <p className="text-3xl font-extrabold text-purple-700 mb-1">Tebrikler!</p>
+                  <p className="text-xl font-bold text-yellow-500 mb-2">Rozet Kazandın! 🌟</p>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    {gameComplete.stars} yıldız topladın ve Nota Dedektifi rozetini hak ettin!
+                  </p>
+                  <Button
+                    className="w-full rounded-2xl font-extrabold text-base py-5 bg-purple-600 hover:bg-purple-700"
+                    onClick={() => navigate("/student/home")}
+                  >
+                    Ana Sayfaya Dön 🏠
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-6xl mb-4">😔</p>
+                  <p className="text-2xl font-extrabold text-gray-700 mb-1">30 Yıldıza Ulaşamadın</p>
+                  <p className="text-base text-muted-foreground mb-1">
+                    {gameComplete.stars} yıldız kazandın, 30 yıldız gerekli.
+                  </p>
+                  <p className="text-sm font-semibold text-orange-500 mb-6">Seviye 1'den tekrar başlıyorsun!</p>
+                  <Button
+                    className="w-full rounded-2xl font-extrabold text-base py-5 bg-orange-500 hover:bg-orange-600"
+                    onClick={handleReset}
+                  >
+                    Tekrar Dene 🔄
+                  </Button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Level complete / streak celebration overlay */}
       <AnimatePresence>
         {celebration && (
