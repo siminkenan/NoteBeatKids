@@ -10,8 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import type { StudentProgress } from "@shared/schema";
 
-// Consecutive correct answers needed to advance from each level (index 0 = level 1)
-const LEVEL_ROUNDS = [20, 28, 36, 45, 54, 62];
+// 6 consecutive correct answers advances the level (all levels)
+const CONSECUTIVE_REQUIRED = 6;
+
+// Total question targets per level (for progress display)
+const LEVEL_QUESTIONS = [15, 30, 45, 15, 30, 55];
 
 // Notes by level
 const LEVEL_NOTES: Record<number, { vexKey: string; label: string; solfa: string }[]> = {
@@ -37,14 +40,20 @@ const LEVEL_NOTES: Record<number, { vexKey: string; label: string; solfa: string
     { vexKey: "b/4", label: "B", solfa: "Si" },
   ],
   4: [
-    { vexKey: "g/4", label: "G", solfa: "Sol" },
-    { vexKey: "a/4", label: "A", solfa: "La" },
-    { vexKey: "b/4", label: "B", solfa: "Si" },
     { vexKey: "c/5", label: "C", solfa: "Do" },
     { vexKey: "d/5", label: "D", solfa: "Re" },
     { vexKey: "e/5", label: "E", solfa: "Mi" },
   ],
   5: [
+    { vexKey: "c/5", label: "C", solfa: "Do" },
+    { vexKey: "d/5", label: "D", solfa: "Re" },
+    { vexKey: "e/5", label: "E", solfa: "Mi" },
+    { vexKey: "f/5", label: "F", solfa: "Fa" },
+    { vexKey: "g/5", label: "G", solfa: "Sol" },
+    { vexKey: "a/5", label: "A", solfa: "La" },
+    { vexKey: "b/5", label: "B", solfa: "Si" },
+  ],
+  6: [
     { vexKey: "c/4", label: "C", solfa: "Do" },
     { vexKey: "d/4", label: "D", solfa: "Re" },
     { vexKey: "e/4", label: "E", solfa: "Mi" },
@@ -54,6 +63,9 @@ const LEVEL_NOTES: Record<number, { vexKey: string; label: string; solfa: string
     { vexKey: "b/4", label: "B", solfa: "Si" },
     { vexKey: "c/5", label: "C", solfa: "Do" },
     { vexKey: "d/5", label: "D", solfa: "Re" },
+    { vexKey: "e/5", label: "E", solfa: "Mi" },
+    { vexKey: "f/5", label: "F", solfa: "Fa" },
+    { vexKey: "g/5", label: "G", solfa: "Sol" },
   ],
 };
 
@@ -89,6 +101,24 @@ export default function NoteDetective() {
   const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
   const [answeredThisRound, setAnsweredThisRound] = useState(false);
+  const [levelQuestions, setLevelQuestions] = useState(0);
+
+  // Responsive staff width
+  const staffContainerRef = useRef<HTMLDivElement>(null);
+  const [staffWidth, setStaffWidth] = useState(500);
+
+  useEffect(() => {
+    const el = staffContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setStaffWidth(Math.floor(entry.contentRect.width) || 500);
+      }
+    });
+    observer.observe(el);
+    setStaffWidth(el.clientWidth || 500);
+    return () => observer.disconnect();
+  }, []);
 
   const sessionStartRef = useRef(Date.now());
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -133,11 +163,12 @@ export default function NoteDetective() {
   const noteFrequencies: Record<string, number> = {
     "c/4": 261.63, "d/4": 293.66, "e/4": 329.63, "f/4": 349.23,
     "g/4": 392.0, "a/4": 440.0, "b/4": 493.88,
-    "c/5": 523.25, "d/5": 587.33, "e/5": 659.25,
+    "c/5": 523.25, "d/5": 587.33, "e/5": 659.25, "f/5": 698.46,
+    "g/5": 783.99, "a/5": 880.0, "b/5": 987.77,
   };
 
   const pickRandomNote = useCallback((lvl: number) => {
-    const notes = LEVEL_NOTES[Math.min(lvl, 5)] ?? LEVEL_NOTES[5];
+    const notes = LEVEL_NOTES[Math.min(lvl, 6)] ?? LEVEL_NOTES[6];
     const note = notes[Math.floor(Math.random() * notes.length)];
     setCurrentNote(note);
     setFeedback(null);
@@ -171,14 +202,20 @@ export default function NoteDetective() {
     setConsecutiveCorrect(newConsecutive);
     setScore({ correct: newCorrect, wrong: newWrong });
 
-    const levelNotes = LEVEL_NOTES[Math.min(level, 5)];
     const starsToAdd = correct ? 1 : 0;
     const newStars = totalStars + starsToAdd;
     setTotalStars(newStars);
 
-    const shouldLevelUp = newConsecutive >= (LEVEL_ROUNDS[level - 1] ?? 62) && correct;
-    const newLevel = shouldLevelUp ? Math.min(level + 1, 6) : level;
-    if (shouldLevelUp) setLevel(newLevel);
+    const newLevelQuestions = levelQuestions + 1;
+    setLevelQuestions(newLevelQuestions);
+
+    const shouldLevelUp = newConsecutive >= CONSECUTIVE_REQUIRED && correct && level < 6;
+    const newLevel = shouldLevelUp ? level + 1 : level;
+    if (shouldLevelUp) {
+      setLevel(newLevel);
+      setLevelQuestions(0);
+      setConsecutiveCorrect(0);
+    }
 
     if (student) {
       const elapsed = Math.floor((Date.now() - sessionStartRef.current) / 1000);
@@ -193,7 +230,7 @@ export default function NoteDetective() {
     }
 
     setTimeout(() => pickRandomNote(newLevel), 1500);
-  }, [currentNote, answeredThisRound, score, consecutiveCorrect, totalStars, level, student, qc, playNote, pickRandomNote]);
+  }, [currentNote, answeredThisRound, score, consecutiveCorrect, totalStars, level, levelQuestions, student, qc, playNote, pickRandomNote]);
 
   const accuracy = score.correct + score.wrong > 0
     ? Math.round((score.correct / (score.correct + score.wrong)) * 100)
@@ -239,14 +276,38 @@ export default function NoteDetective() {
           ))}
         </div>
 
-        {/* Level badge */}
-        <div className="text-center">
+        {/* Level badge + progress */}
+        <div className="text-center space-y-2">
           <Badge className="font-extrabold text-sm px-4 py-1.5 rounded-full bg-purple-600 text-white border-0">
-            Seviye {level} — {LEVEL_NOTES[Math.min(level, 5)]?.length ?? 7} nota
+            Seviye {level} — {LEVEL_NOTES[level]?.length ?? 12} nota
           </Badge>
-          {consecutiveCorrect > 0 && (
-            <p className="text-xs font-bold text-purple-500 mt-1">{consecutiveCorrect} art arda!</p>
-          )}
+          {/* Question progress bar */}
+          <div className="flex items-center gap-2 px-2">
+            <span className="text-xs font-bold text-purple-400 w-12 text-right">{levelQuestions}</span>
+            <div className="flex-1 h-2 bg-purple-100 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-purple-400 rounded-full"
+                animate={{ width: `${Math.min((levelQuestions / (LEVEL_QUESTIONS[level - 1] ?? 55)) * 100, 100)}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <span className="text-xs font-bold text-purple-400 w-12">{LEVEL_QUESTIONS[level - 1] ?? 55} soru</span>
+          </div>
+          {/* Consecutive streak display */}
+          <div className="flex items-center justify-center gap-1.5">
+            {Array.from({ length: CONSECUTIVE_REQUIRED }).map((_, i) => (
+              <motion.div
+                key={i}
+                className={`w-5 h-5 rounded-full border-2 ${
+                  i < consecutiveCorrect
+                    ? "bg-yellow-400 border-yellow-500"
+                    : "bg-gray-100 border-gray-200"
+                }`}
+                animate={i < consecutiveCorrect ? { scale: [1, 1.3, 1] } : {}}
+                transition={{ duration: 0.3 }}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Staff and note display */}
@@ -254,12 +315,12 @@ export default function NoteDetective() {
           <p className="text-xs font-extrabold text-center text-muted-foreground uppercase tracking-widest mb-3">
             Bu nota hangisi?
           </p>
-          <div className="flex justify-center">
+          <div ref={staffContainerRef} className="w-full">
             {currentNote && (
               <SingleNoteRenderer
                 noteKey={currentNote.vexKey}
-                width={280}
-                height={160}
+                width={staffWidth}
+                height={180}
               />
             )}
           </div>
@@ -286,7 +347,7 @@ export default function NoteDetective() {
         {/* Note buttons */}
         <div className="grid grid-cols-7 gap-2">
           {ALL_BUTTONS.map((btn, i) => {
-            const isActive = LEVEL_NOTES[Math.min(level, 5)]?.some(n => n.label === btn.label);
+            const isActive = LEVEL_NOTES[Math.min(level, 6)]?.some(n => n.label === btn.label);
             const isSelected = answeredThisRound && currentNote?.label === btn.label;
             return (
               <motion.button
