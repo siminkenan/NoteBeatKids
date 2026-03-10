@@ -111,11 +111,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       let cls: Awaited<ReturnType<typeof storage.getClassByCode>> | undefined;
 
+      let resolvedStudentCode: string | null = null;
+
       if (studentCode) {
         // Individual student code flow
         const codeRecord = await storage.findStudentCodeByValue(studentCode.trim().toUpperCase());
         if (!codeRecord) return res.status(404).json({ message: "Geçersiz öğrenci kodu. Öğretmeninizden aldığınız kodu kontrol edin." });
         cls = await storage.getClass(codeRecord.classId);
+        resolvedStudentCode = codeRecord.code;
       } else {
         // Legacy class code flow
         cls = await storage.getClassByCode(classCode);
@@ -132,6 +135,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           return res.status(403).json({ message: "Sınıf kapasitesi dolu." });
         }
         student = await storage.createStudent({ classId: cls.id, firstName, lastName });
+      }
+      // Link individual code to student (idempotent)
+      if (resolvedStudentCode) {
+        await storage.linkStudentToStudentCode(resolvedStudentCode, student.id);
       }
       res.json({ student, class: { id: cls.id, name: cls.name, classCode: cls.classCode } });
     } catch (e) {

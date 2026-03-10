@@ -66,6 +66,7 @@ export default function ClassDetail() {
   const { toast } = useToast();
   const classId = params?.classId;
   const [showCodes, setShowCodes] = useState(false);
+  const [codeSearch, setCodeSearch] = useState("");
 
   useEffect(() => {
     if (!teacher) {
@@ -115,6 +116,24 @@ export default function ClassDetail() {
     onError: (e: any) => {
       toast({ title: "Hata", description: e.message, variant: "destructive" });
     },
+  });
+
+  // Map: studentId → assigned student code
+  const studentIdToCode = new Map<string, StudentCode>(
+    (codesData?.codes ?? [])
+      .filter(c => c.studentId)
+      .map(c => [c.studentId!, c])
+  );
+
+  const searchTrimmed = codeSearch.trim().toUpperCase();
+  const matchedStudentId = searchTrimmed.length === 8
+    ? (codesData?.codes.find(c => c.code === searchTrimmed)?.studentId ?? null)
+    : null;
+
+  const filteredStudents = (data?.students ?? []).filter(s => {
+    if (!searchTrimmed) return true;
+    if (matchedStudentId) return s.id === matchedStudentId;
+    return false;
   });
 
   const chartData = data?.students.map(s => ({
@@ -309,15 +328,53 @@ export default function ClassDetail() {
               </Card>
             )}
 
-            <h3 className="text-xl font-extrabold mb-4">Öğrenci İlerlemesi</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <h3 className="text-xl font-extrabold">Öğrenci İlerlemesi</h3>
+              <div className="relative w-full sm:w-64">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="8 haneli kodla ara…"
+                  maxLength={8}
+                  value={codeSearch}
+                  onChange={e => setCodeSearch(e.target.value.toUpperCase())}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-input bg-white text-sm font-mono font-bold tracking-widest outline-none focus:ring-2 focus:ring-primary/40 transition"
+                  data-testid="input-code-search"
+                />
+                {codeSearch && (
+                  <button
+                    onClick={() => setCodeSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Code not found warning */}
+            {searchTrimmed.length === 8 && !matchedStudentId && (
+              <Card className="rounded-2xl mb-3 border-amber-200 bg-amber-50">
+                <CardContent className="py-4 text-center text-amber-700 font-bold text-sm">
+                  <Key className="w-5 h-5 mx-auto mb-1 text-amber-500" />
+                  "{searchTrimmed}" koduna sahip bir öğrenci bu sınıfta bulunamadı.
+                  {codesData?.codes.find(c => c.code === searchTrimmed) && !matchedStudentId
+                    ? " Bu kod henüz bir öğrenci tarafından kullanılmamış."
+                    : ""}
+                </CardContent>
+              </Card>
+            )}
+
             {data?.students.length === 0 ? (
               <Card className="rounded-2xl"><CardContent className="py-12 text-center text-muted-foreground font-semibold">Bu sınıfta henüz öğrenci yok. Sınıf kodunu paylaşın!</CardContent></Card>
-            ) : (
+            ) : filteredStudents.length === 0 && searchTrimmed ? null : (
               <div className="space-y-3">
-                {data?.students.map((student, i) => {
+                {filteredStudents.map((student, i) => {
                   const rAcc = accuracy(student.rhythmProgress?.correctAnswers ?? 0, student.rhythmProgress?.wrongAnswers ?? 0);
                   const nAcc = accuracy(student.notesProgress?.correctAnswers ?? 0, student.notesProgress?.wrongAnswers ?? 0);
-                  const shareText = buildShareText(student, data.class.name, rAcc, nAcc);
+                  const shareText = buildShareText(student, data!.class.name, rAcc, nAcc);
+                  const assignedCode = studentIdToCode.get(student.id);
+                  const isHighlighted = !!searchTrimmed && student.id === matchedStudentId;
 
                   const handleShare = async () => {
                     if (navigator.share) {
@@ -332,7 +389,10 @@ export default function ClassDetail() {
 
                   return (
                     <motion.div key={student.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}>
-                      <Card className="rounded-2xl" data-testid={`card-student-${student.id}`}>
+                      <Card
+                        className={`rounded-2xl transition-all ${isHighlighted ? "ring-2 ring-indigo-400 shadow-lg shadow-indigo-100" : ""}`}
+                        data-testid={`card-student-${student.id}`}
+                      >
                         <CardContent className="p-4">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                             <div className="flex items-center gap-3 flex-1">
@@ -341,9 +401,17 @@ export default function ClassDetail() {
                               </div>
                               <div>
                                 <p className="font-extrabold text-foreground">{student.firstName} {student.lastName}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
                                   <span className="text-xs font-bold text-muted-foreground">{(student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0)} yıldız toplam</span>
+                                  {assignedCode && (
+                                    <span
+                                      className="font-mono text-[10px] font-extrabold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-md tracking-widest"
+                                      data-testid={`badge-code-${student.id}`}
+                                    >
+                                      {assignedCode.code}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>

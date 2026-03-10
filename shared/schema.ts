@@ -75,6 +75,7 @@ export const studentCodes = pgTable("student_codes", {
   classId: varchar("class_id").references(() => classes.id).notNull(),
   code: varchar("code", { length: 8 }).notNull().unique(),
   slotNumber: integer("slot_number").notNull(),
+  studentId: varchar("student_id").references(() => students.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

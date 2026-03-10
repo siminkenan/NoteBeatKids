@@ -45,6 +45,8 @@ export interface IStorage {
   generateStudentCodesForClass(classId: string, count: number): Promise<StudentCode[]>;
   getStudentCodesByClass(classId: string): Promise<StudentCode[]>;
   findStudentCodeByValue(code: string): Promise<StudentCode | undefined>;
+  linkStudentToStudentCode(code: string, studentId: string): Promise<void>;
+  findStudentCodeByStudentId(studentId: string): Promise<StudentCode | undefined>;
   // Students
   getStudentsByClass(classId: string): Promise<Student[]>;
   getStudent(id: string): Promise<Student | undefined>;
@@ -202,6 +204,17 @@ export class DatabaseStorage implements IStorage {
 
   async findStudentCodeByValue(code: string): Promise<StudentCode | undefined> {
     const result = await db.select().from(studentCodes).where(eq(studentCodes.code, code.toUpperCase())).limit(1);
+    return result[0];
+  }
+
+  async linkStudentToStudentCode(code: string, studentId: string): Promise<void> {
+    await db.update(studentCodes)
+      .set({ studentId })
+      .where(eq(studentCodes.code, code.toUpperCase()));
+  }
+
+  async findStudentCodeByStudentId(studentId: string): Promise<StudentCode | undefined> {
+    const result = await db.select().from(studentCodes).where(eq(studentCodes.studentId, studentId)).limit(1);
     return result[0];
   }
 
