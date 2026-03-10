@@ -53,6 +53,16 @@ export default function Home() {
           "linear-gradient(135deg, #667eea 0%, #764ba2 30%, #f093fb 60%, #f5576c 100%)",
       }}
     >
+      {/* Fa (bass) clef — top left */}
+      <motion.span
+        className="absolute font-bold select-none pointer-events-none z-0"
+        style={{ left: "12px", top: "8px", fontSize: "96px", lineHeight: 1, color: "rgba(255,255,255,0.20)" }}
+        animate={{ y: [0, -8, 0], opacity: [0.18, 0.30, 0.18] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      >
+        𝄢
+      </motion.span>
+
       {/* ─── Falling / Rising Note Symbols ─── */}
       <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
         {FLOATING_NOTES.map((n) => (
