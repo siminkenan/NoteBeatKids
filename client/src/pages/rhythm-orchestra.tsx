@@ -59,31 +59,39 @@ function getTravelTime(bpm: number) {
   return TRAVEL_BEATS * (60000 / bpm);
 }
 
+/**
+ * Generate notes covering the full song duration.
+ * hitTime = travelTime offset + beat position in audio ms.
+ * This means: at audio.currentTime=0 the first note is at the top of the screen,
+ * and it reaches the hit line exactly when that beat plays in the audio.
+ */
 function generateNotes(
   pattern: Record<string, number[]>,
   bpm: number,
-  activeLanes: number[]
+  activeLanes: number[],
+  durationMs: number,
+  travelTime: number
 ): GameNote[] {
-  const stepMs = (60000 / bpm) / 4;
+  const stepMs = (60000 / bpm) / 4;           // 16th-note duration in ms
+  const totalSteps = Math.ceil(durationMs / stepMs) + 16; // cover full song + buffer
   const laneKeys = ["kick", "snare", "hihat", "clap", "perc"];
-  const measures = 32;
   const notes: GameNote[] = [];
 
-  for (let m = 0; m < measures; m++) {
-    for (let s = 0; s < 16; s++) {
-      for (const laneIdx of activeLanes) {
-        const key = laneKeys[laneIdx];
-        const pat = pattern[key];
-        if (!pat) continue;
-        if (pat[s % pat.length]) {
-          notes.push({
-            id: `${laneIdx}-${m}-${s}-${Math.random()}`,
-            lane: laneIdx,
-            hitTime: (m * 16 + s) * stepMs,
-            type: s % 2 === 0 ? "quarter" : "eighth",
-            state: "pending",
-          });
-        }
+  for (let s = 0; s < totalSteps; s++) {
+    for (const laneIdx of activeLanes) {
+      const key = laneKeys[laneIdx];
+      const pat = pattern[key];
+      if (!pat || !pat.length) continue;
+      if (pat[s % pat.length]) {
+        notes.push({
+          id: `${laneIdx}-${s}`,
+          lane: laneIdx,
+          // hitTime = when audio beat plays + travelTime (pre-cue offset)
+          // so note appears at top exactly travelTime ms before the beat
+          hitTime: travelTime + s * stepMs,
+          type: s % 2 === 0 ? "quarter" : "eighth",
+          state: "pending",
+        });
       }
     }
   }
@@ -322,25 +330,40 @@ function GameCanvas({
     try { return JSON.parse(patternRaw); } catch { return {}; }
   })();
 
-  const notesRef = useRef<GameNote[]>(generateNotes(pattern, song.bpm, activeLanes));
-  const startTimeRef = useRef<number>(performance.now());
-  const rafRef = useRef<number>(0);
+  // Notes generated once audio duration is known
+  const notesRef = useRef<GameNote[]>([]);
+  // Wall-clock timestamps for visual flashes and feedback labels (independent of audio)
+  const flashRef = useRef<Record<number, number>>({});
   const feedbackRef = useRef<HitFeedback[]>([]);
+  const rafRef = useRef<number>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const flashRef = useRef<Record<number, number>>({});
   const finishedRef = useRef(false);
   const scoreRef = useRef({ perfect: 0, good: 0, ok: 0, miss: 0, streak: 0 });
 
   const [score, setScore] = useState({ perfect: 0, good: 0, ok: 0, miss: 0, streak: 0 });
+  const [audioLoaded, setAudioLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [songProgress, setSongProgress] = useState(0); // 0–1 for progress bar
 
-  const totalNotes = notesRef.current.length;
-  const gameDuration = totalNotes > 0
-    ? notesRef.current[notesRef.current.length - 1].hitTime + 2000
-    : 30000;
+  // Return audio position in ms — this is the single source of truth for game timing
+  const getElapsed = () => (audioRef.current?.currentTime ?? 0) * 1000;
+
+  const finishGame = useCallback(() => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    audioRef.current?.pause();
+    const s = scoreRef.current;
+    const remainingMissed = notesRef.current.filter(n => n.state === "pending").length;
+    const total = s.perfect + s.good + s.miss + remainingMissed;
+    const hits = s.perfect + s.good;
+    const accuracy = total > 0 ? Math.round((hits / total) * 100) : 0;
+    onFinish(accuracy, s.perfect, s.good, s.miss + remainingMissed);
+  }, [onFinish]);
 
   const handleLaneTap = useCallback((laneIdx: number) => {
-    const now = performance.now() - startTimeRef.current;
+    if (finishedRef.current) return;
+    const now = getElapsed();
     const notes = notesRef.current;
     let bestNote: GameNote | null = null;
     let bestDelta = Infinity;
@@ -383,11 +406,13 @@ function GameCanvas({
         ts: performance.now(),
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Canvas draw loop — driven by audio.currentTime
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !audioLoaded) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -399,10 +424,13 @@ function GameCanvas({
     resize();
     window.addEventListener("resize", resize);
 
-    const drawFrame = (timestamp: number) => {
+    const drawFrame = () => {
       if (finishedRef.current) return;
 
-      const elapsed = timestamp - startTimeRef.current;
+      // Game time is driven directly by the audio element's position
+      const elapsed = getElapsed();
+      const wallNow = performance.now();
+
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;
       const laneW = w / activeLanes.length;
@@ -414,20 +442,18 @@ function GameCanvas({
       ctx.fillStyle = "#0f0a1a";
       ctx.fillRect(0, 0, w, h);
 
-      // Lane backgrounds
+      // Lane backgrounds + hit lines
       activeLanes.forEach((laneIdx, col) => {
         const x = col * laneW;
         const lane = LANES[laneIdx];
-        const isFlashing = flashRef.current[laneIdx] && (timestamp - flashRef.current[laneIdx]) < 150;
+        const isFlashing = flashRef.current[laneIdx] && (wallNow - flashRef.current[laneIdx]) < 150;
 
-        // Lane bg
         const grad = ctx.createLinearGradient(x, 0, x + laneW, 0);
         grad.addColorStop(0, isFlashing ? lane.color + "44" : "#ffffff08");
         grad.addColorStop(1, isFlashing ? lane.color + "22" : "#ffffff03");
         ctx.fillStyle = grad;
         ctx.fillRect(x, 0, laneW, h);
 
-        // Lane divider
         if (col > 0) {
           ctx.strokeStyle = "#ffffff15";
           ctx.lineWidth = 1;
@@ -437,13 +463,11 @@ function GameCanvas({
           ctx.stroke();
         }
 
-        // Hit zone line
-        const glowIntensity = isFlashing ? 1 : 0.5;
         ctx.shadowColor = lane.color;
         ctx.shadowBlur = isFlashing ? 20 : 10;
         ctx.strokeStyle = lane.color;
         ctx.lineWidth = isFlashing ? 4 : 2;
-        ctx.globalAlpha = glowIntensity;
+        ctx.globalAlpha = isFlashing ? 1 : 0.5;
         ctx.beginPath();
         ctx.moveTo(x + 6, hitLineY);
         ctx.lineTo(x + laneW - 6, hitLineY);
@@ -451,7 +475,6 @@ function GameCanvas({
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
 
-        // Lane header
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 14px sans-serif";
         ctx.textAlign = "center";
@@ -470,6 +493,7 @@ function GameCanvas({
         const lane = LANES[note.lane];
         const x = col * laneW;
 
+        // spawnTime = hitTime - travelTime (= when note appears at top of screen)
         const spawnTime = note.hitTime - travelTime;
         const progress = (elapsed - spawnTime) / travelTime;
         if (progress < 0 || progress > 1.1) return;
@@ -479,15 +503,14 @@ function GameCanvas({
         const nH = note.type === "quarter" ? 40 : 24;
         const nX = x + 8;
 
-        // Auto-miss detection
+        // Auto-miss when note passes the line
         if (progress > 1.05 && note.state === "pending") {
           note.state = "miss";
           scoreRef.current = { ...scoreRef.current, miss: scoreRef.current.miss + 1, streak: 0 };
           setScore({ ...scoreRef.current });
-          feedbackRef.current.push({ id: Math.random().toString(), lane: note.lane, result: "miss", ts: timestamp });
+          feedbackRef.current.push({ id: Math.random().toString(), lane: note.lane, result: "miss", ts: wallNow });
         }
 
-        // Draw cube
         const alpha = note.state === "miss" ? 0.3 : 1;
         ctx.globalAlpha = alpha;
 
@@ -497,12 +520,9 @@ function GameCanvas({
         ctx.fillStyle = grad;
         ctx.shadowColor = lane.color;
         ctx.shadowBlur = 12;
-
-        const radius = 6;
         ctx.beginPath();
-        ctx.roundRect(nX, noteY - nH, nW, nH, radius);
+        ctx.roundRect(nX, noteY - nH, nW, nH, 6);
         ctx.fill();
-
         ctx.shadowBlur = 0;
         ctx.strokeStyle = "#ffffff40";
         ctx.lineWidth = 1;
@@ -510,14 +530,13 @@ function GameCanvas({
         ctx.globalAlpha = 1;
       });
 
-      // Draw hit feedback
-      const now = timestamp;
-      feedbackRef.current = feedbackRef.current.filter(fb => now - fb.ts < 700);
+      // Draw hit feedback labels (floating text)
+      feedbackRef.current = feedbackRef.current.filter(fb => wallNow - fb.ts < 700);
       feedbackRef.current.forEach(fb => {
         if (!activeLanes.includes(fb.lane)) return;
         const col = activeLanes.indexOf(fb.lane);
         const x = col * laneW;
-        const age = (now - fb.ts) / 700;
+        const age = (wallNow - fb.ts) / 700;
         ctx.globalAlpha = 1 - age;
         ctx.fillStyle = getHitColor(fb.result);
         ctx.font = "bold 16px sans-serif";
@@ -526,16 +545,10 @@ function GameCanvas({
         ctx.globalAlpha = 1;
       });
 
-      // Check game done
-      if (elapsed >= gameDuration && !finishedRef.current) {
-        finishedRef.current = true;
-        const s = scoreRef.current;
-        const allMissed = notesRef.current.filter(n => n.state === "pending" || n.state === "miss").length;
-        const total = s.perfect + s.good + s.miss + allMissed;
-        const hits = s.perfect + s.good;
-        const accuracy = total > 0 ? Math.round((hits / total) * 100) : 0;
-        onFinish(accuracy, s.perfect, s.good, s.miss + allMissed);
-        return;
+      // Update progress bar state (throttled via rAF — no need for extra throttle)
+      const audio = audioRef.current;
+      if (audio && audio.duration > 0) {
+        setSongProgress(audio.currentTime / audio.duration);
       }
 
       rafRef.current = requestAnimationFrame(drawFrame);
@@ -543,12 +556,9 @@ function GameCanvas({
 
     rafRef.current = requestAnimationFrame(drawFrame);
 
-    // Keyboard support
     const onKey = (e: KeyboardEvent) => {
       const idx = LANE_KEYS.indexOf(e.key.toLowerCase());
-      if (idx >= 0 && activeLanes.includes(idx)) {
-        handleLaneTap(idx);
-      }
+      if (idx >= 0 && activeLanes.includes(idx)) handleLaneTap(idx);
     };
     window.addEventListener("keydown", onKey);
 
@@ -558,32 +568,87 @@ function GameCanvas({
       window.removeEventListener("keydown", onKey);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioLoaded]);
+
+  // Audio setup: load → generate full-song notes → play
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onMeta = () => {
+      const durationMs = audio.duration * 1000;
+      // Generate notes for the full song duration, with travelTime pre-cue offset
+      notesRef.current = generateNotes(pattern, song.bpm, activeLanes, durationMs, travelTime);
+      setAudioLoaded(true);
+      // Start playback immediately after notes are ready
+      audio.play().catch(() => setLoadError(true));
+    };
+
+    const onEnded = () => finishGame();
+    const onError = () => setLoadError(true);
+
+    audio.addEventListener("loadedmetadata", onMeta);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
+
+    return () => {
+      audio.removeEventListener("loadedmetadata", onMeta);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
+      audio.pause();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col" style={{ userSelect: "none" }}>
-      {/* Score bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-black/60 backdrop-blur z-10">
-        <div className="flex items-center gap-3">
-          <span className="text-yellow-400 font-bold">⭐ {score.perfect}</span>
-          <span className="text-green-400 font-bold">✓ {score.good}</span>
-          <span className="text-red-400 font-bold">✗ {score.miss}</span>
+      {/* Score + progress bar */}
+      <div className="flex flex-col bg-black/60 backdrop-blur z-10">
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-3">
+            <span className="text-yellow-400 font-bold">⭐ {score.perfect}</span>
+            <span className="text-green-400 font-bold">✓ {score.good}</span>
+            <span className="text-red-400 font-bold">✗ {score.miss}</span>
+          </div>
+          <div className="text-white font-bold text-sm truncate max-w-[160px]">{song.name}</div>
+          {score.streak >= 5 ? (
+            <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
+              🔥 {score.streak}x
+            </Badge>
+          ) : <div className="w-16" />}
         </div>
-        <div className="text-white font-bold text-sm truncate max-w-[160px]">{song.name}</div>
-        {score.streak >= 5 && (
-          <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
-            🔥 {score.streak}x
-          </Badge>
-        )}
+        {/* Song progress bar */}
+        <div className="h-1 w-full bg-white/10">
+          <div
+            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-none"
+            style={{ width: `${songProgress * 100}%` }}
+          />
+        </div>
       </div>
 
-      {/* Audio player */}
+      {/* Hidden audio element — NO autoPlay, we start it manually after loadedmetadata */}
       <audio
         ref={audioRef}
         src={`/api/orchestra/audio/${song.storedFilename}`}
-        autoPlay
+        preload="auto"
         className="hidden"
       />
+
+      {/* Loading overlay */}
+      {!audioLoaded && !loadError && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/90 gap-4">
+          <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-purple-300 text-lg font-medium">Şarkı yükleniyor…</p>
+          <p className="text-white/50 text-sm">{song.name}</p>
+        </div>
+      )}
+
+      {loadError && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/90 gap-4">
+          <p className="text-red-400 text-lg font-bold">Ses dosyası yüklenemedi</p>
+          <p className="text-white/50 text-sm">{song.storedFilename}</p>
+        </div>
+      )}
 
       {/* Game canvas */}
       <canvas
@@ -594,7 +659,7 @@ function GameCanvas({
 
       {/* Tap buttons */}
       <div className="flex h-20 bg-black/70">
-        {activeLanes.map((laneIdx, col) => {
+        {activeLanes.map((laneIdx) => {
           const lane = LANES[laneIdx];
           return (
             <button
