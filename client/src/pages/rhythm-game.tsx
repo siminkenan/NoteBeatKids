@@ -245,6 +245,8 @@ function scheduleClick(ctx: AudioContext, time: number, accent: boolean) {
 
 // Phase type: listen first, then tap (no countdown between listen→tap)
 type Phase = "idle" | "listen_countdown" | "listening" | "tap_ready" | "tapping" | "result" | "levelup";
+// count-in beats remaining (4→3→2→1) shown during tap_ready phase
+// stored separately so we don't interfere with currentBeat
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function RhythmGame() {
@@ -267,6 +269,7 @@ export default function RhythmGame() {
 
   const [hitNoteIndices, setHitNoteIndices] = useState<Set<number>>(new Set());
   const [wrongTapMarkers, setWrongTapMarkers] = useState<number[]>([]);
+  const [countInRemaining, setCountInRemaining] = useState(4);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const metronomeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -391,32 +394,69 @@ export default function RhythmGame() {
     }, 1000);
   }, []);
 
-  // ─── Helper: play pattern with highlighting ──────────────────────────────────
-  const playPatternWithHighlight = useCallback((onEnd: () => void) => {
-    const beatMs = (60 / bpm) * 1000;
-    let beat = 0;
-    playClick(true);
-    setCurrentBeat(0);
+  // ─── Unified listen → 4-beat count-in → auto-tap (Web Audio throughout) ──────
+  const playPatternThenAutoTap = useCallback(() => {
+    const ctx = getAudioCtx();
+    const beatSec = 60 / bpm;
+    const beatMs = beatSec * 1000;
+    const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
+    const COUNT_IN = 4; // beats of silence after listen before tapping
 
-    metronomeTimerRef.current = setInterval(() => {
-      beat = (beat + 1) % 4;
-      setCurrentBeat(beat);
-      playClick(beat === 0);
-    }, beatMs);
+    // Schedule ALL metronome clicks: listen + count-in + tapping window
+    const audioStart = ctx.currentTime + 0.05;
+    const totalClicksNeeded = Math.ceil(totalBeats) + COUNT_IN + Math.ceil(totalBeats) + 2;
+    for (let i = 0; i < totalClicksNeeded; i++) {
+      scheduleClick(ctx, audioStart + i * beatSec, i % 4 === 0);
+    }
 
-    let elapsed = 0;
+    const wallStart = Date.now() + (audioStart - ctx.currentTime) * 1000; // ≈ Date.now()+50ms
+    const listenEndWall = wallStart + totalBeats * beatMs;
+    const tapStartWall = listenEndWall + COUNT_IN * beatMs;
+    const tapEndWall = tapStartWall + totalBeats * beatMs;
+
+    // gameStartRef aligned with tap window start
+    gameStartRef.current = tapStartWall;
+
+    // Visual beat (runs through all phases)
+    const updateBeat = () => {
+      const elapsed = (Date.now() - wallStart) / 1000;
+      if (elapsed >= 0) setCurrentBeat(Math.floor(elapsed / beatSec) % 4);
+      tapRafRef.current = requestAnimationFrame(updateBeat);
+    };
+    tapRafRef.current = requestAnimationFrame(updateBeat);
+
+    // Note highlights during listen
+    let elapsed = wallStart - Date.now(); // initial delay
     currentPattern.forEach((note, i) => {
-      setTimeout(() => setHighlightIdx(i), elapsed);
+      setTimeout(() => setHighlightIdx(i), Math.max(0, elapsed));
       elapsed += (BEAT_VAL[note.duration] ?? 1) * beatMs;
     });
+    setTimeout(() => setHighlightIdx(-1), listenEndWall - Date.now());
 
+    // Count-in phase: show 4→3→2→1
+    for (let b = 0; b < COUNT_IN; b++) {
+      setTimeout(() => setCountInRemaining(COUNT_IN - b), listenEndWall - Date.now() + b * beatMs);
+    }
+    setTimeout(() => setPhase("tap_ready"), listenEndWall - Date.now() + 10);
+
+    // Auto-start tapping after count-in
     setTimeout(() => {
-      stopMetronome();
-      setHighlightIdx(-1);
-      onEnd();
-    }, elapsed + beatMs * 0.5);
+      tapTimesRef.current = [];
+      hitNoteIndicesRef.current = new Set();
+      setHitNoteIndices(new Set());
+      setWrongTapMarkers([]);
+      setPhase("tapping");
+    }, tapStartWall - Date.now() + 10);
+
+    // End tapping
+    setTimeout(() => {
+      if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
+      setCurrentBeat(-1);
+      setPhase("result");
+      evaluateTaps();
+    }, tapEndWall - Date.now() + beatMs * 0.5);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bpm, currentPattern, playClick, stopMetronome]);
+  }, [bpm, currentPattern]);
 
   // ─── PHASE 1: Start listening ────────────────────────────────────────────────
   const startListening = useCallback(() => {
@@ -430,57 +470,15 @@ export default function RhythmGame() {
 
     runCountdown(() => {
       setPhase("listening");
-      playPatternWithHighlight(() => {
-        setPhase("tap_ready");
-      });
+      playPatternThenAutoTap();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, runCountdown, playPatternWithHighlight]);
+  }, [phase, runCountdown, playPatternThenAutoTap]);
 
-  // ─── PHASE 2: Start tapping — Web Audio precision ─────────────────────────────
+  // startTapping kept for keyboard shortcut compatibility (Space during tap_ready)
   const startTapping = useCallback(() => {
-    if (phase !== "tap_ready") return;
-    tapTimesRef.current = [];
-    hitNoteIndicesRef.current = new Set();
-    setHitNoteIndices(new Set());
-    setWrongTapMarkers([]);
-    setPhase("tapping");
-
-    const ctx = getAudioCtx();
-    const beatSec = 60 / bpm;
-    const beatMs = beatSec * 1000;
-    const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
-
-    // Schedule all clicks via Web Audio (precise)
-    const audioStart = ctx.currentTime + 0.05;
-    const totalClicks = Math.ceil(totalBeats) + 2;
-    for (let i = 0; i < totalClicks; i++) {
-      scheduleClick(ctx, audioStart + i * beatSec, i % 4 === 0);
-    }
-
-    // Align gameStartRef with audioStart
-    const msDelay = (audioStart - ctx.currentTime) * 1000;
-    gameStartRef.current = Date.now() + msDelay;
-
-    // Visual beat update via requestAnimationFrame
-    const updateBeat = () => {
-      const elapsed = Date.now() - gameStartRef.current;
-      if (elapsed >= 0) {
-        setCurrentBeat(Math.floor(elapsed / beatMs) % 4);
-      }
-      tapRafRef.current = requestAnimationFrame(updateBeat);
-    };
-    tapRafRef.current = requestAnimationFrame(updateBeat);
-
-    // End tapping after full pattern
-    setTimeout(() => {
-      if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
-      setCurrentBeat(-1);
-      setPhase("result");
-      evaluateTaps();
-    }, msDelay + totalBeats * beatMs + beatMs * 0.5);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, bpm, currentPattern, stopMetronome]);
+    // no-op: tapping now starts automatically after count-in
+  }, []);
 
   // ─── Evaluate taps ──────────────────────────────────────────────────────────
   const evaluateTaps = useCallback(() => {
@@ -842,7 +840,7 @@ export default function RhythmGame() {
             type="range"
             min={60}
             max={140}
-            step={5}
+            step={1}
             value={bpm}
             onChange={e => setBpm(Number(e.target.value))}
             disabled={phase !== "idle"}
@@ -980,25 +978,22 @@ export default function RhythmGame() {
             </div>
           )}
 
-          {/* STEP 2: Ready to tap */}
+          {/* STEP 2: Count-in (automatic 4→3→2→1) */}
           {phase === "tap_ready" && (
             <div className="flex flex-col gap-3">
               <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center">
-                <p className="text-3xl mb-1">🎯</p>
-                <p className="font-extrabold text-amber-700 text-lg">Şimdi sıra sende!</p>
-                <p className="text-sm text-muted-foreground font-semibold">Duyduğun ritmi uygula</p>
+                <p className="text-sm font-extrabold text-amber-600 uppercase tracking-widest mb-2">Hazırlan…</p>
+                <motion.div
+                  key={countInRemaining}
+                  className="text-7xl font-black text-purple-600"
+                  initial={{ scale: 1.6, opacity: 0.4 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+                  {countInRemaining}
+                </motion.div>
+                <p className="text-xs text-muted-foreground font-semibold mt-2">Metronoma eşlik et — hemen ardından vur!</p>
               </div>
-              <motion.button
-                data-testid="button-tap-start"
-                className="w-full py-5 rounded-3xl text-xl font-extrabold text-white shadow-xl cursor-pointer flex items-center justify-center gap-3"
-                style={{ background: "linear-gradient(135deg, #7c3aed, #5b21b6)" }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={startTapping}
-              >
-                <span className="text-2xl">🥁</span>
-                Şimdi Çal!
-              </motion.button>
             </div>
           )}
 
