@@ -256,30 +256,6 @@ export default function StudentHome() {
             </div>
           </motion.button>
 
-          {/* Ritim Macerası */}
-          <motion.button
-            data-testid="button-rhythm-adventure"
-            className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
-            style={{
-              background: "linear-gradient(135deg, #22c55e 0%, #4338ca 60%, #a855f7 100%)",
-              border: "3px solid rgba(255,255,255,0.5)",
-            }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate("/rhythm-adventure")}
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <div className="w-16 h-16 flex items-center justify-center flex-shrink-0 bg-white/20 rounded-2xl">
-              <span className="text-4xl">🥁</span>
-            </div>
-            <div>
-              <h2 className="text-xl font-extrabold text-white">Ritim Macerası</h2>
-              <p className="text-white/85 font-semibold text-sm">40 seviye 3D ritim oyunu! 🌟</p>
-            </div>
-          </motion.button>
-
         </div>
       </div>
     </div>

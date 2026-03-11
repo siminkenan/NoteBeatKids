@@ -229,28 +229,6 @@ export default function TeacherDashboard() {
             </div>
           </motion.button>
 
-          <motion.button
-            data-testid="button-rhythm-adventure"
-            className="flex items-center gap-4 p-4 rounded-2xl shadow-md w-full sm:w-auto text-left mt-3"
-            style={{
-              background: "linear-gradient(135deg, #22c55e 0%, #4338ca 60%, #a855f7 100%)",
-              border: "3px solid rgba(255,255,255,0.4)",
-            }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate("/rhythm-adventure")}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center bg-white/20 rounded-2xl">
-              <span className="text-4xl">🥁</span>
-            </div>
-            <div>
-              <p className="text-white font-extrabold text-lg leading-tight">Ritim Macerası</p>
-              <p className="text-white/80 text-sm font-semibold">40 seviyeli 3D ritim oyunu</p>
-            </div>
-          </motion.button>
         </div>
 
         <div className="flex items-center justify-between mb-4">

@@ -16,7 +16,6 @@ import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-pre
 type StudentWithProgress = Student & {
   rhythmProgress?: StudentProgress;
   notesProgress?: StudentProgress;
-  adventureProgress?: StudentProgress;
 };
 
 type ClassDetailData = {
@@ -487,22 +486,11 @@ export default function ClassDetail() {
                                   <span className="text-xs font-bold text-red-500">{student.notesProgress?.wrongAnswers ?? 0}</span>
                                 </div>
                               </div>
-                              <div className="bg-green-50 rounded-xl p-2 text-center">
-                                <p className="text-xs font-bold text-green-600 mb-0.5">🥁 Macera</p>
-                                <p className="font-extrabold text-green-700 text-xs">Sv.{student.adventureProgress?.level ?? 1}</p>
-                                <p className="text-xs text-muted-foreground font-semibold">{accuracy(student.adventureProgress?.correctAnswers ?? 0, student.adventureProgress?.wrongAnswers ?? 0)}%</p>
-                                <div className="flex items-center justify-center gap-1 mt-0.5">
-                                  <CheckCircle className="w-3 h-3 text-green-500" />
-                                  <span className="text-xs font-bold text-green-600">{student.adventureProgress?.correctAnswers ?? 0}</span>
-                                  <XCircle className="w-3 h-3 text-red-500" />
-                                  <span className="text-xs font-bold text-red-500">{student.adventureProgress?.wrongAnswers ?? 0}</span>
-                                </div>
-                              </div>
                             </div>
                             <div className="text-center">
                               <Clock className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
                               <p className="text-xs font-bold text-muted-foreground">
-                                {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0) + (student.adventureProgress?.timeSpentSeconds ?? 0))}
+                                {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0))}
                               </p>
                             </div>
                             <Button
