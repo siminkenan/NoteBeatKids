@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Play, Square, Trash2 } from "lucide-react";
+import { ArrowLeft, Play, Square, Trash2, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import drumImg from "@assets/drum-Photoroom_1773262756209.png";
@@ -154,6 +154,31 @@ function playTom(freq: number, dur = 0.38, when?: number) {
   click.start(t); click.stop(t + 0.018);
 }
 
+/* ── Metronome click ── */
+function playMetro(accent: boolean, vol: number, when: number) {
+  const c = ac();
+  const freq = accent ? 1800 : 900;
+  const peak = (accent ? 0.9 : 0.55) * vol;
+  // short sine click
+  const o = c.createOscillator(); o.type = "sine"; o.frequency.value = freq;
+  const g = c.createGain();
+  g.gain.setValueAtTime(peak, when);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.035);
+  o.connect(g); g.connect(c.destination);
+  o.start(when); o.stop(when + 0.04);
+  // subtle noise transient
+  const len = Math.ceil(c.sampleRate * 0.012);
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0); for (let i=0;i<len;i++) d[i]=Math.random()*2-1;
+  const ns = c.createBufferSource(); ns.buffer = buf;
+  const ng = c.createGain();
+  ng.gain.setValueAtTime(peak * 0.5, when);
+  ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.012);
+  const hpf = c.createBiquadFilter(); hpf.type = "highpass"; hpf.frequency.value = 4000;
+  ns.connect(hpf); hpf.connect(ng); ng.connect(c.destination);
+  ns.start(when); ns.stop(when + 0.012);
+}
+
 /* ═══════════════════════════════════════════════════════
    DRUM ZONES (interactive hit areas on image)
 ═══════════════════════════════════════════════════════ */
@@ -217,6 +242,12 @@ export default function DrumKit() {
   const [currentStep, setCurrentStep] = useState(-1);
   const [bpm, setBpm] = useState(90);
 
+  /* ── metronome ── */
+  const [metroVolume, setMetroVolume] = useState(0.65);
+  const [metroMuted, setMetroMuted] = useState(false);
+  const metroVolumeRef = useRef(metroVolume);
+  const metroMutedRef = useRef(metroMuted);
+
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
   const isPlayingRef = useRef(isPlaying);
@@ -228,6 +259,8 @@ export default function DrumKit() {
   useEffect(() => { patternRef.current = pattern; }, [pattern]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { metroVolumeRef.current = metroVolume; }, [metroVolume]);
+  useEffect(() => { metroMutedRef.current = metroMuted; }, [metroMuted]);
 
   /* ── live hit (+ live record when playing) ── */
   const hit = useCallback((id: DrumId) => {
@@ -279,6 +312,10 @@ export default function DrumKit() {
       while (nextNoteRef.current < ctx2.currentTime + 0.12) {
         const step = stepRef.current % STEPS;
         const when = nextNoteRef.current;
+        // metronome click on every quarter note (steps 0,4,8,12)
+        if (step % 4 === 0 && !metroMutedRef.current) {
+          playMetro(step === 0, metroVolumeRef.current, when);
+        }
         // fire all active drums at this step
         SEQ_DRUMS.forEach(drum => {
           if (patternRef.current[drum.id]?.[step]) drum.play(when);
@@ -406,7 +443,7 @@ export default function DrumKit() {
         )}
 
         {/* BPM */}
-        <div className="flex items-center gap-1.5 flex-1">
+        <div className="flex items-center gap-1.5" style={{ flex: "1.2" }}>
           <span className="text-white/60 text-xs font-bold flex-shrink-0">BPM</span>
           <input type="range" min={50} max={160} value={bpm}
             onChange={e => setBpm(Number(e.target.value))}
@@ -414,11 +451,45 @@ export default function DrumKit() {
           <span className="text-yellow-400 font-extrabold text-sm w-7 text-right">{bpm}</span>
         </div>
 
+        {/* Divider */}
+        <div className="w-px h-5 bg-white/15 flex-shrink-0" />
+
+        {/* Metronome mute + volume */}
+        <div className="flex items-center gap-1.5" style={{ flex: "1" }}>
+          <button
+            data-testid="btn-metro-mute"
+            onClick={() => setMetroMuted(m => !m)}
+            title={metroMuted ? "Metronome açık" : "Metronome kapat"}
+            className="flex-shrink-0 rounded-md p-1 transition-all"
+            style={{
+              background: metroMuted ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.08)",
+              border: `1.5px solid ${metroMuted ? "#ef4444" : "rgba(255,255,255,0.18)"}`,
+              color: metroMuted ? "#f87171" : "rgba(255,255,255,0.7)",
+            }}>
+            {metroMuted
+              ? <VolumeX className="w-3.5 h-3.5" />
+              : <Volume2 className="w-3.5 h-3.5" />}
+          </button>
+          <span className="text-white/50 text-[10px] font-bold flex-shrink-0">Metro</span>
+          <input type="range" min={0} max={100} value={Math.round(metroVolume * 100)}
+            onChange={e => setMetroVolume(Number(e.target.value) / 100)}
+            disabled={metroMuted}
+            className="flex-1 h-1.5 rounded accent-cyan-400"
+            style={{ opacity: metroMuted ? 0.35 : 1 }} />
+          <span className="text-cyan-400 font-extrabold text-[11px] w-6 text-right"
+            style={{ opacity: metroMuted ? 0.35 : 1 }}>
+            {Math.round(metroVolume * 100)}
+          </span>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-white/15 flex-shrink-0" />
+
         {/* Clear */}
         <button
           data-testid="btn-seq-clear"
           onClick={() => setPattern(emptyPattern())}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/20 text-white/60 hover:text-white hover:border-white/40 text-xs font-bold transition-all">
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/20 text-white/60 hover:text-white hover:border-white/40 text-xs font-bold transition-all flex-shrink-0">
           <Trash2 className="w-3.5 h-3.5" /> Temizle
         </button>
       </div>
