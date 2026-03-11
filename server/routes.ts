@@ -266,23 +266,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(stats);
   });
 
-  // Helper: isActive is determined solely by licenseEnd date
-  const computeInstitutionActive = (inst: { licenseEnd: Date | string }) =>
-    new Date(inst.licenseEnd) >= new Date();
+  // Helper: compute whether license date is still valid (never writes to DB)
+  const isLicenseExpired = (inst: { licenseEnd: Date | string }) =>
+    new Date(inst.licenseEnd) < new Date();
 
   app.get("/api/admin/institutions", async (req: Request, res: Response) => {
     const adminId = (req.session as any).adminId;
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const list = await storage.getInstitutions();
-    // Auto-sync isActive based on licenseEnd and return computed value
-    const updated = await Promise.all(list.map(async inst => {
-      const active = computeInstitutionActive(inst);
-      if (inst.isActive !== active) {
-        await storage.updateInstitution(inst.id, { isActive: active });
-      }
-      return { ...inst, isActive: active };
-    }));
-    res.json(updated);
+    // Return institutions with computed isExpired flag; isActive is admin-controlled only
+    res.json(list.map(inst => ({ ...inst, isExpired: isLicenseExpired(inst) })));
   });
 
   app.post("/api/admin/institutions", async (req: Request, res: Response) => {
@@ -295,11 +288,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         licenseEnd: req.body.licenseEnd ? new Date(req.body.licenseEnd) : undefined,
         maxTeachers: req.body.maxTeachers !== undefined ? Number(req.body.maxTeachers) : 10000,
         maxStudents: req.body.maxStudents !== undefined ? Number(req.body.maxStudents) : 10000000,
-        isActive: true, // Always start active; auto-managed by licenseEnd
+        isActive: true,
       };
       const parsed = insertInstitutionSchema.parse(body);
       const inst = await storage.createInstitution(parsed);
-      res.json({ ...inst, isActive: computeInstitutionActive(inst) });
+      res.json({ ...inst, isExpired: isLicenseExpired(inst) });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
@@ -310,17 +303,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const current = await storage.getInstitution(req.params.id);
     if (!current) return res.status(404).json({ message: "Institution not found" });
-    const wasExpired = new Date(current.licenseEnd) < new Date();
+    const wasExpired = isLicenseExpired(current);
     const newLicenseEnd = req.body.licenseEnd ? new Date(req.body.licenseEnd) : null;
     const isRenewal = wasExpired && newLicenseEnd && newLicenseEnd > new Date();
     if (isRenewal) {
       await storage.resetInstitutionQuota(req.params.id);
     }
-    // Auto-compute isActive from effective licenseEnd
-    const effectiveLicenseEnd = newLicenseEnd ?? new Date(current.licenseEnd);
-    const effectiveIsActive = effectiveLicenseEnd >= new Date();
-    const inst = await storage.updateInstitution(req.params.id, { ...req.body, isActive: effectiveIsActive });
-    res.json({ ...inst, isActive: effectiveIsActive, quotaReset: isRenewal });
+    // Admin controls isActive directly; if a new future licenseEnd is provided, default isActive to true
+    const updates: any = { ...req.body };
+    if (newLicenseEnd) updates.licenseEnd = newLicenseEnd;
+    if (isRenewal && updates.isActive === undefined) updates.isActive = true;
+    const inst = await storage.updateInstitution(req.params.id, updates);
+    res.json({ ...inst, isExpired: isLicenseExpired(inst), quotaReset: isRenewal });
   });
 
   app.post("/api/admin/institutions/:id/reset-quota", async (req: Request, res: Response) => {

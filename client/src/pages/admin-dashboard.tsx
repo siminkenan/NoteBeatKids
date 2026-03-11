@@ -15,10 +15,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy, Pencil, CalendarClock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import type { Institution, Teacher } from "@shared/schema";
+
+type InstWithExpiry = Institution & { isExpired?: boolean };
 
 type AdminClass = {
   id: string;
@@ -67,6 +69,14 @@ const institutionSchema = z.object({
 });
 type InstitutionForm = z.infer<typeof institutionSchema>;
 
+const editInstitutionSchema = z.object({
+  name: z.string().min(1, "Kurum adı gerekli"),
+  licenseEnd: z.string().min(1, "Bitiş tarihi gerekli"),
+  maxTeachers: z.coerce.number().min(0).max(10000).default(10000),
+  maxStudents: z.coerce.number().min(0).max(10000000).default(10000000),
+});
+type EditInstitutionForm = z.infer<typeof editInstitutionSchema>;
+
 const teacherSchema = z.object({
   name: z.string().min(1, "Ad gerekli"),
   email: z.string().email("Geçerli e-posta gerekli"),
@@ -91,6 +101,7 @@ export default function AdminDashboard() {
   const [selectedInstId, setSelectedInstId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [expandedTeachers, setExpandedTeachers] = useState<Set<string>>(new Set());
+  const [editingInst, setEditingInst] = useState<InstWithExpiry | null>(null);
 
   useEffect(() => {
     if (!admin) {
@@ -105,9 +116,11 @@ export default function AdminDashboard() {
     enabled: !!admin,
   });
 
-  const { data: institutions } = useQuery<Institution[]>({
+  const { data: institutions } = useQuery<InstWithExpiry[]>({
     queryKey: ["/api/admin/institutions"],
     enabled: !!admin,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: teachers } = useQuery<Teacher[]>({
@@ -144,6 +157,32 @@ export default function AdminDashboard() {
       toast({ title: `${addCodeCount} yeni kod oluşturuldu!` });
     },
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const editInstitution = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: EditInstitutionForm }) => {
+      const res = await apiRequest("PATCH", `/api/admin/institutions/${id}`, {
+        ...data,
+        licenseEnd: new Date(data.licenseEnd),
+      });
+      return res.json();
+    },
+    onSuccess: (resp) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/institutions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      setEditingInst(null);
+      if (resp?.quotaReset) {
+        toast({ title: "Kurum Güncellendi", description: "Lisans uzatıldı, kontenjan sıfırlandı." });
+      } else {
+        toast({ title: "Kurum güncellendi!" });
+      }
+    },
+    onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+  });
+
+  const editForm = useForm<EditInstitutionForm>({
+    resolver: zodResolver(editInstitutionSchema),
+    defaultValues: { name: "", licenseEnd: "", maxTeachers: 10000, maxStudents: 10000000 },
   });
 
   const instForm = useForm<InstitutionForm>({
@@ -253,8 +292,8 @@ export default function AdminDashboard() {
     navigate("/");
   };
 
-  const isLicenseActive = (inst: Institution) => {
-    return inst.isActive && new Date(inst.licenseEnd) >= new Date();
+  const isLicenseActive = (inst: InstWithExpiry) => {
+    return inst.isActive && !inst.isExpired;
   };
 
   return (
@@ -376,10 +415,10 @@ export default function AdminDashboard() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {institutions?.map((inst, i) => {
                 const active = isLicenseActive(inst);
-                const expired = new Date(inst.licenseEnd) < new Date();
+                const expired = !!inst.isExpired;
                 return (
                   <motion.div key={inst.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
-                    <Card className="rounded-2xl" data-testid={`card-institution-${inst.id}`}>
+                    <Card className={`rounded-2xl ${expired ? "border-red-200" : ""}`} data-testid={`card-institution-${inst.id}`}>
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between gap-2">
                           <button
@@ -390,7 +429,11 @@ export default function AdminDashboard() {
                           >
                             <Building2 className="w-5 h-5 text-blue-600" />
                           </button>
-                          <Badge variant={active ? "default" : expired ? "destructive" : "secondary"} className="shrink-0">
+                          <Badge
+                            variant={active ? "default" : expired ? "destructive" : "secondary"}
+                            className="shrink-0"
+                            data-testid={`badge-status-${inst.id}`}
+                          >
                             {active ? "Aktif" : expired ? "Süresi Doldu" : "Pasif"}
                           </Badge>
                         </div>
@@ -405,7 +448,10 @@ export default function AdminDashboard() {
                       <CardContent className="space-y-2 pt-0">
                         <div className="text-sm text-muted-foreground font-semibold">
                           <p>Başlangıç: {new Date(inst.licenseStart).toLocaleDateString("tr-TR")}</p>
-                          <p>Bitiş: {new Date(inst.licenseEnd).toLocaleDateString("tr-TR")}</p>
+                          <p className={expired ? "text-red-500 font-bold" : ""}>
+                            Bitiş: {new Date(inst.licenseEnd).toLocaleDateString("tr-TR")}
+                            {expired && " ⚠"}
+                          </p>
                         </div>
                         <div className="flex gap-2 text-xs flex-wrap">
                           <span className="bg-purple-50 text-purple-700 font-bold px-2 py-1 rounded-lg">
@@ -426,17 +472,64 @@ export default function AdminDashboard() {
                           <ChevronRight className="w-3.5 h-3.5 text-indigo-400 ml-auto" />
                         </button>
 
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                          {/* Edit button — always visible */}
                           <Button
                             variant="outline"
                             size="sm"
-                            className={`flex-1 rounded-xl font-bold gap-1.5 ${active ? "text-orange-500" : "text-green-600"}`}
-                            onClick={() => toggleInstitution.mutate({ id: inst.id, isActive: !inst.isActive })}
-                            data-testid={`button-toggle-institution-${inst.id}`}
+                            className="rounded-xl font-bold gap-1.5 text-blue-600 hover:bg-blue-50"
+                            onClick={() => {
+                              setEditingInst(inst);
+                              editForm.reset({
+                                name: inst.name,
+                                licenseEnd: new Date(inst.licenseEnd).toISOString().split("T")[0],
+                                maxTeachers: (inst as any).maxTeachers ?? 10000,
+                                maxStudents: (inst as any).maxStudents ?? 10000000,
+                              });
+                            }}
+                            data-testid={`button-edit-institution-${inst.id}`}
                           >
-                            {active ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                            {active ? "Devre Dışı" : "Etkinleştir"}
+                            <Pencil className="w-3.5 h-3.5" />
+                            Düzenle
                           </Button>
+
+                          {/* Toggle active/passive — only for non-expired institutions */}
+                          {!expired && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={`flex-1 rounded-xl font-bold gap-1.5 ${active ? "text-orange-500 hover:bg-orange-50" : "text-green-600 hover:bg-green-50"}`}
+                              onClick={() => toggleInstitution.mutate({ id: inst.id, isActive: !inst.isActive })}
+                              disabled={toggleInstitution.isPending}
+                              data-testid={`button-toggle-institution-${inst.id}`}
+                            >
+                              {active ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                              {active ? "Devre Dışı" : "Etkinleştir"}
+                            </Button>
+                          )}
+
+                          {/* For expired institutions: show Activate button that opens edit for date extension */}
+                          {expired && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 rounded-xl font-bold gap-1.5 text-green-600 hover:bg-green-50"
+                              onClick={() => {
+                                setEditingInst(inst);
+                                editForm.reset({
+                                  name: inst.name,
+                                  licenseEnd: "",
+                                  maxTeachers: (inst as any).maxTeachers ?? 10000,
+                                  maxStudents: (inst as any).maxStudents ?? 10000000,
+                                });
+                              }}
+                              data-testid={`button-activate-expired-${inst.id}`}
+                            >
+                              <CalendarClock className="w-3.5 h-3.5" />
+                              Etkinleştir
+                            </Button>
+                          )}
+
                           <Button
                             variant="outline"
                             size="sm"
@@ -631,6 +724,66 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Kurum Düzenleme Dialog */}
+      <Dialog open={!!editingInst} onOpenChange={open => { if (!open) setEditingInst(null); }}>
+        <DialogContent className="rounded-2xl max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-extrabold flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-blue-600" />
+              Kurumu Düzenle
+            </DialogTitle>
+          </DialogHeader>
+          {editingInst?.isExpired && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700 font-semibold">
+              <CalendarClock className="w-4 h-4 flex-shrink-0" />
+              Lisans süresi dolmuş. Yeni bitiş tarihi girerek kurumu etkinleştirebilirsiniz.
+            </div>
+          )}
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(d => editInstitution.mutate({ id: editingInst!.id, data: d }))} className="space-y-4 pt-1">
+              <FormField control={editForm.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Kurum Adı</FormLabel>
+                  <FormControl><Input {...field} placeholder="Güneş İlkokulu" className="rounded-xl" data-testid="input-edit-institution-name" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={editForm.control} name="licenseEnd" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Lisans Bitiş Tarihi</FormLabel>
+                  <FormControl><Input {...field} type="date" className="rounded-xl" data-testid="input-edit-license-end" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-3">
+                <FormField control={editForm.control} name="maxTeachers" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Maks. Öğretmen</FormLabel>
+                    <FormControl><Input {...field} type="number" min={0} max={10000} className="rounded-xl" data-testid="input-edit-max-teachers" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={editForm.control} name="maxStudents" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Maks. Öğrenci</FormLabel>
+                    <FormControl><Input {...field} type="number" min={0} max={10000000} className="rounded-xl" data-testid="input-edit-max-students" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1 rounded-xl font-bold" onClick={() => setEditingInst(null)}>
+                  İptal
+                </Button>
+                <Button type="submit" disabled={editInstitution.isPending} className="flex-1 rounded-xl font-bold" data-testid="button-submit-edit-institution">
+                  {editInstitution.isPending ? "Kaydediliyor..." : "Kaydet"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       {/* Kurum Detay Dialog */}
       <Dialog open={detailOpen} onOpenChange={open => { setDetailOpen(open); if (!open) setSelectedInstId(null); }}>
