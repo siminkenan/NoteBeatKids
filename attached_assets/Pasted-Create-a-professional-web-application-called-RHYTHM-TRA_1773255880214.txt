@@ -1,0 +1,186 @@
+Create a professional web application called:
+
+RHYTHM TRAINER
+
+Goal:
+Build an interactive rhythm training platform that teaches students how to read and perform rhythms using real music notation symbols. The application must use authentic musical notes and rests and follow standard music theory rules.
+
+The platform is designed for music education and must be simple, visual, and interactive for students.
+
+TECHNOLOGY
+
+Use:
+
+HTML
+CSS
+JavaScript
+
+Use the VexFlow library to render real sheet music notation.
+
+The application must run directly in the browser and work smoothly on desktop, tablet, and mobile devices.
+
+MUSIC THEORY RULES
+
+Time Signature: 4/4
+
+Every rhythm exercise must equal exactly 4 beats.
+
+Use real notation symbols.
+
+Notes:
+
+Whole Note
+Half Note
+Quarter Note
+Single Eighth Note
+Beamed Eighth Notes
+
+Rests:
+
+Whole Rest
+Half Rest
+Quarter Rest
+Eighth Rest
+
+The notation must visually look identical to real sheet music.
+
+INTERFACE LAYOUT
+
+Top Section
+
+Application Title:
+Rhythm Trainer
+
+Display:
+
+Time Signature (4/4)
+
+Controls:
+
+BPM Slider
+Range: 60 – 140 BPM
+
+Play Button
+Start Metronome
+Stop Button
+
+Main Section
+
+Display a music staff with treble clef.
+
+Render rhythm exercises using real notation symbols with VexFlow.
+
+Notes must be large and easy to read.
+
+INTERACTIVE RHYTHM PRACTICE
+
+When the user presses PLAY:
+
+1. A metronome starts.
+2. The rhythm pattern plays visually.
+3. Notes highlight as they occur.
+4. The student must tap the rhythm on the screen or press the spacebar.
+
+Rhythm accuracy detection must check:
+
+Timing
+Beat alignment
+
+Provide feedback:
+
+Correct
+Try Again
+
+LEVEL SYSTEM
+
+Create 10 progressive rhythm levels.
+
+Each level contains 5 exercises.
+
+LEVEL STRUCTURE
+
+Level 1
+Only Quarter Notes
+
+Level 2
+Quarter Notes + Quarter Rests
+
+Level 3
+Quarter Notes + Eighth Notes
+
+Level 4
+Quarter Notes + Eighth Notes + Quarter Rests
+
+Level 5
+Eighth Note patterns
+
+Level 6
+Introduce Half Notes
+
+Level 7
+Half Notes + rests combinations
+
+Level 8
+Syncopation rhythms
+
+Level 9
+Mixed rhythms (quarter + eighth + rests)
+
+Level 10
+Advanced rhythm combinations
+
+SCORING SYSTEM
+
+Each correct rhythm gives points.
+
+Display:
+
+Score
+Accuracy percentage
+
+Allow level progression after successful completion.
+
+SOUND SYSTEM
+
+Add:
+
+Metronome click sound
+Correct answer sound
+Try again sound
+
+Sounds must be soft and education-friendly.
+
+DESIGN
+
+Minimal
+Clean
+Education focused
+
+Large notation symbols
+Clear spacing
+
+Color highlight for active beats.
+
+Use a child-friendly color palette but keep it professional.
+
+RESPONSIVE DESIGN
+
+Must work on:
+
+Desktop
+Tablet
+Mobile
+
+Touch tapping must work on phones.
+
+PROJECT STRUCTURE
+
+index.html
+style.css
+script.js
+
+Include VexFlow via CDN.
+
+The code must be clean, well commented, and easy to extend.
+
+The application must run without errors when opened in the browser.
