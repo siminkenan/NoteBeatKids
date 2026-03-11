@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { VexFlowRenderer, type NoteData } from "@/components/vexflow-renderer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, Square, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import type { StudentProgress } from "@shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -179,6 +179,9 @@ function playTone(ctx: AudioContext, freq: number, type: OscillatorType, duratio
   } catch {}
 }
 
+// Phase type: listen first, then tap
+type Phase = "idle" | "listen_countdown" | "listening" | "tap_ready" | "tap_countdown" | "tapping" | "result" | "levelup";
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function RhythmGame() {
   const [, navigate] = useLocation();
@@ -186,10 +189,11 @@ export default function RhythmGame() {
   const qc = useQueryClient();
 
   const [level, setLevel] = useState(1);
-  const [exerciseIdx, setExerciseIdx] = useState(0); // 0-4 within a level
-  const [exerciseResults, setExerciseResults] = useState<boolean[]>([]); // results for current level
+  const [exerciseIdx, setExerciseIdx] = useState(0);
+  const [exerciseResults, setExerciseResults] = useState<boolean[]>([]);
   const [bpm, setBpm] = useState(80);
-  const [phase, setPhase] = useState<"idle" | "countdown" | "playing" | "result" | "levelup">("idle");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [countdown, setCountdown] = useState(3);
   const [highlightIdx, setHighlightIdx] = useState(-1);
   const [currentBeat, setCurrentBeat] = useState(-1);
   const [feedback, setFeedback] = useState<null | { correct: boolean; accuracy: number; hits: number; total: number }>(null);
@@ -288,53 +292,95 @@ export default function RhythmGame() {
     return beats;
   }, [currentPattern, bpm]);
 
-  // ─── Play the pattern (listen phase) ────────────────────────────────────────
-  const startExercise = useCallback(() => {
-    if (phase !== "idle") return;
-    setPhase("countdown");
-    setHighlightIdx(-1);
-    setFeedback(null);
-    tapTimesRef.current = [];
-
-    let count = 3;
-    setCurrentBeat(-1);
-
+  // ─── Helper: run a 3-2-1 countdown then call onDone ─────────────────────────
+  const runCountdown = useCallback((onDone: () => void) => {
+    setCountdown(3);
+    let c = 3;
     const tick = setInterval(() => {
-      count--;
-      if (count <= 0) {
+      c--;
+      setCountdown(c);
+      if (c <= 0) {
         clearInterval(tick);
-        // Start metronome
-        const beatMs = (60 / bpm) * 1000;
-        let beat = 0;
-        playClick(true);
-        setCurrentBeat(0);
-        setPhase("playing");
-        gameStartRef.current = Date.now();
-
-        metronomeTimerRef.current = setInterval(() => {
-          beat = (beat + 1) % 4;
-          setCurrentBeat(beat);
-          playClick(beat === 0);
-        }, beatMs);
-
-        // Schedule note highlighting
-        let elapsed = 0;
-        currentPattern.forEach((note, i) => {
-          setTimeout(() => setHighlightIdx(i), elapsed);
-          elapsed += (BEAT_VAL[note.duration] ?? 1) * beatMs;
-        });
-
-        // End of pattern
-        setTimeout(() => {
-          stopMetronome();
-          setHighlightIdx(-1);
-          setPhase("result");
-          evaluateTaps();
-        }, elapsed + beatMs * 0.5);
+        onDone();
       }
     }, 1000);
+  }, []);
+
+  // ─── Helper: play pattern with highlighting ──────────────────────────────────
+  const playPatternWithHighlight = useCallback((onEnd: () => void) => {
+    const beatMs = (60 / bpm) * 1000;
+    let beat = 0;
+    playClick(true);
+    setCurrentBeat(0);
+
+    metronomeTimerRef.current = setInterval(() => {
+      beat = (beat + 1) % 4;
+      setCurrentBeat(beat);
+      playClick(beat === 0);
+    }, beatMs);
+
+    let elapsed = 0;
+    currentPattern.forEach((note, i) => {
+      setTimeout(() => setHighlightIdx(i), elapsed);
+      elapsed += (BEAT_VAL[note.duration] ?? 1) * beatMs;
+    });
+
+    setTimeout(() => {
+      stopMetronome();
+      setHighlightIdx(-1);
+      onEnd();
+    }, elapsed + beatMs * 0.5);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, bpm, currentPattern, playClick, stopMetronome]);
+  }, [bpm, currentPattern, playClick, stopMetronome]);
+
+  // ─── PHASE 1: Start listening ────────────────────────────────────────────────
+  const startListening = useCallback(() => {
+    if (phase !== "idle") return;
+    setFeedback(null);
+    setHighlightIdx(-1);
+    setPhase("listen_countdown");
+
+    runCountdown(() => {
+      setPhase("listening");
+      playPatternWithHighlight(() => {
+        setPhase("tap_ready");
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, runCountdown, playPatternWithHighlight]);
+
+  // ─── PHASE 2: Start tapping ──────────────────────────────────────────────────
+  const startTapping = useCallback(() => {
+    if (phase !== "tap_ready") return;
+    tapTimesRef.current = [];
+    setPhase("tap_countdown");
+
+    runCountdown(() => {
+      setPhase("tapping");
+      gameStartRef.current = Date.now();
+
+      const beatMs = (60 / bpm) * 1000;
+      let beat = 0;
+      playClick(true);
+      setCurrentBeat(0);
+
+      metronomeTimerRef.current = setInterval(() => {
+        beat = (beat + 1) % 4;
+        setCurrentBeat(beat);
+        playClick(beat === 0);
+      }, beatMs);
+
+      // Calculate total pattern duration and end tapping
+      const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
+      setTimeout(() => {
+        stopMetronome();
+        setHighlightIdx(-1);
+        setPhase("result");
+        evaluateTaps();
+      }, totalBeats * beatMs + beatMs * 0.5);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, bpm, currentPattern, playClick, stopMetronome, runCountdown]);
 
   // ─── Evaluate taps ──────────────────────────────────────────────────────────
   const evaluateTaps = useCallback(() => {
@@ -383,11 +429,11 @@ export default function RhythmGame() {
 
   // ─── Handle tap ─────────────────────────────────────────────────────────────
   const handleTap = useCallback(() => {
-    if (phase !== "playing") return;
+    if (phase !== "tapping") return;
     const t = Date.now() - gameStartRef.current;
     tapTimesRef.current.push(t);
     const ctx = getAudioCtx();
-    playTone(ctx, 440, "sine", 0.1, 0.25);
+    playTone(ctx, 523, "sine", 0.08, 0.2);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
@@ -396,13 +442,14 @@ export default function RhythmGame() {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
-        handleTap();
-        if (phase === "idle") startExercise();
+        if (phase === "idle") startListening();
+        else if (phase === "tap_ready") startTapping();
+        else if (phase === "tapping") handleTap();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleTap, phase, startExercise]);
+  }, [handleTap, phase, startListening, startTapping]);
 
   // ─── Move to next exercise ────────────────────────────────────────────────
   const nextExercise = useCallback(() => {
@@ -691,21 +738,27 @@ export default function RhythmGame() {
 
         {/* ── Countdown overlay ── */}
         <AnimatePresence>
-          {phase === "countdown" && (
+          {(phase === "listen_countdown" || phase === "tap_countdown") && (
             <motion.div
-              className="fixed inset-0 z-40 flex items-center justify-center bg-black/40"
+              className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
               <motion.div
-                className="w-36 h-36 rounded-full bg-purple-600 flex flex-col items-center justify-center shadow-2xl"
-                initial={{ scale: 0.5 }}
-                animate={{ scale: [0.5, 1.1, 1] }}
-                transition={{ duration: 0.4 }}
+                key={countdown}
+                className={`w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-2xl ${
+                  phase === "listen_countdown" ? "bg-indigo-600" : "bg-purple-600"
+                }`}
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 1.4, opacity: 0 }}
+                transition={{ duration: 0.35 }}
               >
-                <span className="text-6xl font-extrabold text-white">3</span>
-                <span className="text-purple-200 text-sm font-bold">Hazır ol!</span>
+                <span className="text-7xl font-extrabold text-white leading-none">{countdown}</span>
+                <span className="text-white/70 text-sm font-bold mt-1">
+                  {phase === "listen_countdown" ? "👂 Dinle!" : "🥁 Vur!"}
+                </span>
               </motion.div>
             </motion.div>
           )}
@@ -713,51 +766,84 @@ export default function RhythmGame() {
 
         {/* ── Controls ── */}
         <div className="flex flex-col gap-3 pb-6">
+
+          {/* STEP 1: Listen button */}
           {phase === "idle" && (
             <motion.button
-              data-testid="button-start"
+              data-testid="button-listen"
               className="w-full py-5 rounded-3xl text-xl font-extrabold text-white shadow-xl cursor-pointer flex items-center justify-center gap-3"
-              style={{ background: "linear-gradient(135deg, #7c3aed, #5b21b6)" }}
+              style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)" }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
-              onClick={startExercise}
+              onClick={startListening}
             >
-              <Play className="w-6 h-6" />
-              Başlat ve Vur!
+              <span className="text-2xl">👂</span>
+              Dinle ve İzle
             </motion.button>
           )}
 
-          {phase === "playing" && (
+          {/* Listening in progress */}
+          {phase === "listening" && (
+            <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 text-center">
+              <p className="text-2xl mb-1">🎵</p>
+              <p className="font-extrabold text-indigo-700 text-lg">Dinliyorsun...</p>
+              <p className="text-sm text-muted-foreground font-semibold">Notaların nasıl çalındığını gözlemle!</p>
+            </div>
+          )}
+
+          {/* STEP 2: Ready to tap */}
+          {phase === "tap_ready" && (
+            <div className="flex flex-col gap-3">
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center">
+                <p className="text-3xl mb-1">🎯</p>
+                <p className="font-extrabold text-amber-700 text-lg">Şimdi sıra sende!</p>
+                <p className="text-sm text-muted-foreground font-semibold">Duyduğun ritmi uygula</p>
+              </div>
+              <motion.button
+                data-testid="button-tap-start"
+                className="w-full py-5 rounded-3xl text-xl font-extrabold text-white shadow-xl cursor-pointer flex items-center justify-center gap-3"
+                style={{ background: "linear-gradient(135deg, #7c3aed, #5b21b6)" }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={startTapping}
+              >
+                <span className="text-2xl">🥁</span>
+                Şimdi Çal!
+              </motion.button>
+            </div>
+          )}
+
+          {/* STEP 3: Tapping */}
+          {phase === "tapping" && (
             <div className="flex flex-col gap-3">
               <p className="text-center font-extrabold text-purple-600 text-lg">
-                🎵 Ritme eşlik et — DOKUN!
+                🥁 Ritme vur — DOKUN!
               </p>
               <motion.button
                 data-testid="button-tap"
-                className="w-full py-10 rounded-3xl text-2xl font-extrabold text-white shadow-2xl cursor-pointer flex flex-col items-center justify-center gap-2"
+                className="w-full py-12 rounded-3xl text-2xl font-extrabold text-white shadow-2xl cursor-pointer flex flex-col items-center justify-center gap-2 active:scale-95"
                 style={{
                   background: "linear-gradient(135deg, #7c3aed, #5b21b6)",
                   border: "4px solid rgba(255,255,255,0.4)",
                 }}
                 animate={{
                   boxShadow: [
-                    "0 0 0 0 rgba(124,58,237,0.5)",
-                    `0 0 0 ${Math.round(bpm / 10)}px rgba(124,58,237,0)`,
+                    "0 0 0 0 rgba(124,58,237,0.6)",
+                    `0 0 0 18px rgba(124,58,237,0)`,
                     "0 0 0 0 rgba(124,58,237,0)",
                   ],
                 }}
                 transition={{ duration: beatMs / 1000, repeat: Infinity }}
                 onPointerDown={handleTap}
               >
-                <span className="text-5xl">🥁</span>
+                <span className="text-6xl">🥁</span>
                 <span>DOKUN!</span>
+                <span className="text-purple-200 text-sm font-semibold">Boşluk tuşu da çalışır</span>
               </motion.button>
-              <p className="text-center text-xs text-muted-foreground font-semibold">
-                Boşluk tuşu ile de vurabilirsin
-              </p>
             </div>
           )}
 
+          {/* STEP 4: Result */}
           {phase === "result" && (
             <motion.button
               data-testid="button-next"
@@ -772,7 +858,7 @@ export default function RhythmGame() {
               onClick={nextExercise}
             >
               {exerciseIdx + 1 >= PATTERNS_PER_LEVEL ? (
-                <><span>🏁 Seviyeyi Bitir</span></>
+                <span>🏁 Seviyeyi Bitir</span>
               ) : (
                 <><ChevronRight className="w-6 h-6" /> Sonraki Egzersiz</>
               )}
