@@ -339,7 +339,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const inst = await storage.getInstitution(req.params.id);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
     const details = await storage.getInstitutionDetails(req.params.id);
-    const effectiveInst = { ...inst, isActive: computeInstitutionActive(inst) };
+    const effectiveInst = { ...inst, isExpired: isLicenseExpired(inst) };
     res.json({ institution: effectiveInst, ...details });
   });
 
