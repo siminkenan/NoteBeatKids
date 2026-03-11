@@ -19,6 +19,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import Metronome from "@/pages/metronome";
 import RhythmOrchestra from "@/pages/rhythm-orchestra";
 import TeacherOrchestra from "@/pages/teacher-orchestra";
+import DrumKit from "@/pages/drum-kit";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/metronome" component={Metronome} />
+      <Route path="/student/drum" component={DrumKit} />
       <Route component={NotFound} />
     </Switch>
   );

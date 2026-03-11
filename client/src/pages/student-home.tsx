@@ -262,6 +262,36 @@ export default function StudentHome() {
             </div>
           </motion.button>
 
+          {/* Online Davul Seti */}
+          <motion.button
+            data-testid="button-drum-kit"
+            className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
+            style={{
+              background: "linear-gradient(135deg, #1e3a5f 0%, #0f2027 100%)",
+              border: "3px solid rgba(255,255,255,0.25)",
+            }}
+            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(30,58,95,0.5)" }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/student/drum")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.55 }}
+          >
+            <div className="w-14 h-14 bg-white/15 rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-3xl">🥁</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-white">Online Davul Seti</h2>
+              <p className="text-white/85 font-semibold text-sm">Gerçekçi davul seti — dokun, çal!</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="bg-white/20 rounded-full px-2.5 py-0.5 text-xs text-white font-extrabold">
+                  Web Audio API
+                </div>
+                <div className="text-white/60 text-xs font-bold">Çok dokunuşlu</div>
+              </div>
+            </div>
+          </motion.button>
+
           {/* Metronom */}
           <motion.button
             data-testid="button-metronome"
