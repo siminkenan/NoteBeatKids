@@ -698,284 +698,94 @@ export default function RhythmGame() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-5 flex flex-col gap-5">
+      {/* ── Fixed overlays (outside columns so they don't affect grid) ── */}
+      <AnimatePresence>
+        {phase === "levelup" && (
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="bg-white rounded-3xl p-8 mx-4 text-center shadow-2xl max-w-sm w-full"
+              initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", bounce: 0.5 }}>
+              <p className="text-6xl mb-3">🏆</p>
+              <h2 className="text-2xl font-extrabold text-purple-700 mb-1">Seviye Atladın!</h2>
+              <p className="text-lg font-bold text-muted-foreground mb-4">
+                Seviye {level - 1} tamamlandı! → Seviye {level}
+              </p>
+              <div className="flex justify-center gap-1 mb-6 text-3xl">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <motion.span key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.2 }}>⭐</motion.span>
+                ))}
+              </div>
+              <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-lg py-6 rounded-2xl"
+                onClick={startNewLevel} data-testid="button-next-level">
+                Seviye {level}'e Geç! →
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* ── Level + Exercise progress ── */}
-        <div className="flex items-center justify-between bg-white/70 rounded-2xl px-4 py-3 shadow-sm">
-          <div>
-            <p className="text-xs font-bold text-purple-400 uppercase tracking-widest">Seviye</p>
-            <p className="text-3xl font-extrabold text-purple-700">{level}</p>
-            <p className="text-xs font-semibold text-muted-foreground max-w-[160px] leading-tight">{currentLevel?.nameTr}</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <p className="text-xs font-bold text-purple-400 uppercase tracking-widest">Egzersiz</p>
-            <div className="flex gap-1.5">
+      <AnimatePresence>
+        {phase === "listen_countdown" && (
+          <motion.div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div key={countdown}
+              className="w-40 h-40 rounded-full bg-indigo-600 flex flex-col items-center justify-center shadow-2xl"
+              initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.4, opacity: 0 }} transition={{ duration: 0.35 }}>
+              <span className="text-7xl font-extrabold text-white leading-none">{countdown}</span>
+              <span className="text-white/70 text-sm font-bold mt-1">👂 Dinle!</span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <main className="flex-1 overflow-hidden w-full px-3 pt-3 pb-2 grid grid-cols-[1fr_2fr_1fr] gap-3 items-start">
+
+        {/* ══════════════════════════════════════
+            LEFT — Seviye/Egzersiz · Panel 1 · Panel 2
+        ══════════════════════════════════════ */}
+        <div className="flex flex-col gap-3">
+
+          {/* Level + Exercise progress */}
+          <div className="bg-white/80 rounded-2xl px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Seviye</p>
+                <p className="text-3xl font-extrabold text-purple-700">{level}</p>
+                <p className="text-[11px] font-semibold text-muted-foreground leading-tight">{currentLevel?.nameTr}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">Egzersiz</p>
+                <p className="text-sm font-bold text-muted-foreground">{exerciseIdx + 1}/{PATTERNS_PER_LEVEL}</p>
+              </div>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
               {Array.from({ length: PATTERNS_PER_LEVEL }).map((_, i) => {
                 const done = i < exerciseIdx;
                 const current = i === exerciseIdx;
                 const result = exerciseResults[i];
                 return (
-                  <div
-                    key={i}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold transition-all ${
-                      current ? "bg-purple-600 text-white scale-110 shadow-md" :
-                      done && result ? "bg-green-400 text-white" :
-                      done && !result ? "bg-red-300 text-white" :
-                      "bg-purple-100 text-purple-300"
-                    }`}
-                  >
+                  <div key={i} className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold transition-all ${
+                    current ? "bg-purple-600 text-white scale-110 shadow-md" :
+                    done && result ? "bg-green-400 text-white" :
+                    done && !result ? "bg-red-300 text-white" :
+                    "bg-purple-100 text-purple-300"
+                  }`}>
                     {done ? (result ? "✓" : "✗") : i + 1}
                   </div>
                 );
               })}
             </div>
-            <p className="text-xs text-muted-foreground font-semibold">
-              {exerciseIdx + 1} / {PATTERNS_PER_LEVEL}
-            </p>
-          </div>
-        </div>
-
-        {/* ── Score bar ── */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <div className="bg-white/70 rounded-xl py-2 text-center shadow-sm">
-            <p className="text-xl font-extrabold text-green-500">{correctCount}</p>
-            <p className="text-xs text-muted-foreground font-bold">Doğru</p>
-          </div>
-          <div className="bg-white/70 rounded-xl py-2 text-center shadow-sm">
-            <p className="text-xl font-extrabold text-red-400">{wrongCount}</p>
-            <p className="text-xs text-muted-foreground font-bold">Yanlış</p>
-          </div>
-          <div className="bg-white/70 rounded-xl py-2 text-center shadow-sm">
-            <p className="text-xl font-extrabold text-purple-600">
-              {correctCount + wrongCount > 0 ? Math.round((correctCount / (correctCount + wrongCount)) * 100) : 0}%
-            </p>
-            <p className="text-xs text-muted-foreground font-bold">Doğruluk</p>
-          </div>
-        </div>
-
-        {/* ── VexFlow notation ── */}
-        <div className="bg-white rounded-3xl p-5 shadow-md">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-extrabold text-purple-400 uppercase tracking-widest">Ritim Kalıbı</p>
-            <p className="text-xs font-bold text-muted-foreground">{currentLevel?.description}</p>
-          </div>
-          <div className="flex justify-center overflow-x-auto">
-            <VexFlowRenderer
-              notes={currentPattern}
-              width={520}
-              height={130}
-              showClef
-              showTimeSignature
-              highlightIndex={highlightIdx}
-              hitIndices={hitNoteIndices}
-            />
           </div>
 
-          {/* ── Tap timeline (shown during tapping and result) ── */}
-          {(phase === "tapping" || phase === "result") && (() => {
-            const beatMs = (60 / bpm) * 1000;
-            const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
-            const totalMs = totalBeats * beatMs;
-            const expectedBeatNotes = (() => {
-              const res: { pct: number; hit: boolean }[] = [];
-              let t = 0;
-              currentPattern.forEach((note, i) => {
-                if (!IS_REST[note.duration]) {
-                  res.push({ pct: (t / totalMs) * 100, hit: hitNoteIndices.has(i) });
-                }
-                t += (BEAT_VAL[note.duration] ?? 1) * beatMs;
-              });
-              return res;
-            })();
-            return (
-              <div className="mt-4">
-                <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1.5">Vuruş Çizelgesi</p>
-                <div className="relative h-9 bg-purple-50 rounded-xl border border-purple-100 overflow-visible">
-                  {/* Expected beat marks */}
-                  {expectedBeatNotes.map(({ pct, hit }, i) => (
-                    <div
-                      key={i}
-                      className="absolute top-0 h-full flex flex-col items-center justify-center"
-                      style={{ left: `${pct}%`, transform: "translateX(-50%)" }}
-                    >
-                      <div className={`w-2 h-full rounded-full opacity-30 ${hit ? "bg-green-500" : "bg-purple-400"}`} />
-                    </div>
-                  ))}
-                  {/* Wrong tap red markers */}
-                  {wrongTapMarkers.map((pct, i) => (
-                    <div
-                      key={i}
-                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
-                      style={{ left: `${pct}%` }}
-                    >
-                      <div className="w-5 h-5 rounded-full bg-red-500 border-2 border-white shadow flex items-center justify-center text-white text-[9px] font-black">
-                        ✗
-                      </div>
-                    </div>
-                  ))}
-                  {/* Correctly hit green markers */}
-                  {expectedBeatNotes.map(({ pct, hit }, i) => hit && (
-                    <div
-                      key={`h${i}`}
-                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
-                      style={{ left: `${pct}%` }}
-                    >
-                      <div className="w-5 h-5 rounded-full bg-green-500 border-2 border-white shadow flex items-center justify-center text-white text-[9px] font-black">
-                        ✓
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mt-1 font-semibold">
-                  <span>Başlangıç</span>
-                  {wrongTapMarkers.length > 0 && (
-                    <span className="text-red-400 font-bold">{wrongTapMarkers.length} yanlış vuruş</span>
-                  )}
-                  <span>Bitiş</span>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* ── BPM Slider ── */}
-        <div className="bg-white/70 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
-            <span className="bg-purple-600 text-white text-sm font-extrabold px-3 py-1 rounded-full" data-testid="text-bpm">
-              {bpm} BPM
-            </span>
-          </div>
-          <input
-            type="range"
-            min={60}
-            max={140}
-            step={1}
-            value={bpm}
-            onChange={e => setBpm(Number(e.target.value))}
-            disabled={phase !== "idle"}
-            className="w-full accent-purple-600 cursor-pointer"
-            data-testid="slider-bpm"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground font-semibold mt-1">
-            <span>60 (Yavaş)</span>
-            <span>100 (Normal)</span>
-            <span>140 (Hızlı)</span>
-          </div>
-        </div>
-
-        {/* ── Feedback ── */}
-        <AnimatePresence>
-          {feedback && phase === "result" && (
-            <motion.div
-              className={`rounded-2xl p-4 text-center border-2 ${feedback.correct ? "bg-green-50 border-green-300" : retryPending ? "bg-orange-50 border-orange-300" : "bg-red-50 border-red-300"}`}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <p className="text-4xl mb-1">{feedback.correct ? "🎉" : retryPending ? "🔄" : "😓"}</p>
-              <p className={`text-lg font-extrabold ${feedback.correct ? "text-green-600" : retryPending ? "text-orange-600" : "text-red-500"}`}>
-                {feedback.correct
-                  ? "Mükemmel!"
-                  : retryPending
-                  ? `Olmadı — Tekrar! (${retryCount}/${MAX_RETRIES})`
-                  : "Hepsi bitti!"}
-              </p>
-              <p className="text-xs font-semibold text-muted-foreground mt-1">
-                {feedback.hits}/{feedback.total} vuruş doğru · %{feedback.accuracy} doğruluk
-              </p>
-              <div className="mt-2 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                <motion.div
-                  className={`h-full rounded-full ${feedback.accuracy >= 80 ? "bg-green-400" : feedback.accuracy >= 50 ? "bg-yellow-400" : "bg-red-400"}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${feedback.accuracy}%` }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Level Up Screen ── */}
-        <AnimatePresence>
-          {phase === "levelup" && (
-            <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <motion.div
-                className="bg-white rounded-3xl p-8 mx-4 text-center shadow-2xl max-w-sm w-full"
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", bounce: 0.5 }}
-              >
-                <p className="text-6xl mb-3">🏆</p>
-                <h2 className="text-2xl font-extrabold text-purple-700 mb-1">Seviye Atladın!</h2>
-                <p className="text-lg font-bold text-muted-foreground mb-4">
-                  Seviye {level - 1} tamamlandı! → Seviye {level}
-                </p>
-                <div className="flex justify-center gap-1 mb-6 text-3xl">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <motion.span
-                      key={i}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.2 }}
-                    >
-                      ⭐
-                    </motion.span>
-                  ))}
-                </div>
-                <Button
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-lg py-6 rounded-2xl"
-                  onClick={startNewLevel}
-                  data-testid="button-next-level"
-                >
-                  Seviye {level}'e Geç! →
-                </Button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Countdown overlay (only for listen phase) ── */}
-        <AnimatePresence>
-          {phase === "listen_countdown" && (
-            <motion.div
-              className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <motion.div
-                key={countdown}
-                className="w-40 h-40 rounded-full bg-indigo-600 flex flex-col items-center justify-center shadow-2xl"
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 1.4, opacity: 0 }}
-                transition={{ duration: 0.35 }}
-              >
-                <span className="text-7xl font-extrabold text-white leading-none">{countdown}</span>
-                <span className="text-white/70 text-sm font-bold mt-1">👂 Dinle!</span>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── 3 Game Panels: Hazırlan / Sayma / Vurma ── */}
-        <div className="flex flex-col gap-2.5 pb-6">
-
-          {/* ── Panel 1: Hazırlan ── */}
+          {/* Panel 1: Hazırlan */}
           <div className={`rounded-2xl border-2 transition-colors duration-300 overflow-hidden ${
-            phase === "listening" || phase === "listen_countdown"
-              ? "border-indigo-300 bg-indigo-50"
-              : phase === "tap_ready"
-              ? "border-amber-300 bg-amber-50"
-              : phase === "idle"
-              ? "border-indigo-200 bg-indigo-50/60"
-              : "border-gray-200 bg-gray-50/40 opacity-50"
+            phase === "listening" || phase === "listen_countdown" ? "border-indigo-300 bg-indigo-50"
+            : phase === "tap_ready" ? "border-amber-300 bg-amber-50"
+            : phase === "idle" ? "border-indigo-200 bg-indigo-50/60"
+            : "border-gray-200 bg-gray-50/40 opacity-50"
           }`}>
             <div className="flex items-center gap-2 px-4 pt-3 pb-2">
               <span className={`w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center ${
@@ -985,25 +795,22 @@ export default function RhythmGame() {
               <p className="text-xs font-extrabold text-indigo-600 uppercase tracking-widest">Hazırlan</p>
               {retryCount > 0 && phase !== "result" && (
                 <span className="ml-auto text-xs font-bold text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
-                  Deneme {retryCount}/{MAX_RETRIES}
+                  {retryCount}/{MAX_RETRIES}
                 </span>
               )}
             </div>
             <div className="px-4 pb-4">
               {phase === "idle" && (
-                <motion.button
-                  data-testid="button-listen"
-                  className="w-full py-4 rounded-2xl text-lg font-extrabold text-white shadow-lg cursor-pointer flex items-center justify-center gap-2"
+                <motion.button data-testid="button-listen"
+                  className="w-full py-4 rounded-2xl text-base font-extrabold text-white shadow-lg cursor-pointer flex items-center justify-center gap-2"
                   style={{ background: "linear-gradient(135deg, #4f46e5, #3730a3)" }}
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                  onClick={startListening}
-                >
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={startListening}>
                   <span className="text-xl">👂</span> Dinle ve İzle
                 </motion.button>
               )}
-              {(phase === "listen_countdown") && (
+              {phase === "listen_countdown" && (
                 <div className="text-center py-2">
-                  <p className="text-sm font-bold text-indigo-500 mb-1">Hazırlanıyor…</p>
+                  <p className="text-xs font-bold text-indigo-500 mb-1">Hazırlanıyor…</p>
                   <motion.div key={countdown} className="text-5xl font-black text-indigo-600"
                     initial={{ scale: 1.5, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.25 }}>
                     {countdown}
@@ -1011,14 +818,14 @@ export default function RhythmGame() {
                 </div>
               )}
               {phase === "listening" && (
-                <div className="flex items-center justify-center gap-3 py-2">
+                <div className="flex items-center justify-center gap-2 py-2">
                   <span className="text-2xl">🎵</span>
-                  <p className="font-extrabold text-indigo-700">Dinliyorsun…</p>
+                  <p className="font-extrabold text-indigo-700 text-sm">Dinliyorsun…</p>
                 </div>
               )}
               {phase === "tap_ready" && (
                 <div className="text-center py-1">
-                  <p className="text-xs font-extrabold text-amber-600 uppercase tracking-widest mb-1">Metronoma eşlik et!</p>
+                  <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-widest mb-1">Metronoma eşlik et!</p>
                   <motion.div key={countInRemaining} className="text-6xl font-black text-purple-600"
                     initial={{ scale: 1.5, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.18, ease: "easeOut" }}>
                     {countInRemaining}
@@ -1027,14 +834,14 @@ export default function RhythmGame() {
               )}
               {(phase === "tapping" || phase === "result") && (
                 <div className="flex items-center justify-center gap-2 py-2 text-green-600">
-                  <span className="text-xl">✅</span>
+                  <span>✅</span>
                   <p className="font-extrabold text-sm">Hazırlık tamam</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* ── Panel 2: Sayma ── */}
+          {/* Panel 2: Sayma */}
           <div className={`rounded-2xl border-2 transition-colors duration-300 ${
             phase === "listening" || phase === "tap_ready" || phase === "tapping"
               ? "border-purple-300 bg-purple-50"
@@ -1046,10 +853,10 @@ export default function RhythmGame() {
               }`}>2</span>
               <p className="text-xs font-extrabold text-purple-600 uppercase tracking-widest">Sayma</p>
             </div>
-            <div className="flex justify-center gap-3 px-4 pb-4">
+            <div className="flex justify-center gap-2 px-4 pb-4">
               {[0, 1, 2, 3].map(beat => (
                 <motion.div key={beat}
-                  className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-extrabold"
+                  className="w-11 h-11 rounded-full border-2 flex items-center justify-center text-sm font-extrabold"
                   style={{
                     borderColor: beat === 0 ? "#7c3aed" : "#c4b5fd",
                     background: currentBeat === beat && (phase === "tapping" || phase === "listening" || phase === "tap_ready")
@@ -1057,15 +864,152 @@ export default function RhythmGame() {
                     color: currentBeat === beat && (phase === "tapping" || phase === "listening" || phase === "tap_ready") ? "white" : "#9ca3af",
                   }}
                   animate={currentBeat === beat && (phase === "tapping" || phase === "listening" || phase === "tap_ready") ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-                  transition={{ duration: beatMs / 1000, ease: "easeOut" }}
-                >
+                  transition={{ duration: beatMs / 1000, ease: "easeOut" }}>
                   {beat + 1}
                 </motion.div>
               ))}
             </div>
           </div>
 
-          {/* ── Panel 3: Vurma ── */}
+        </div>
+
+        {/* ══════════════════════════════════════
+            CENTER — Skor · Notalar · BPM · Geri bildirim
+        ══════════════════════════════════════ */}
+        <div className="flex flex-col gap-3">
+
+          {/* Score bar */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
+              <p className="text-lg font-extrabold text-green-500">{correctCount}</p>
+              <p className="text-[10px] text-muted-foreground font-bold">Doğru</p>
+            </div>
+            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
+              <p className="text-lg font-extrabold text-red-400">{wrongCount}</p>
+              <p className="text-[10px] text-muted-foreground font-bold">Yanlış</p>
+            </div>
+            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
+              <p className="text-lg font-extrabold text-purple-600">
+                {correctCount + wrongCount > 0 ? Math.round((correctCount / (correctCount + wrongCount)) * 100) : 0}%
+              </p>
+              <p className="text-[10px] text-muted-foreground font-bold">Doğruluk</p>
+            </div>
+          </div>
+
+          {/* VexFlow notation */}
+          <div className="bg-white rounded-3xl p-4 shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-extrabold text-purple-400 uppercase tracking-widest">Ritim Kalıbı</p>
+              <p className="text-xs font-bold text-muted-foreground">{currentLevel?.description}</p>
+            </div>
+            <div className="flex justify-center overflow-x-auto">
+              <VexFlowRenderer
+                notes={currentPattern}
+                width={460}
+                height={120}
+                showClef
+                showTimeSignature
+                highlightIndex={highlightIdx}
+                hitIndices={hitNoteIndices}
+              />
+            </div>
+
+            {/* Tap timeline */}
+            {(phase === "tapping" || phase === "result") && (() => {
+              const beatMs = (60 / bpm) * 1000;
+              const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
+              const totalMs = totalBeats * beatMs;
+              const expectedBeatNotes = (() => {
+                const res: { pct: number; hit: boolean }[] = [];
+                let t = 0;
+                currentPattern.forEach((note, i) => {
+                  if (!IS_REST[note.duration]) {
+                    res.push({ pct: (t / totalMs) * 100, hit: hitNoteIndices.has(i) });
+                  }
+                  t += (BEAT_VAL[note.duration] ?? 1) * beatMs;
+                });
+                return res;
+              })();
+              return (
+                <div className="mt-3">
+                  <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1.5">Vuruş Çizelgesi</p>
+                  <div className="relative h-9 bg-purple-50 rounded-xl border border-purple-100 overflow-visible">
+                    {expectedBeatNotes.map(({ pct, hit }, i) => (
+                      <div key={i} className="absolute top-0 h-full flex flex-col items-center justify-center"
+                        style={{ left: `${pct}%`, transform: "translateX(-50%)" }}>
+                        <div className={`w-2 h-full rounded-full opacity-30 ${hit ? "bg-green-500" : "bg-purple-400"}`} />
+                      </div>
+                    ))}
+                    {wrongTapMarkers.map((pct, i) => (
+                      <div key={i} className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10" style={{ left: `${pct}%` }}>
+                        <div className="w-5 h-5 rounded-full bg-red-500 border-2 border-white shadow flex items-center justify-center text-white text-[9px] font-black">✗</div>
+                      </div>
+                    ))}
+                    {expectedBeatNotes.map(({ pct, hit }, i) => hit && (
+                      <div key={`h${i}`} className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10" style={{ left: `${pct}%` }}>
+                        <div className="w-5 h-5 rounded-full bg-green-500 border-2 border-white shadow flex items-center justify-center text-white text-[9px] font-black">✓</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground mt-1 font-semibold">
+                    <span>Başlangıç</span>
+                    {wrongTapMarkers.length > 0 && (
+                      <span className="text-red-400 font-bold">{wrongTapMarkers.length} yanlış vuruş</span>
+                    )}
+                    <span>Bitiş</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* BPM Slider */}
+          <div className="bg-white/70 rounded-2xl p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
+              <span className="bg-purple-600 text-white text-sm font-extrabold px-3 py-1 rounded-full" data-testid="text-bpm">
+                {bpm} BPM
+              </span>
+            </div>
+            <input type="range" min={60} max={140} step={1} value={bpm}
+              onChange={e => setBpm(Number(e.target.value))} disabled={phase !== "idle"}
+              className="w-full accent-purple-600 cursor-pointer" data-testid="slider-bpm" />
+            <div className="flex justify-between text-xs text-muted-foreground font-semibold mt-1">
+              <span>60</span><span>100</span><span>140</span>
+            </div>
+          </div>
+
+          {/* Feedback */}
+          <AnimatePresence>
+            {feedback && phase === "result" && (
+              <motion.div
+                className={`rounded-2xl p-4 text-center border-2 ${feedback.correct ? "bg-green-50 border-green-300" : retryPending ? "bg-orange-50 border-orange-300" : "bg-red-50 border-red-300"}`}
+                initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }}>
+                <p className="text-4xl mb-1">{feedback.correct ? "🎉" : retryPending ? "🔄" : "😓"}</p>
+                <p className={`text-lg font-extrabold ${feedback.correct ? "text-green-600" : retryPending ? "text-orange-600" : "text-red-500"}`}>
+                  {feedback.correct ? "Mükemmel!" : retryPending ? `Olmadı — Tekrar! (${retryCount}/${MAX_RETRIES})` : "Hepsi bitti!"}
+                </p>
+                <p className="text-xs font-semibold text-muted-foreground mt-1">
+                  {feedback.hits}/{feedback.total} vuruş doğru · %{feedback.accuracy} doğruluk
+                </p>
+                <div className="mt-2 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full rounded-full ${feedback.accuracy >= 80 ? "bg-green-400" : feedback.accuracy >= 50 ? "bg-yellow-400" : "bg-red-400"}`}
+                    initial={{ width: 0 }} animate={{ width: `${feedback.accuracy}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+        </div>
+
+        {/* ══════════════════════════════════════
+            RIGHT — Panel 3 · Sonraki
+        ══════════════════════════════════════ */}
+        <div className="flex flex-col gap-3">
+
+          {/* Panel 3: Vurma */}
           <div className={`rounded-2xl border-2 transition-colors duration-300 ${
             phase === "tapping" ? "border-green-300 bg-green-50" : "border-gray-200 bg-gray-50/40 opacity-40"
           }`}>
@@ -1076,12 +1020,9 @@ export default function RhythmGame() {
               <p className="text-xs font-extrabold text-green-600 uppercase tracking-widest">Vurma</p>
             </div>
             <div className="px-4 pb-4">
-              <motion.button
-                data-testid="button-tap"
+              <motion.button data-testid="button-tap"
                 className={`w-full py-10 rounded-2xl text-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 transition-all ${
-                  phase === "tapping"
-                    ? "text-white shadow-2xl cursor-pointer"
-                    : "text-gray-300 bg-gray-100 cursor-not-allowed shadow-none"
+                  phase === "tapping" ? "text-white shadow-2xl cursor-pointer" : "text-gray-300 bg-gray-100 cursor-not-allowed shadow-none"
                 }`}
                 style={phase === "tapping" ? {
                   background: "linear-gradient(135deg, #16a34a, #15803d)",
@@ -1092,8 +1033,7 @@ export default function RhythmGame() {
                 } : {}}
                 transition={{ duration: beatMs / 1000, repeat: phase === "tapping" ? Infinity : 0 }}
                 onPointerDown={phase === "tapping" ? handleTap : undefined}
-                disabled={phase !== "tapping"}
-              >
+                disabled={phase !== "tapping"}>
                 <span className="text-6xl">🥁</span>
                 <span className={phase === "tapping" ? "text-white" : "text-gray-300"}>
                   {phase === "tapping" ? "DOKUN!" : "Bekliyor…"}
@@ -1103,11 +1043,10 @@ export default function RhythmGame() {
             </div>
           </div>
 
-          {/* ── Result: next button or retry message ── */}
+          {/* Next button */}
           {phase === "result" && !retryPending && (
-            <motion.button
-              data-testid="button-next"
-              className="w-full py-5 rounded-3xl text-xl font-extrabold text-white shadow-xl cursor-pointer flex items-center justify-center gap-2 mt-1"
+            <motion.button data-testid="button-next"
+              className="w-full py-5 rounded-3xl text-lg font-extrabold text-white shadow-xl cursor-pointer flex items-center justify-center gap-2"
               style={{
                 background: feedback?.correct
                   ? "linear-gradient(135deg, #22c55e, #16a34a)"
@@ -1115,14 +1054,15 @@ export default function RhythmGame() {
               }}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-              onClick={nextExercise}
-            >
+              onClick={nextExercise}>
               {exerciseIdx + 1 >= PATTERNS_PER_LEVEL
                 ? <span>🏁 Seviyeyi Bitir</span>
                 : <><ChevronRight className="w-6 h-6" /> Sonraki Egzersiz</>}
             </motion.button>
           )}
+
         </div>
+
       </main>
     </div>
   );
