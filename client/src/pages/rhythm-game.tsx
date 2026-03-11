@@ -179,8 +179,56 @@ function playTone(ctx: AudioContext, freq: number, type: OscillatorType, duratio
   } catch {}
 }
 
-// Phase type: listen first, then tap
-type Phase = "idle" | "listen_countdown" | "listening" | "tap_ready" | "tap_countdown" | "tapping" | "result" | "levelup";
+// Distinct drum hit for tapping feedback: layered kick + noise burst
+function playDrumHit(ctx: AudioContext) {
+  try {
+    // Layer 1: kick drum body (sine sweep down)
+    const kick = ctx.createOscillator();
+    const kickGain = ctx.createGain();
+    kick.connect(kickGain);
+    kickGain.connect(ctx.destination);
+    kick.type = "sine";
+    kick.frequency.setValueAtTime(180, ctx.currentTime);
+    kick.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.18);
+    kickGain.gain.setValueAtTime(1.2, ctx.currentTime);
+    kickGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    kick.start(ctx.currentTime);
+    kick.stop(ctx.currentTime + 0.25);
+
+    // Layer 2: sharp attack click (high sine burst)
+    const click = ctx.createOscillator();
+    const clickGain = ctx.createGain();
+    click.connect(clickGain);
+    clickGain.connect(ctx.destination);
+    click.type = "square";
+    click.frequency.value = 800;
+    clickGain.gain.setValueAtTime(0.5, ctx.currentTime);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+    click.start(ctx.currentTime);
+    click.stop(ctx.currentTime + 0.04);
+
+    // Layer 3: noise burst for snare texture
+    const bufferSize = ctx.sampleRate * 0.06;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = "bandpass";
+    noiseFilter.frequency.value = 3000;
+    const noiseGain = ctx.createGain();
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noiseGain.gain.setValueAtTime(0.4, ctx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+    noise.start(ctx.currentTime);
+  } catch {}
+}
+
+// Phase type: listen first, then tap (no countdown between listen→tap)
+type Phase = "idle" | "listen_countdown" | "listening" | "tap_ready" | "tapping" | "result" | "levelup";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function RhythmGame() {
@@ -349,38 +397,34 @@ export default function RhythmGame() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, runCountdown, playPatternWithHighlight]);
 
-  // ─── PHASE 2: Start tapping ──────────────────────────────────────────────────
+  // ─── PHASE 2: Start tapping immediately (no countdown) ───────────────────────
   const startTapping = useCallback(() => {
     if (phase !== "tap_ready") return;
     tapTimesRef.current = [];
-    setPhase("tap_countdown");
+    setPhase("tapping");
+    gameStartRef.current = Date.now();
 
-    runCountdown(() => {
-      setPhase("tapping");
-      gameStartRef.current = Date.now();
+    const beatMs = (60 / bpm) * 1000;
+    let beat = 0;
+    playClick(true);
+    setCurrentBeat(0);
 
-      const beatMs = (60 / bpm) * 1000;
-      let beat = 0;
-      playClick(true);
-      setCurrentBeat(0);
+    metronomeTimerRef.current = setInterval(() => {
+      beat = (beat + 1) % 4;
+      setCurrentBeat(beat);
+      playClick(beat === 0);
+    }, beatMs);
 
-      metronomeTimerRef.current = setInterval(() => {
-        beat = (beat + 1) % 4;
-        setCurrentBeat(beat);
-        playClick(beat === 0);
-      }, beatMs);
-
-      // Calculate total pattern duration and end tapping
-      const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
-      setTimeout(() => {
-        stopMetronome();
-        setHighlightIdx(-1);
-        setPhase("result");
-        evaluateTaps();
-      }, totalBeats * beatMs + beatMs * 0.5);
-    });
+    // Calculate total pattern duration and end tapping
+    const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
+    setTimeout(() => {
+      stopMetronome();
+      setHighlightIdx(-1);
+      setPhase("result");
+      evaluateTaps();
+    }, totalBeats * beatMs + beatMs * 0.5);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, bpm, currentPattern, playClick, stopMetronome, runCountdown]);
+  }, [phase, bpm, currentPattern, playClick, stopMetronome]);
 
   // ─── Evaluate taps ──────────────────────────────────────────────────────────
   const evaluateTaps = useCallback(() => {
@@ -427,13 +471,12 @@ export default function RhythmGame() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getExpectedBeats, bpm, playSuccess, playFail]);
 
-  // ─── Handle tap ─────────────────────────────────────────────────────────────
+  // ─── Handle tap — plays distinct drum hit ────────────────────────────────────
   const handleTap = useCallback(() => {
     if (phase !== "tapping") return;
     const t = Date.now() - gameStartRef.current;
     tapTimesRef.current.push(t);
-    const ctx = getAudioCtx();
-    playTone(ctx, 523, "sine", 0.08, 0.2);
+    playDrumHit(getAudioCtx());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
@@ -736,9 +779,9 @@ export default function RhythmGame() {
           )}
         </AnimatePresence>
 
-        {/* ── Countdown overlay ── */}
+        {/* ── Countdown overlay (only for listen phase) ── */}
         <AnimatePresence>
-          {(phase === "listen_countdown" || phase === "tap_countdown") && (
+          {phase === "listen_countdown" && (
             <motion.div
               className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
               initial={{ opacity: 0 }}
@@ -747,18 +790,14 @@ export default function RhythmGame() {
             >
               <motion.div
                 key={countdown}
-                className={`w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-2xl ${
-                  phase === "listen_countdown" ? "bg-indigo-600" : "bg-purple-600"
-                }`}
+                className="w-40 h-40 rounded-full bg-indigo-600 flex flex-col items-center justify-center shadow-2xl"
                 initial={{ scale: 0.6, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 1.4, opacity: 0 }}
                 transition={{ duration: 0.35 }}
               >
                 <span className="text-7xl font-extrabold text-white leading-none">{countdown}</span>
-                <span className="text-white/70 text-sm font-bold mt-1">
-                  {phase === "listen_countdown" ? "👂 Dinle!" : "🥁 Vur!"}
-                </span>
+                <span className="text-white/70 text-sm font-bold mt-1">👂 Dinle!</span>
               </motion.div>
             </motion.div>
           )}
