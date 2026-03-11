@@ -219,14 +219,17 @@ export default function DrumKit() {
 
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
+  const isPlayingRef = useRef(isPlaying);
   const schedulerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const nextNoteRef = useRef(0);
   const stepRef = useRef(0);
+  const liveStepRef = useRef(-1); // tracks which step is currently sounding
 
   useEffect(() => { patternRef.current = pattern; }, [pattern]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
 
-  /* ── live hit ── */
+  /* ── live hit (+ live record when playing) ── */
   const hit = useCallback((id: DrumId) => {
     ZONES.find(z => z.id === id)!.play();
     setHits(prev => new Set(prev).add(id));
@@ -235,6 +238,15 @@ export default function DrumKit() {
     hitTimers.current[id] = setTimeout(() => {
       setHits(prev => { const s = new Set(prev); s.delete(id); return s; });
     }, 180);
+    // Live-record into sequencer while playing
+    if (isPlayingRef.current && liveStepRef.current >= 0) {
+      const step = liveStepRef.current;
+      setPattern(prev => {
+        const next = { ...prev, [id]: [...prev[id]] };
+        next[id][step] = true;
+        return next;
+      });
+    }
   }, []);
 
   /* ── keyboard ── */
@@ -254,6 +266,7 @@ export default function DrumKit() {
     if (!isPlaying) {
       if (schedulerRef.current) clearInterval(schedulerRef.current);
       setCurrentStep(-1);
+      liveStepRef.current = -1;
       return;
     }
     const c = ac();
@@ -270,10 +283,13 @@ export default function DrumKit() {
         SEQ_DRUMS.forEach(drum => {
           if (patternRef.current[drum.id]?.[step]) drum.play(when);
         });
-        // sync visual playhead
+        // sync visual playhead + live-record ref
         const delayMs = Math.max(0, (when - ctx2.currentTime) * 1000);
         const capturedStep = step;
-        setTimeout(() => setCurrentStep(capturedStep), delayMs);
+        setTimeout(() => {
+          setCurrentStep(capturedStep);
+          liveStepRef.current = capturedStep;
+        }, delayMs);
         nextNoteRef.current += stepDur;
         stepRef.current++;
       }
@@ -376,6 +392,18 @@ export default function DrumKit() {
           {isPlaying ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           {isPlaying ? "Dur" : "Çal"}
         </button>
+
+        {/* REC indicator — shown when playing */}
+        {isPlaying && (
+          <motion.div
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 0.9, repeat: Infinity }}
+            className="flex items-center gap-1 px-2 py-1 rounded-md"
+            style={{ background: "rgba(239,68,68,0.2)", border: "1.5px solid #ef4444" }}>
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="text-red-400 text-[10px] font-extrabold">REC</span>
+          </motion.div>
+        )}
 
         {/* BPM */}
         <div className="flex items-center gap-1.5 flex-1">
