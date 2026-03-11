@@ -227,6 +227,22 @@ function playDrumHit(ctx: AudioContext) {
   } catch {}
 }
 
+// Precise metronome click at a specific Web Audio time
+function scheduleClick(ctx: AudioContext, time: number, accent: boolean) {
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "square";
+    osc.frequency.value = accent ? 1000 : 700;
+    gain.gain.setValueAtTime(accent ? 0.35 : 0.2, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+    osc.start(time);
+    osc.stop(time + 0.06);
+  } catch {}
+}
+
 // Phase type: listen first, then tap (no countdown between listen→tap)
 type Phase = "idle" | "listen_countdown" | "listening" | "tap_ready" | "tapping" | "result" | "levelup";
 
@@ -249,11 +265,16 @@ export default function RhythmGame() {
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongCount, setWrongCount] = useState(0);
 
+  const [hitNoteIndices, setHitNoteIndices] = useState<Set<number>>(new Set());
+  const [wrongTapMarkers, setWrongTapMarkers] = useState<number[]>([]);
+
   const audioCtxRef = useRef<AudioContext | null>(null);
   const metronomeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tapTimesRef = useRef<number[]>([]);
   const gameStartRef = useRef(0);
   const sessionStartRef = useRef(Date.now());
+  const hitNoteIndicesRef = useRef<Set<number>>(new Set());
+  const tapRafRef = useRef<number | null>(null);
 
   const getAudioCtx = () => {
     if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
@@ -325,8 +346,24 @@ export default function RhythmGame() {
       clearInterval(metronomeTimerRef.current);
       metronomeTimerRef.current = null;
     }
+    if (tapRafRef.current) {
+      cancelAnimationFrame(tapRafRef.current);
+      tapRafRef.current = null;
+    }
     setCurrentBeat(-1);
   }, []);
+
+  // Expected beats with their pattern note index (non-rest notes only)
+  const getExpectedBeatNotes = useCallback(() => {
+    const beatMs = (60 / bpm) * 1000;
+    const result: { time: number; patternIdx: number }[] = [];
+    let t = 0;
+    currentPattern.forEach((note, i) => {
+      if (!IS_REST[note.duration]) result.push({ time: t, patternIdx: i });
+      t += (BEAT_VAL[note.duration] ?? 1) * beatMs;
+    });
+    return result;
+  }, [currentPattern, bpm]);
 
   // Calculate expected tap times from the pattern at current BPM
   const getExpectedBeats = useCallback(() => {
@@ -386,6 +423,9 @@ export default function RhythmGame() {
     if (phase !== "idle") return;
     setFeedback(null);
     setHighlightIdx(-1);
+    setHitNoteIndices(new Set());
+    setWrongTapMarkers([]);
+    hitNoteIndicesRef.current = new Set();
     setPhase("listen_countdown");
 
     runCountdown(() => {
@@ -397,34 +437,50 @@ export default function RhythmGame() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, runCountdown, playPatternWithHighlight]);
 
-  // ─── PHASE 2: Start tapping immediately (no countdown) ───────────────────────
+  // ─── PHASE 2: Start tapping — Web Audio precision ─────────────────────────────
   const startTapping = useCallback(() => {
     if (phase !== "tap_ready") return;
     tapTimesRef.current = [];
+    hitNoteIndicesRef.current = new Set();
+    setHitNoteIndices(new Set());
+    setWrongTapMarkers([]);
     setPhase("tapping");
-    gameStartRef.current = Date.now();
 
-    const beatMs = (60 / bpm) * 1000;
-    let beat = 0;
-    playClick(true);
-    setCurrentBeat(0);
-
-    metronomeTimerRef.current = setInterval(() => {
-      beat = (beat + 1) % 4;
-      setCurrentBeat(beat);
-      playClick(beat === 0);
-    }, beatMs);
-
-    // Calculate total pattern duration and end tapping
+    const ctx = getAudioCtx();
+    const beatSec = 60 / bpm;
+    const beatMs = beatSec * 1000;
     const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
+
+    // Schedule all clicks via Web Audio (precise)
+    const audioStart = ctx.currentTime + 0.05;
+    const totalClicks = Math.ceil(totalBeats) + 2;
+    for (let i = 0; i < totalClicks; i++) {
+      scheduleClick(ctx, audioStart + i * beatSec, i % 4 === 0);
+    }
+
+    // Align gameStartRef with audioStart
+    const msDelay = (audioStart - ctx.currentTime) * 1000;
+    gameStartRef.current = Date.now() + msDelay;
+
+    // Visual beat update via requestAnimationFrame
+    const updateBeat = () => {
+      const elapsed = Date.now() - gameStartRef.current;
+      if (elapsed >= 0) {
+        setCurrentBeat(Math.floor(elapsed / beatMs) % 4);
+      }
+      tapRafRef.current = requestAnimationFrame(updateBeat);
+    };
+    tapRafRef.current = requestAnimationFrame(updateBeat);
+
+    // End tapping after full pattern
     setTimeout(() => {
-      stopMetronome();
-      setHighlightIdx(-1);
+      if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
+      setCurrentBeat(-1);
       setPhase("result");
       evaluateTaps();
-    }, totalBeats * beatMs + beatMs * 0.5);
+    }, msDelay + totalBeats * beatMs + beatMs * 0.5);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, bpm, currentPattern, playClick, stopMetronome]);
+  }, [phase, bpm, currentPattern, stopMetronome]);
 
   // ─── Evaluate taps ──────────────────────────────────────────────────────────
   const evaluateTaps = useCallback(() => {
@@ -471,14 +527,35 @@ export default function RhythmGame() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getExpectedBeats, bpm, playSuccess, playFail]);
 
-  // ─── Handle tap — plays distinct drum hit ────────────────────────────────────
+  // ─── Handle tap — real-time green/red feedback ───────────────────────────────
   const handleTap = useCallback(() => {
     if (phase !== "tapping") return;
     const t = Date.now() - gameStartRef.current;
+    if (t < 0) return; // before audio start
     tapTimesRef.current.push(t);
     playDrumHit(getAudioCtx());
+
+    const beatNotes = getExpectedBeatNotes();
+    const tolerance = (60 / bpm) * 1000 * 0.38;
+
+    let bestDiff = Infinity;
+    let bestNote: { time: number; patternIdx: number } | null = null;
+    beatNotes.forEach(bn => {
+      if (hitNoteIndicesRef.current.has(bn.patternIdx)) return;
+      const d = Math.abs(t - bn.time);
+      if (d < bestDiff) { bestDiff = d; bestNote = bn; }
+    });
+
+    if (bestNote !== null && bestDiff <= tolerance) {
+      hitNoteIndicesRef.current = new Set([...hitNoteIndicesRef.current, bestNote.patternIdx]);
+      setHitNoteIndices(new Set(hitNoteIndicesRef.current));
+    } else {
+      const totalMs = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0) * (60 / bpm) * 1000;
+      const pct = Math.min(Math.max((t / totalMs) * 100, 0), 100);
+      setWrongTapMarkers(prev => [...prev, pct]);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, [phase, bpm, currentPattern, getExpectedBeatNotes]);
 
   // Keyboard support
   useEffect(() => {
@@ -527,6 +604,9 @@ export default function RhythmGame() {
       setPhase("idle");
       setFeedback(null);
       setHighlightIdx(-1);
+      setHitNoteIndices(new Set());
+      setWrongTapMarkers([]);
+      hitNoteIndicesRef.current = new Set();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseIdx, exerciseResults, level, playLevelUp]);
@@ -536,6 +616,9 @@ export default function RhythmGame() {
     setExerciseResults([]);
     setFeedback(null);
     setHighlightIdx(-1);
+    setHitNoteIndices(new Set());
+    setWrongTapMarkers([]);
+    hitNoteIndicesRef.current = new Set();
     setPhase("idle");
   };
 
@@ -648,14 +731,14 @@ export default function RhythmGame() {
               className="w-10 h-10 rounded-full border-2 flex items-center justify-center"
               style={{
                 borderColor: beat === 0 ? "#7c3aed" : "#c4b5fd",
-                background: currentBeat === beat && phase === "playing"
+                background: currentBeat === beat && (phase === "tapping" || phase === "listening")
                   ? beat === 0 ? "#7c3aed" : "#a78bfa"
                   : "white",
               }}
-              animate={currentBeat === beat && phase === "playing" ? { scale: [1, 1.35, 1] } : { scale: 1 }}
+              animate={currentBeat === beat && (phase === "tapping" || phase === "listening") ? { scale: [1, 1.35, 1] } : { scale: 1 }}
               transition={{ duration: beatMs / 1000, ease: "easeOut" }}
             >
-              {beat === 0 && currentBeat === beat && phase === "playing" && (
+              {beat === 0 && currentBeat === beat && (phase === "tapping" || phase === "listening") && (
                 <div className="w-2.5 h-2.5 rounded-full bg-white" />
               )}
             </motion.div>
@@ -676,8 +759,75 @@ export default function RhythmGame() {
               showClef
               showTimeSignature
               highlightIndex={highlightIdx}
+              hitIndices={hitNoteIndices}
             />
           </div>
+
+          {/* ── Tap timeline (shown during tapping and result) ── */}
+          {(phase === "tapping" || phase === "result") && (() => {
+            const beatMs = (60 / bpm) * 1000;
+            const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
+            const totalMs = totalBeats * beatMs;
+            const expectedBeatNotes = (() => {
+              const res: { pct: number; hit: boolean }[] = [];
+              let t = 0;
+              currentPattern.forEach((note, i) => {
+                if (!IS_REST[note.duration]) {
+                  res.push({ pct: (t / totalMs) * 100, hit: hitNoteIndices.has(i) });
+                }
+                t += (BEAT_VAL[note.duration] ?? 1) * beatMs;
+              });
+              return res;
+            })();
+            return (
+              <div className="mt-4">
+                <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1.5">Vuruş Çizelgesi</p>
+                <div className="relative h-9 bg-purple-50 rounded-xl border border-purple-100 overflow-visible">
+                  {/* Expected beat marks */}
+                  {expectedBeatNotes.map(({ pct, hit }, i) => (
+                    <div
+                      key={i}
+                      className="absolute top-0 h-full flex flex-col items-center justify-center"
+                      style={{ left: `${pct}%`, transform: "translateX(-50%)" }}
+                    >
+                      <div className={`w-2 h-full rounded-full opacity-30 ${hit ? "bg-green-500" : "bg-purple-400"}`} />
+                    </div>
+                  ))}
+                  {/* Wrong tap red markers */}
+                  {wrongTapMarkers.map((pct, i) => (
+                    <div
+                      key={i}
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
+                      style={{ left: `${pct}%` }}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-red-500 border-2 border-white shadow flex items-center justify-center text-white text-[9px] font-black">
+                        ✗
+                      </div>
+                    </div>
+                  ))}
+                  {/* Correctly hit green markers */}
+                  {expectedBeatNotes.map(({ pct, hit }, i) => hit && (
+                    <div
+                      key={`h${i}`}
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
+                      style={{ left: `${pct}%` }}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-green-500 border-2 border-white shadow flex items-center justify-center text-white text-[9px] font-black">
+                        ✓
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground mt-1 font-semibold">
+                  <span>Başlangıç</span>
+                  {wrongTapMarkers.length > 0 && (
+                    <span className="text-red-400 font-bold">{wrongTapMarkers.length} yanlış vuruş</span>
+                  )}
+                  <span>Bitiş</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── BPM Slider ── */}

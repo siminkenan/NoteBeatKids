@@ -14,6 +14,7 @@ interface VexFlowRendererProps {
   showClef?: boolean;
   showTimeSignature?: boolean;
   highlightIndex?: number;
+  hitIndices?: Set<number>; // green = correctly tapped
 }
 
 export function VexFlowRenderer({
@@ -23,8 +24,11 @@ export function VexFlowRenderer({
   showClef = true,
   showTimeSignature = true,
   highlightIndex = -1,
+  hitIndices,
 }: VexFlowRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // Stable string key so Set changes trigger re-render
+  const hitKey = hitIndices ? [...hitIndices].sort((a, b) => a - b).join(",") : "";
 
   useEffect(() => {
     if (!containerRef.current || notes.length === 0) return;
@@ -52,8 +56,10 @@ export function VexFlowRenderer({
           duration: n.duration,
           clef: "treble",
         });
-        if (i === highlightIndex) {
-          staveNote.setStyle({ fillStyle: "#f97316", strokeStyle: "#f97316" });
+        if (hitIndices?.has(i)) {
+          staveNote.setStyle({ fillStyle: "#16a34a", strokeStyle: "#16a34a" }); // green hit
+        } else if (i === highlightIndex) {
+          staveNote.setStyle({ fillStyle: "#f97316", strokeStyle: "#f97316" }); // orange listen
         }
         return staveNote;
       });
@@ -86,7 +92,8 @@ export function VexFlowRenderer({
     } catch (e) {
       console.error("VexFlow rendering error:", e);
     }
-  }, [notes, width, height, showClef, showTimeSignature, highlightIndex]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notes, width, height, showClef, showTimeSignature, highlightIndex, hitKey]);
 
   return (
     <div
