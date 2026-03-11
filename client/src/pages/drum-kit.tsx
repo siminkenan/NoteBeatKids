@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Play, Square, Trash2, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Play, Square, Trash2, Volume2, VolumeX, Download, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import drumImg from "@assets/drum-Photoroom_1773262756209.png";
+import { useAuth } from "@/lib/auth";
 
 /* ═══════════════════════════════════════════════════════
    WEB AUDIO CONTEXT
@@ -38,8 +39,8 @@ function mkDecay(c: AudioContext, peak: number, dur: number, t: number): GainNod
    ACOUSTIC SYNTHESIS — each fn accepts optional `when`
    so the sequencer can schedule notes precisely.
 ═══════════════════════════════════════════════════════ */
-function playKick(when?: number) {
-  const c = ac(); const t = when ?? c.currentTime;
+function playKick(when?: number, ctx?: AudioContext | OfflineAudioContext) {
+  const c = ctx ?? ac(); const t = when ?? c.currentTime;
   const body = mkOsc(c, "sine", 160, t, 0.6);
   const bg = mkDecay(c, 1.6, 0.55, t);
   body.frequency.setValueAtTime(160, t);
@@ -53,8 +54,8 @@ function playKick(when?: number) {
   punch.connect(pg); pg.connect(c.destination);
 }
 
-function playSnare(when?: number) {
-  const c = ac(); const t = when ?? c.currentTime;
+function playSnare(when?: number, ctx?: AudioContext | OfflineAudioContext) {
+  const c = ctx ?? ac(); const t = when ?? c.currentTime;
   const head = mkOsc(c, "sine", 200, t, 0.18);
   const hg = mkDecay(c, 0.7, 0.14, t);
   head.connect(hg); hg.connect(c.destination);
@@ -73,8 +74,8 @@ function playSnare(when?: number) {
   crack.start(t); crack.stop(t + 0.025);
 }
 
-function playHihat(when?: number) {
-  const c = ac(); const t = when ?? c.currentTime;
+function playHihat(when?: number, ctx?: AudioContext | OfflineAudioContext) {
+  const c = ctx ?? ac(); const t = when ?? c.currentTime;
   [240, 363, 484, 618, 729, 854].forEach(f => {
     const o = mkOsc(c, "square", f * 35, t, 0.08);
     const g = mkDecay(c, 0.08, 0.06, t);
@@ -88,8 +89,8 @@ function playHihat(when?: number) {
   n.start(t); n.stop(t + 0.08);
 }
 
-function playOpenHat(when?: number) {
-  const c = ac(); const t = when ?? c.currentTime;
+function playOpenHat(when?: number, ctx?: AudioContext | OfflineAudioContext) {
+  const c = ctx ?? ac(); const t = when ?? c.currentTime;
   [240, 363, 484, 618, 729, 854].forEach(f => {
     const o = mkOsc(c, "square", f * 35, t, 0.45);
     const g = mkDecay(c, 0.06, 0.42, t);
@@ -103,8 +104,8 @@ function playOpenHat(when?: number) {
   n.start(t); n.stop(t + 0.45);
 }
 
-function playCrash(when?: number) {
-  const c = ac(); const t = when ?? c.currentTime;
+function playCrash(when?: number, ctx?: AudioContext | OfflineAudioContext) {
+  const c = ctx ?? ac(); const t = when ?? c.currentTime;
   [220, 311, 435, 521, 650].forEach((f, i) => {
     const o = mkOsc(c, "sawtooth", f * 22, t, 1.8);
     const g = mkDecay(c, 0.25 - i * 0.03, 1.6 - i * 0.15, t);
@@ -119,8 +120,8 @@ function playCrash(when?: number) {
   n.start(t); n.stop(t + 2.0);
 }
 
-function playRide(when?: number) {
-  const c = ac(); const t = when ?? c.currentTime;
+function playRide(when?: number, ctx?: AudioContext | OfflineAudioContext) {
+  const c = ctx ?? ac(); const t = when ?? c.currentTime;
   const bell = mkOsc(c, "triangle", 880, t, 0.9);
   const bg = mkDecay(c, 0.5, 0.85, t);
   bell.connect(bg); bg.connect(c.destination);
@@ -137,8 +138,8 @@ function playRide(when?: number) {
   n.start(t); n.stop(t + 0.6);
 }
 
-function playTom(freq: number, dur = 0.38, when?: number) {
-  const c = ac(); const t = when ?? c.currentTime;
+function playTom(freq: number, dur = 0.38, when?: number, ctx?: AudioContext | OfflineAudioContext) {
+  const c = ctx ?? ac(); const t = when ?? c.currentTime;
   const head = mkOsc(c, "sine", freq, t, dur);
   const hg = mkDecay(c, 1.0, dur * 0.9, t);
   head.frequency.setValueAtTime(freq, t);
@@ -177,6 +178,113 @@ function playMetro(accent: boolean, vol: number, when: number) {
   const hpf = c.createBiquadFilter(); hpf.type = "highpass"; hpf.frequency.value = 4000;
   ns.connect(hpf); hpf.connect(ng); ng.connect(c.destination);
   ns.start(when); ns.stop(when + 0.012);
+}
+
+/* ═══════════════════════════════════════════════════════
+   OFFLINE DRUM DISPATCHER (for WAV export)
+═══════════════════════════════════════════════════════ */
+function playDrumOffline(id: string, when: number, ctx: OfflineAudioContext) {
+  switch (id) {
+    case "kick":     playKick(when, ctx);              break;
+    case "snare":    playSnare(when, ctx);             break;
+    case "hihat":    playHihat(when, ctx);             break;
+    case "openhat":  playOpenHat(when, ctx);           break;
+    case "crash":    playCrash(when, ctx);             break;
+    case "ride":     playRide(when, ctx);              break;
+    case "tom1":     playTom(290, 0.38, when, ctx);   break;
+    case "tom2":     playTom(220, 0.42, when, ctx);   break;
+    case "floortom": playTom(130, 0.5,  when, ctx);   break;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   WAV EXPORT (OfflineAudioContext render)
+═══════════════════════════════════════════════════════ */
+function audioBufferToWav(buffer: AudioBuffer): Blob {
+  const nCh = buffer.numberOfChannels;
+  const sr = buffer.sampleRate;
+  const n = buffer.length;
+  const bps = 2; // 16-bit PCM
+  const dataLen = n * nCh * bps;
+  const ab = new ArrayBuffer(44 + dataLen);
+  const v = new DataView(ab);
+  const ws = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, "RIFF"); v.setUint32(4, 36 + dataLen, true); ws(8, "WAVE");
+  ws(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+  v.setUint16(22, nCh, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * nCh * bps, true); v.setUint16(32, nCh * bps, true);
+  v.setUint16(34, 16, true); ws(36, "data"); v.setUint32(40, dataLen, true);
+  let off = 44;
+  for (let i = 0; i < n; i++) {
+    for (let ch = 0; ch < nCh; ch++) {
+      const s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+      v.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true); off += 2;
+    }
+  }
+  return new Blob([ab], { type: "audio/wav" });
+}
+
+async function exportWav(pattern: Record<string, boolean[]>, bpm: number, loops = 2): Promise<Blob> {
+  const stepDur = 60 / bpm / 4;
+  const totalDur = stepDur * STEPS * loops + 2.5;
+  const sr = 44100;
+  const ctx = new OfflineAudioContext(2, Math.ceil(sr * totalDur), sr);
+  for (let loop = 0; loop < loops; loop++) {
+    for (let step = 0; step < STEPS; step++) {
+      const when = (loop * STEPS + step) * stepDur;
+      Object.keys(pattern).forEach(id => {
+        if (pattern[id]?.[step]) playDrumOffline(id, when, ctx);
+      });
+    }
+  }
+  const buf = await ctx.startRendering();
+  return audioBufferToWav(buf);
+}
+
+/* ═══════════════════════════════════════════════════════
+   MIDI EXPORT
+═══════════════════════════════════════════════════════ */
+const DRUM_MIDI: Record<string, number> = {
+  kick: 36, snare: 38, hihat: 42, openhat: 46,
+  crash: 49, ride: 51, tom1: 50, tom2: 48, floortom: 43,
+};
+function vlq(val: number): number[] {
+  const b: number[] = [val & 0x7F];
+  val >>= 7;
+  while (val > 0) { b.unshift((val & 0x7F) | 0x80); val >>= 7; }
+  return b;
+}
+function exportMidi(pattern: Record<string, boolean[]>, bpm: number): Uint8Array {
+  const PPQ = 480; const step = PPQ / 4;
+  const tempo = Math.round(60000000 / bpm);
+  const evts: Array<[number, number, number]> = []; // [tick, note, vel]
+  for (let s = 0; s < STEPS; s++) {
+    Object.keys(pattern).forEach(id => {
+      if (pattern[id]?.[s] && DRUM_MIDI[id]) {
+        evts.push([s * step, DRUM_MIDI[id], 100]);
+        evts.push([s * step + step - 1, DRUM_MIDI[id], 0]);
+      }
+    });
+  }
+  evts.sort((a, b) => a[0] - b[0]);
+  const td: number[] = [0x00, 0xFF, 0x51, 0x03, (tempo >> 16) & 0xFF, (tempo >> 8) & 0xFF, tempo & 0xFF];
+  let last = 0;
+  for (const [tick, note, vel] of evts) {
+    td.push(...vlq(tick - last)); last = tick;
+    td.push(vel > 0 ? 0x99 : 0x89, note, vel);
+  }
+  td.push(0x00, 0xFF, 0x2F, 0x00);
+  const hdr = [0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, PPQ>>8, PPQ&0xFF];
+  const tl = td.length;
+  const trk = [0x4D,0x54,0x72,0x6B, (tl>>24)&0xFF,(tl>>16)&0xFF,(tl>>8)&0xFF,tl&0xFF, ...td];
+  return new Uint8Array([...hdr, ...trk]);
+}
+
+function downloadBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 500);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -230,6 +338,42 @@ function emptyPattern(): Pattern {
 ═══════════════════════════════════════════════════════ */
 export default function DrumKit() {
   const [, navigate] = useLocation();
+  const { student } = useAuth();
+
+  /* ── session time tracking ── */
+  const sessionStartRef = useRef<number>(Date.now());
+  useEffect(() => {
+    sessionStartRef.current = Date.now();
+    return () => {
+      const sid = student?.student?.id;
+      if (!sid) return;
+      const secs = Math.round((Date.now() - sessionStartRef.current) / 1000);
+      if (secs < 2) return;
+      fetch(`/api/student/${sid}/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appType: "drum_kit", timeSpentSeconds: secs }),
+        credentials: "include",
+        keepalive: true,
+      });
+    };
+  }, [student?.student?.id]);
+
+  /* ── export state ── */
+  const [exporting, setExporting] = useState<"wav" | "midi" | null>(null);
+
+  const handleExportWav = async () => {
+    setExporting("wav");
+    try {
+      const blob = await exportWav(pattern, bpm, 2);
+      downloadBlob(blob, `notebeat-ritim-${Date.now()}.wav`);
+    } finally { setExporting(null); }
+  };
+
+  const handleExportMidi = () => {
+    const data = exportMidi(pattern, bpm);
+    downloadBlob(new Blob([data], { type: "audio/midi" }), `notebeat-ritim-${Date.now()}.mid`);
+  };
 
   /* ── pad hits (live play) ── */
   const [hits, setHits] = useState<Set<DrumId>>(new Set());
@@ -360,7 +504,39 @@ export default function DrumKit() {
           <ArrowLeft className="w-4 h-4" /> Geri
         </Button>
         <h1 className="font-extrabold text-base text-white tracking-tight">🥁 Online Davul Seti</h1>
-        <div className="w-20 text-right h-6">
+        <div className="flex items-center gap-1.5">
+          {/* WAV download */}
+          <button
+            data-testid="btn-export-wav"
+            onClick={handleExportWav}
+            disabled={exporting === "wav"}
+            title="Ses dosyası indir (.wav)"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all"
+            style={{
+              background: "rgba(74,222,128,0.15)",
+              border: "1.5px solid rgba(74,222,128,0.4)",
+              color: exporting === "wav" ? "#6b7280" : "#4ade80",
+              opacity: exporting === "wav" ? 0.6 : 1,
+            }}>
+            <Download className="w-3 h-3" />
+            {exporting === "wav" ? "..." : "WAV"}
+          </button>
+          {/* MIDI download */}
+          <button
+            data-testid="btn-export-midi"
+            onClick={handleExportMidi}
+            title="MIDI dosyası indir (.mid)"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all"
+            style={{
+              background: "rgba(168,85,247,0.15)",
+              border: "1.5px solid rgba(168,85,247,0.4)",
+              color: "#a855f7",
+            }}>
+            <Music className="w-3 h-3" />
+            MIDI
+          </button>
+        </div>
+        <div className="w-0 text-right h-6">
           <AnimatePresence mode="wait">
             {lastZone && (
               <motion.span key={lastHit?.ts}

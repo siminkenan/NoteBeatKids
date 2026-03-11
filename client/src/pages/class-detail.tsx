@@ -16,6 +16,7 @@ import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-pre
 type StudentWithProgress = Student & {
   rhythmProgress?: StudentProgress;
   notesProgress?: StudentProgress;
+  drumProgress?: StudentProgress;
 };
 
 type ClassDetailData = {
@@ -486,11 +487,22 @@ export default function ClassDetail() {
                                   <span className="text-xs font-bold text-red-500">{student.notesProgress?.wrongAnswers ?? 0}</span>
                                 </div>
                               </div>
+                              <div className="bg-amber-50 rounded-xl p-2 text-center">
+                                <p className="text-xs font-bold text-amber-600 mb-0.5">🥁 Davul</p>
+                                {student.drumProgress ? (
+                                  <>
+                                    <p className="font-extrabold text-amber-700 text-xs">{formatTime(student.drumProgress.timeSpentSeconds)}</p>
+                                    <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">süre</p>
+                                  </>
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground font-semibold mt-1">—</p>
+                                )}
+                              </div>
                             </div>
                             <div className="text-center">
                               <Clock className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
                               <p className="text-xs font-bold text-muted-foreground">
-                                {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0))}
+                                {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0) + (student.drumProgress?.timeSpentSeconds ?? 0))}
                               </p>
                             </div>
                             <Button
