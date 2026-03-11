@@ -3,6 +3,42 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const upload = multer({
+  dest: uploadsDir,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("audio/") || file.originalname.match(/\.(mp3|wav|ogg|aac|m4a)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only audio files are allowed"));
+    }
+  },
+});
+
+function generateRhythmPattern(bpm: number) {
+  const original = {
+    kick:  [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+    snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+    hihat: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+    clap:  [0,0,0,0,1,0,0,1,0,0,0,0,1,0,1,0],
+    perc:  [1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0],
+  };
+  const kids = {
+    kick:  [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+    snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+    hihat: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+    clap:  [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+    perc:  [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+  };
+  return { original, kids };
+}
 
 function generateClassCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -413,6 +449,127 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const cls = await storage.getClassByCode(req.params.code);
     if (!cls) return res.status(404).json({ message: "Class not found" });
     res.json({ id: cls.id, name: cls.name, classCode: cls.classCode });
+  });
+
+  // Serve uploaded audio files
+  app.get("/api/orchestra/audio/:filename", (req: Request, res: Response) => {
+    const filepath = path.join(uploadsDir, req.params.filename);
+    if (!fs.existsSync(filepath)) return res.status(404).json({ message: "File not found" });
+    res.sendFile(filepath);
+  });
+
+  // Teacher: upload song
+  app.post("/api/teacher/orchestra/songs", upload.single("audio"), async (req: Request, res: Response) => {
+    try {
+      const teacherId = (req.session as any).teacherId;
+      if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+      if (!req.file) return res.status(400).json({ message: "No audio file provided" });
+
+      const count = await storage.countOrchestraSongsByTeacher(teacherId);
+      if (count >= 10) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ message: "Song limit reached. Please delete an existing song to upload a new one." });
+      }
+
+      const name = (req.body.name || req.file.originalname).trim();
+      const bpm = parseInt(req.body.bpm) || 120;
+      const patterns = generateRhythmPattern(bpm);
+
+      const song = await storage.createOrchestraSong({
+        teacherId,
+        name,
+        originalFilename: req.file.originalname,
+        storedFilename: req.file.filename,
+        bpm,
+        durationSeconds: parseInt(req.body.durationSeconds) || 0,
+        rhythmPatternOriginal: JSON.stringify(patterns.original),
+        rhythmPatternKids: JSON.stringify(patterns.kids),
+      });
+
+      res.json(song);
+    } catch (err: any) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Teacher: list songs
+  app.get("/api/teacher/orchestra/songs", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const songs = await storage.getOrchestraSongsByTeacher(teacherId);
+    res.json(songs);
+  });
+
+  // Teacher: delete song
+  app.delete("/api/teacher/orchestra/songs/:id", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const song = await storage.getOrchestraSong(req.params.id);
+    if (!song) return res.status(404).json({ message: "Song not found" });
+    if (song.teacherId !== teacherId) return res.status(403).json({ message: "Not authorized" });
+
+    const filepath = path.join(uploadsDir, song.storedFilename);
+    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+    await storage.deleteOrchestraSong(req.params.id);
+    res.json({ ok: true });
+  });
+
+  // Teacher: update song BPM (regenerate rhythm)
+  app.patch("/api/teacher/orchestra/songs/:id", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const song = await storage.getOrchestraSong(req.params.id);
+    if (!song) return res.status(404).json({ message: "Song not found" });
+    if (song.teacherId !== teacherId) return res.status(403).json({ message: "Not authorized" });
+
+    const bpm = parseInt(req.body.bpm) || song.bpm;
+    const name = req.body.name || song.name;
+    const patterns = generateRhythmPattern(bpm);
+
+    const updated = await storage.updateOrchestraSong(req.params.id, {
+      bpm,
+      name,
+      rhythmPatternOriginal: JSON.stringify(patterns.original),
+      rhythmPatternKids: JSON.stringify(patterns.kids),
+    });
+    res.json(updated);
+  });
+
+  // Teacher: get orchestra performance data
+  app.get("/api/teacher/orchestra/progress", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const data = await storage.getOrchestraProgressByTeacher(teacherId);
+    res.json(data);
+  });
+
+  // Student: get songs available for their class (no server session — student passes their own ID)
+  app.get("/api/student/:studentId/orchestra/songs", async (req: Request, res: Response) => {
+    const student = await storage.getStudent(req.params.studentId);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    const songs = await storage.getOrchestraSongsByClass(student.classId);
+    res.json(songs);
+  });
+
+  // Student: save orchestra game result
+  app.post("/api/student/:studentId/orchestra/progress", async (req: Request, res: Response) => {
+    const student = await storage.getStudent(req.params.studentId);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    const { songId, mode, laneMode, accuracy, perfectCount, goodCount, missCount } = req.body;
+    if (!songId) return res.status(400).json({ message: "songId required" });
+
+    const prog = await storage.createOrchestraProgress({
+      studentId: req.params.studentId,
+      songId,
+      mode: mode || "original",
+      laneMode: laneMode || "full",
+      accuracy: Math.round(accuracy) || 0,
+      perfectCount: perfectCount || 0,
+      goodCount: goodCount || 0,
+      missCount: missCount || 0,
+    });
+    res.json(prog);
   });
 
   return httpServer;

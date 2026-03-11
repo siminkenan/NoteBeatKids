@@ -1,0 +1,291 @@
+Create a standalone rhythm learning game system for the NoteBeat Kids platform called:
+
+Rhythm Orchestra Game System
+
+This module must run independently from other rhythm tools but still connect to the Teacher Dashboard for performance tracking.
+
+The system must contain two major environments:
+
+Student Rhythm Orchestra Game  
+Teacher Rhythm Performance Panel
+
+The system must also include an intelligent rhythm simplification engine called:
+
+AI Rhythm Simplifier
+
+The goal of this system is to transform real music rhythms into child-friendly rhythm exercises while still preserving the musical structure of the song.
+
+------------------------------------------------
+
+SYSTEM STRUCTURE
+
+The Rhythm Orchestra Game System must operate independently from other rhythm modules.
+
+However, student performance data must still be available inside the Teacher Dashboard.
+
+Student performance data must include:
+
+Accuracy score  
+Instrument rhythm performance  
+Body percussion performance  
+Tempo control success  
+Overall rhythm coordination score
+
+------------------------------------------------
+
+STUDENT RHYTHM ORCHESTRA GAME
+
+Students enter a rhythm game environment where rhythm objects flow toward timing targets.
+
+The screen must display multiple rhythm lanes representing different instruments.
+
+Example rhythm lanes:
+
+Kick Drum Lane  
+Snare Lane  
+Hi-Hat Lane  
+Clap Lane  
+Percussion Lane
+
+Each lane must display rhythm objects moving toward a timing line.
+
+------------------------------------------------
+
+VISUAL RHYTHM OBJECTS
+
+Rhythm actions appear as colorful 3D rhythm cubes or rhythm beads.
+
+Examples:
+
+Large cube = Quarter beat  
+Two small cubes = Eighth notes  
+Transparent cube = Rest
+
+The rhythm objects must flow vertically from top to bottom.
+
+Their speed must synchronize with the selected tempo.
+
+------------------------------------------------
+
+METRONOME BASE SYSTEM
+
+Every rhythm game begins with a metronome introduction.
+
+Students listen to the metronome to feel the tempo before starting.
+
+Metronome BPM range:
+
+40 BPM – 208 BPM
+
+Students may adjust tempo before beginning the exercise.
+
+The rhythm object movement must synchronize with the metronome.
+
+------------------------------------------------
+
+BODY PERCUSSION ACTIONS
+
+Each rhythm lane may be mapped to a body percussion action.
+
+Examples:
+
+Kick Drum Lane → Foot stomp  
+Snare Lane → Clap  
+Hi-Hat Lane → Finger snap  
+Clap Lane → Hand clap  
+Percussion Lane → Chest tap
+
+The system must visually show which action to perform.
+
+------------------------------------------------
+
+INPUT METHODS
+
+Students perform rhythm actions using:
+
+Screen tap  
+Touch input  
+Clap detection via microphone  
+Body percussion movement detection
+
+Each action must generate a precise timestamp.
+
+------------------------------------------------
+
+REAL TIME RHYTHM SCORING
+
+The system evaluates each rhythm hit.
+
+Score categories:
+
+Perfect  
+Good  
+Early  
+Late  
+Miss
+
+Timing tolerance:
+
+±100 milliseconds.
+
+Display:
+
+Accuracy percentage  
+Star rating  
+Animated feedback
+
+------------------------------------------------
+
+MULTI-INSTRUMENT RHYTHM MODE
+
+Students can practice rhythm layers individually or together.
+
+Modes include:
+
+Single Instrument Mode  
+Dual Rhythm Mode  
+Full Rhythm Orchestra Mode
+
+Full Orchestra Mode requires students to coordinate multiple rhythm layers.
+
+------------------------------------------------
+
+TEACHER SONG UPLOAD SYSTEM
+
+Teachers can upload songs to generate rhythm exercises.
+
+Supported formats:
+
+MP3  
+WAV
+
+Each teacher account is limited to a maximum of 10 uploaded songs.
+
+If the teacher reaches the limit, the system must display:
+
+"Song limit reached. Please delete an existing song to upload a new one."
+
+Teachers must be able to:
+
+View uploaded songs  
+Delete songs  
+Replace songs
+
+------------------------------------------------
+
+SONG RHYTHM ANALYSIS
+
+After a song is uploaded the system must analyze its rhythm structure.
+
+Extract:
+
+Tempo (BPM)  
+Beat grid  
+Rhythm accents  
+Percussion layers
+
+The system must detect major rhythm components such as:
+
+Kick drum  
+Snare  
+Hi-hat  
+Percussion
+
+------------------------------------------------
+
+AI RHYTHM SIMPLIFIER
+
+The AI Rhythm Simplifier converts complex rhythms into child-friendly rhythms.
+
+The system must generate two rhythm modes:
+
+Original Rhythm Mode  
+Kids Simplified Rhythm Mode
+
+Original Rhythm Mode:
+
+Uses the real rhythm extracted from the song.
+
+Kids Simplified Rhythm Mode:
+
+Simplifies the rhythm for elementary school students.
+
+Simplification rules may include:
+
+Reduce syncopation  
+Convert complex rhythms into quarter and eighth notes  
+Reduce rhythm density  
+Align rhythms clearly with the beat
+
+The simplified rhythm must preserve the main groove of the song.
+
+------------------------------------------------
+
+AUTOMATIC RHYTHM GAME GENERATION
+
+After rhythm analysis the system generates rhythm lanes automatically.
+
+Example mapping:
+
+Kick rhythm → Kick lane  
+Snare rhythm → Snare lane  
+Hi-Hat rhythm → Hi-Hat lane
+
+Both Original Rhythm Mode and Kids Simplified Rhythm Mode must be playable in the rhythm game.
+
+------------------------------------------------
+
+TEACHER RHYTHM PERFORMANCE PANEL
+
+Teachers must be able to see detailed student rhythm performance.
+
+The panel must display:
+
+Accuracy percentage  
+Instrument lane performance  
+Body percussion accuracy  
+Tempo consistency  
+Completed rhythm games
+
+Teachers can review each student's rhythm progress.
+
+------------------------------------------------
+
+PERFORMANCE VISUALIZATION
+
+Student performance must appear as visual charts.
+
+Examples:
+
+Rhythm accuracy graph  
+Tempo stability graph  
+Instrument coordination chart
+
+These charts help teachers evaluate rhythm development.
+
+------------------------------------------------
+
+CHILD FRIENDLY DESIGN
+
+The game must be designed for children ages 6–10.
+
+Use:
+
+Colorful rhythm cubes  
+Soft animations  
+Clear timing lines  
+Friendly sounds
+
+The rhythm actions must be visually obvious and easy to follow.
+
+------------------------------------------------
+
+FINAL RESULT
+
+Rhythm Orchestra Game System becomes a global-level rhythm learning environment.
+
+Teachers upload songs and the system analyzes the rhythm automatically.
+
+Students can practice both the original rhythm and a simplified rhythm designed for children.
+
+The AI Rhythm Simplifier ensures that complex music rhythms are transformed into clear and playable rhythm exercises for young learners.

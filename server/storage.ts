@@ -1,13 +1,15 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { db } from "./db";
 import {
   institutions, admins, teachers, classes, students, studentProgress, teacherCodes, studentCodes,
+  orchestraSongs, orchestraProgress,
   type Institution, type InsertInstitution,
   type Admin, type Teacher, type InsertTeacher,
   type Class, type InsertClass,
   type Student, type InsertStudent,
   type StudentProgress, type InsertProgress,
   type TeacherCode, type StudentCode,
+  type OrchestraSong, type OrchestraProgress,
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
@@ -85,6 +87,18 @@ export interface IStorage {
     totalExercisesCompleted: number;
     totalTimeSpentSeconds: number;
   }>;
+  // Orchestra Songs
+  getOrchestraSongsByTeacher(teacherId: string): Promise<OrchestraSong[]>;
+  getOrchestraSong(id: string): Promise<OrchestraSong | undefined>;
+  createOrchestraSong(data: Omit<OrchestraSong, "id" | "createdAt">): Promise<OrchestraSong>;
+  updateOrchestraSong(id: string, data: Partial<OrchestraSong>): Promise<OrchestraSong | undefined>;
+  deleteOrchestraSong(id: string): Promise<void>;
+  countOrchestraSongsByTeacher(teacherId: string): Promise<number>;
+  getOrchestraSongsByClass(classId: string): Promise<OrchestraSong[]>;
+  // Orchestra Progress
+  createOrchestraProgress(data: Omit<OrchestraProgress, "id" | "completedAt">): Promise<OrchestraProgress>;
+  getOrchestraProgressByStudent(studentId: string): Promise<OrchestraProgress[]>;
+  getOrchestraProgressByTeacher(teacherId: string): Promise<Array<OrchestraProgress & { studentName: string; songName: string }>>;
   // Seed
   seedData(): Promise<void>;
 }
@@ -580,6 +594,86 @@ export class DatabaseStorage implements IStorage {
         },
       ]);
     }
+  }
+
+  // Orchestra Songs
+  async getOrchestraSongsByTeacher(teacherId: string): Promise<OrchestraSong[]> {
+    return db.select().from(orchestraSongs)
+      .where(eq(orchestraSongs.teacherId, teacherId))
+      .orderBy(desc(orchestraSongs.createdAt));
+  }
+
+  async getOrchestraSong(id: string): Promise<OrchestraSong | undefined> {
+    const result = await db.select().from(orchestraSongs).where(eq(orchestraSongs.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createOrchestraSong(data: Omit<OrchestraSong, "id" | "createdAt">): Promise<OrchestraSong> {
+    const [song] = await db.insert(orchestraSongs).values(data).returning();
+    return song;
+  }
+
+  async updateOrchestraSong(id: string, data: Partial<OrchestraSong>): Promise<OrchestraSong | undefined> {
+    const [song] = await db.update(orchestraSongs).set(data).where(eq(orchestraSongs.id, id)).returning();
+    return song;
+  }
+
+  async deleteOrchestraSong(id: string): Promise<void> {
+    await db.delete(orchestraProgress).where(eq(orchestraProgress.songId, id));
+    await db.delete(orchestraSongs).where(eq(orchestraSongs.id, id));
+  }
+
+  async countOrchestraSongsByTeacher(teacherId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(orchestraSongs)
+      .where(eq(orchestraSongs.teacherId, teacherId));
+    return Number(result[0]?.count ?? 0);
+  }
+
+  async getOrchestraSongsByClass(classId: string): Promise<OrchestraSong[]> {
+    const cls = await db.select().from(classes).where(eq(classes.id, classId)).limit(1);
+    if (!cls[0]) return [];
+    return this.getOrchestraSongsByTeacher(cls[0].teacherId);
+  }
+
+  // Orchestra Progress
+  async createOrchestraProgress(data: Omit<OrchestraProgress, "id" | "completedAt">): Promise<OrchestraProgress> {
+    const [progress] = await db.insert(orchestraProgress).values(data).returning();
+    return progress;
+  }
+
+  async getOrchestraProgressByStudent(studentId: string): Promise<OrchestraProgress[]> {
+    return db.select().from(orchestraProgress)
+      .where(eq(orchestraProgress.studentId, studentId))
+      .orderBy(desc(orchestraProgress.completedAt));
+  }
+
+  async getOrchestraProgressByTeacher(teacherId: string): Promise<Array<OrchestraProgress & { studentName: string; songName: string }>> {
+    const teacherSongs = await db.select({ id: orchestraSongs.id }).from(orchestraSongs)
+      .where(eq(orchestraSongs.teacherId, teacherId));
+    if (teacherSongs.length === 0) return [];
+
+    const rows = await db
+      .select({
+        id: orchestraProgress.id,
+        studentId: orchestraProgress.studentId,
+        songId: orchestraProgress.songId,
+        mode: orchestraProgress.mode,
+        laneMode: orchestraProgress.laneMode,
+        accuracy: orchestraProgress.accuracy,
+        perfectCount: orchestraProgress.perfectCount,
+        goodCount: orchestraProgress.goodCount,
+        missCount: orchestraProgress.missCount,
+        completedAt: orchestraProgress.completedAt,
+        studentName: sql<string>`concat(${students.firstName}, ' ', ${students.lastName})`,
+        songName: orchestraSongs.name,
+      })
+      .from(orchestraProgress)
+      .innerJoin(students, eq(orchestraProgress.studentId, students.id))
+      .innerJoin(orchestraSongs, eq(orchestraProgress.songId, orchestraSongs.id))
+      .where(eq(orchestraSongs.teacherId, teacherId))
+      .orderBy(desc(orchestraProgress.completedAt));
+
+    return rows;
   }
 }
 

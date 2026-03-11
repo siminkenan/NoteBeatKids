@@ -8,7 +8,9 @@ Core features include:
 - **Rhythm Game**: Students tap along to rhythm patterns rendered via VexFlow music notation
 - **Note Detective**: Students identify musical notes displayed on a staff
 - **Level Map**: A visual progression map showing unlocked/completed levels and stars earned
-- **Teacher Dashboard**: Class management, student roster, QR code generation for class join codes, and progress charts
+- **Rhythm Orchestra Game**: Multi-lane falling-note rhythm game with 5 instrument lanes (Kick, Snare, Hi-Hat, Clap, Percussion). Songs uploaded by teachers; students play with Original or Kids Simplified rhythm modes. Metronome countdown before each game, real-time scoring (Perfect/Good/Miss ±100ms), body percussion action labels, and star ratings.
+- **Metronome**: Standalone BPM tool for teachers (40–208 BPM)
+- **Teacher Dashboard**: Class management, student roster, QR code generation, progress charts, and Orchestra Panel for song upload & performance tracking
 - **Admin Dashboard**: Institution management, per-slot individual teacher codes (QR + copy), teacher creation, license/subscription management, and platform-wide stats
 
 ---
@@ -59,13 +61,15 @@ Preferred communication style: Simple, everyday language.
 
 - **ORM**: Drizzle ORM with PostgreSQL dialect
 - **Database**: PostgreSQL (connection via `DATABASE_URL` environment variable)
-- **Schema** (`shared/schema.ts`): Five tables
+- **Schema** (`shared/schema.ts`): Seven tables
   - `admins` — platform superadmin accounts (email + bcrypt password)
   - `institutions` — schools/orgs with license dates, teacher/student limits
   - `teachers` — belong to an institution; email + bcrypt password
   - `classes` — belong to a teacher; have a unique 6-char `classCode`, optional expiry, max student cap
   - `students` — belong to a class; no password (identified by first name + last name + class code)
   - `student_progress` — tracks per-student progress per app type (`rhythm` or `notes`): level, stars, correct/wrong counts, time spent
+  - `orchestra_songs` — audio files uploaded by teachers (max 10/teacher); stores BPM, filename, and pre-generated rhythm patterns (JSON) for both Original and Kids Simplified modes
+  - `orchestra_progress` — records each student's orchestra game result (accuracy, perfect/good/miss counts, mode, lane mode)
 - **Validation**: Drizzle-Zod (`drizzle-zod`) generates Zod schemas from Drizzle table definitions
 - **Migrations**: Drizzle Kit (`drizzle-kit push` / `migrations/` directory)
 - **Storage abstraction**: `server/storage.ts` exports an `IStorage` interface and a concrete implementation that wraps all DB queries, keeping routes clean

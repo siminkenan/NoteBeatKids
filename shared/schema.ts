@@ -80,6 +80,32 @@ export const studentCodes = pgTable("student_codes", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const orchestraSongs = pgTable("orchestra_songs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teacherId: varchar("teacher_id").references(() => teachers.id).notNull(),
+  name: text("name").notNull(),
+  originalFilename: text("original_filename").notNull(),
+  storedFilename: text("stored_filename").notNull(),
+  bpm: integer("bpm").notNull().default(120),
+  durationSeconds: integer("duration_seconds").notNull().default(0),
+  rhythmPatternOriginal: text("rhythm_pattern_original").notNull().default("{}"),
+  rhythmPatternKids: text("rhythm_pattern_kids").notNull().default("{}"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const orchestraProgress = pgTable("orchestra_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").references(() => students.id).notNull(),
+  songId: varchar("song_id").references(() => orchestraSongs.id).notNull(),
+  mode: text("mode").notNull().default("original"),
+  laneMode: text("lane_mode").notNull().default("full"),
+  accuracy: integer("accuracy").notNull().default(0),
+  perfectCount: integer("perfect_count").notNull().default(0),
+  goodCount: integer("good_count").notNull().default(0),
+  missCount: integer("miss_count").notNull().default(0),
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+});
+
 export const insertInstitutionSchema = createInsertSchema(institutions).omit({ id: true, createdAt: true });
 export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true, createdAt: true }).extend({
   email: z.string().email().optional().nullable(),
@@ -102,6 +128,8 @@ export type StudentProgress = typeof studentProgress.$inferSelect;
 export type InsertProgress = z.infer<typeof insertProgressSchema>;
 export type TeacherCode = typeof teacherCodes.$inferSelect;
 export type StudentCode = typeof studentCodes.$inferSelect;
+export type OrchestraSong = typeof orchestraSongs.$inferSelect;
+export type OrchestraProgress = typeof orchestraProgress.$inferSelect;
 
 export type InsertUser = { username: string; password: string };
 export type User = { id: string; username: string; password: string };

@@ -207,28 +207,52 @@ export default function TeacherDashboard() {
         {/* Tools */}
         <div className="mb-8">
           <h3 className="text-xl font-extrabold text-foreground mb-4">Araçlar</h3>
-          <motion.button
-            data-testid="button-metronome"
-            className="flex items-center gap-4 p-4 rounded-2xl shadow-md w-full sm:w-auto text-left"
-            style={{
-              background: "linear-gradient(135deg, #c084fc 0%, #818cf8 100%)",
-              border: "3px solid rgba(255,255,255,0.4)",
-            }}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate("/metronome")}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center">
-              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" />
-            </div>
-            <div>
-              <p className="text-white font-extrabold text-lg leading-tight">Metronom</p>
-              <p className="text-white/80 text-sm font-semibold">Sınıfta tempo aracı</p>
-            </div>
-          </motion.button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <motion.button
+              data-testid="button-metronome"
+              className="flex items-center gap-4 p-4 rounded-2xl shadow-md flex-1 text-left"
+              style={{
+                background: "linear-gradient(135deg, #c084fc 0%, #818cf8 100%)",
+                border: "3px solid rgba(255,255,255,0.4)",
+              }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate("/metronome")}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center">
+                <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" />
+              </div>
+              <div>
+                <p className="text-white font-extrabold text-lg leading-tight">Metronom</p>
+                <p className="text-white/80 text-sm font-semibold">Sınıfta tempo aracı</p>
+              </div>
+            </motion.button>
 
+            <motion.button
+              data-testid="button-orchestra-panel"
+              className="flex items-center gap-4 p-4 rounded-2xl shadow-md flex-1 text-left"
+              style={{
+                background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                border: "3px solid rgba(255,255,255,0.4)",
+              }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate("/teacher/orchestra")}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center bg-white/20 rounded-2xl">
+                <span className="text-4xl">🎼</span>
+              </div>
+              <div>
+                <p className="text-white font-extrabold text-lg leading-tight">Ritim Orkestrası</p>
+                <p className="text-white/80 text-sm font-semibold">Şarkı yükle & performans izle</p>
+              </div>
+            </motion.button>
+          </div>
         </div>
 
         <div className="flex items-center justify-between mb-4">

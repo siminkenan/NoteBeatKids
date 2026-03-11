@@ -208,6 +208,36 @@ export default function StudentHome() {
             </div>
           </motion.button>
 
+          {/* Ritim Orkestrası */}
+          <motion.button
+            data-testid="button-orchestra-game"
+            className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
+            style={{
+              background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(124, 58, 237, 0.4)" }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/student/orchestra")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.45 }}
+          >
+            <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-5xl">🎼</span>
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold text-white">Ritim Orkestrası</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Çok şeritli ritim oyunu! Müzikle dans et.</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
+                  Çoklu Enstrüman
+                </div>
+                <div className="text-white/80 text-xs font-bold">Yeni 🆕</div>
+              </div>
+            </div>
+          </motion.button>
+
           {/* İlerleme Haritası */}
           <motion.button
             data-testid="button-level-map"

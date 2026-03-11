@@ -17,6 +17,8 @@ import LevelMap from "@/pages/level-map";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import Metronome from "@/pages/metronome";
+import RhythmOrchestra from "@/pages/rhythm-orchestra";
+import TeacherOrchestra from "@/pages/teacher-orchestra";
 
 function Router() {
   return (
@@ -25,11 +27,13 @@ function Router() {
       <Route path="/teacher/login" component={TeacherLogin} />
       <Route path="/teacher/dashboard" component={TeacherDashboard} />
       <Route path="/teacher/class/:classId" component={ClassDetail} />
+      <Route path="/teacher/orchestra" component={TeacherOrchestra} />
       <Route path="/student/login" component={StudentLogin} />
       <Route path="/student/home" component={StudentHome} />
       <Route path="/student/rhythm" component={RhythmGame} />
       <Route path="/student/notes" component={NoteDetective} />
       <Route path="/student/map" component={LevelMap} />
+      <Route path="/student/orchestra" component={RhythmOrchestra} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/metronome" component={Metronome} />
