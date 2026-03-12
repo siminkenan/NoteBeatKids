@@ -238,12 +238,20 @@ export default function RhythmGame() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const tapRafRef = useRef<number | null>(null);
   const tapTimesRef = useRef<number[]>([]);
-  const gameStartRef = useRef(0);
+  const gameStartRef = useRef(0);           // wall-clock ms when tapping phase starts
   const sessionStartRef = useRef(Date.now());
   const hitNoteIndicesRef = useRef<Set<number>>(new Set());
   const retryCountRef = useRef(0);
   const retryAutoStartRef = useRef(false);
   const levelPatternsRef = useRef<NoteData[][]>([]);
+  // AudioContext-time refs (seconds) used by the RAF loop as single source of truth
+  const acxAudioStartRef   = useRef(0); // when the first click fires
+  const acxListenEndRef    = useRef(0); // end of listen playback
+  const acxTapStartRef     = useRef(0); // when tapping begins
+  const acxTapEndRef       = useRef(0); // when tapping ends
+  const acxNoteStartsRef   = useRef<number[]>([]); // per-note start times (acx seconds)
+  // Always-current evaluateTaps ref to avoid stale closure in RAF
+  const evaluateTapsRef    = useRef<() => void>(() => {});
 
   const getAudioCtx = () => {
     if (!audioCtxRef.current || audioCtxRef.current.state === "closed") audioCtxRef.current = makeAudioCtx();
@@ -335,65 +343,110 @@ export default function RhythmGame() {
   const playPatternThenAutoTap = useCallback(() => {
     const ctx = getAudioCtx();
     const beatSec = 60 / bpm;
-    const beatMs = beatSec * 1000;
     const totalBeats = currentPattern.reduce((acc, n) => acc + (BEAT_VAL[n.duration] ?? 1), 0);
     const COUNT_IN = 4;
+
+    // ── Schedule all audio clicks ahead of time (WebAudio clock — perfectly accurate) ──
     const audioStart = ctx.currentTime + 0.05;
-    const totalClicksNeeded = Math.ceil(totalBeats) + COUNT_IN + Math.ceil(totalBeats) + 2;
-    for (let i = 0; i < totalClicksNeeded; i++) scheduleClick(ctx, audioStart + i * beatSec, i % 4 === 0);
+    const listenEnd  = audioStart + totalBeats * beatSec;
+    const tapStart   = listenEnd  + COUNT_IN  * beatSec;
+    const tapEnd     = tapStart   + totalBeats * beatSec + beatSec * 0.5;
 
-    const wallStart = Date.now() + (audioStart - ctx.currentTime) * 1000;
-    const listenEndWall = wallStart + totalBeats * beatMs;
-    const tapStartWall = listenEndWall + COUNT_IN * beatMs;
-    const tapEndWall = tapStartWall + totalBeats * beatMs;
-    gameStartRef.current = tapStartWall;
+    const totalClicks = Math.ceil(totalBeats) + COUNT_IN + Math.ceil(totalBeats) + 2;
+    for (let i = 0; i < totalClicks; i++) scheduleClick(ctx, audioStart + i * beatSec, i % 4 === 0);
 
-    let lastBeat = -1;
-    const updateBeat = () => {
-      const el = (Date.now() - wallStart) / 1000;
-      if (el >= 0) {
-        const beat = Math.floor(el / beatSec) % 4;
+    // Store scheduled times in refs so the RAF loop can read them
+    acxAudioStartRef.current = audioStart;
+    acxListenEndRef.current  = listenEnd;
+    acxTapStartRef.current   = tapStart;
+    acxTapEndRef.current     = tapEnd;
+
+    // Precompute each note's start time in AudioContext seconds
+    const noteStarts: number[] = [];
+    let offset = 0;
+    currentPattern.forEach(note => {
+      noteStarts.push(audioStart + offset);
+      offset += (BEAT_VAL[note.duration] ?? 1) * beatSec;
+    });
+    acxNoteStartsRef.current = noteStarts;
+
+    // Convert tapStart (AudioContext seconds) → wall-clock ms for handleTap
+    const wallOffset = Date.now() - ctx.currentTime * 1000;
+    gameStartRef.current = tapStart * 1000 + wallOffset;
+
+    tapTimesRef.current = []; hitNoteIndicesRef.current = new Set();
+    setHitNoteIndices(new Set()); setWrongTapMarkers([]);
+
+    // ── Single RAF loop — driven purely by ctx.currentTime ──
+    let lastBeat      = -1;
+    let lastNoteIdx   = -2; // -2 = uninitialised
+    let lastCountIn   = -1;
+    let didTapReady   = false;
+    let didTapping    = false;
+    let didResult     = false;
+
+    const rafLoop = () => {
+      const ct = ctx.currentTime;
+
+      // 1. Beat dots: quantise to quarter-beat grid using AudioContext time
+      if (ct >= audioStart) {
+        const beat = Math.floor((ct - audioStart) / beatSec) % 4;
         if (beat !== lastBeat) {
           lastBeat = beat;
-          beatDotsRef.current.forEach((el, i) => {
-            if (!el) return;
-            const isActive = i === beat;
-            const isAccent = i === 0;
-            el.style.transform = isActive ? "scale(1.3)" : "scale(1)";
-            el.style.background = isActive ? (isAccent ? "#7c3aed" : "#a78bfa") : "white";
-            el.style.color = isActive ? "white" : "#9ca3af";
-            el.style.borderColor = isAccent ? "#7c3aed" : "#c4b5fd";
-            el.style.boxShadow = isActive ? (isAccent ? "0 0 14px #7c3aed88" : "0 0 10px #a78bfa66") : "none";
+          beatDotsRef.current.forEach((dotEl, i) => {
+            if (!dotEl) return;
+            const isActive  = i === beat;
+            const isAccent  = i === 0;
+            dotEl.style.transform  = isActive ? "scale(1.3)" : "scale(1)";
+            dotEl.style.background = isActive ? (isAccent ? "#7c3aed" : "#a78bfa") : "white";
+            dotEl.style.color      = isActive ? "white" : "#9ca3af";
+            dotEl.style.borderColor = isAccent ? "#7c3aed" : "#c4b5fd";
+            dotEl.style.boxShadow  = isActive ? (isAccent ? "0 0 14px #7c3aed88" : "0 0 10px #a78bfa66") : "none";
           });
         }
       }
-      tapRafRef.current = requestAnimationFrame(updateBeat);
-    };
-    tapRafRef.current = requestAnimationFrame(updateBeat);
 
-    let elapsed = wallStart - Date.now();
-    currentPattern.forEach((note, i) => {
-      setTimeout(() => setHighlightIdx(i), Math.max(0, elapsed));
-      elapsed += (BEAT_VAL[note.duration] ?? 1) * beatMs;
-    });
-    setTimeout(() => setHighlightIdx(-1), listenEndWall - Date.now());
-    for (let b = 0; b < COUNT_IN; b++) {
-      setTimeout(() => setCountInRemaining(COUNT_IN - b), listenEndWall - Date.now() + b * beatMs);
-    }
-    setTimeout(() => setPhase("tap_ready"), listenEndWall - Date.now() + 10);
-    setTimeout(() => {
-      tapTimesRef.current = []; hitNoteIndicesRef.current = new Set();
-      setHitNoteIndices(new Set()); setWrongTapMarkers([]); setPhase("tapping");
-    }, tapStartWall - Date.now() + 10);
-    setTimeout(() => {
-      if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
-      beatDotsRef.current.forEach((el, i) => {
-        if (!el) return;
-        el.style.transform = "scale(1)"; el.style.background = "white";
-        el.style.color = "#9ca3af"; el.style.borderColor = i === 0 ? "#7c3aed" : "#c4b5fd"; el.style.boxShadow = "none";
-      });
-      setPhase("result"); evaluateTaps();
-    }, tapEndWall - Date.now() + beatMs * 0.5);
+      // 2. Note highlight: find the last note whose start time has passed
+      if (ct >= audioStart && ct < listenEnd) {
+        let noteIdx = -1;
+        for (let i = acxNoteStartsRef.current.length - 1; i >= 0; i--) {
+          if (ct >= acxNoteStartsRef.current[i]) { noteIdx = i; break; }
+        }
+        if (noteIdx !== lastNoteIdx) { lastNoteIdx = noteIdx; setHighlightIdx(noteIdx); }
+      } else if (ct >= listenEnd && lastNoteIdx !== -1) {
+        lastNoteIdx = -1; setHighlightIdx(-1);
+      }
+
+      // 3. Count-in display (beats remaining until tapping)
+      if (ct >= listenEnd && ct < tapStart) {
+        const elapsed  = ct - listenEnd;
+        const countVal = COUNT_IN - Math.floor(elapsed / beatSec);
+        const clamped  = Math.max(1, Math.min(COUNT_IN, countVal));
+        if (clamped !== lastCountIn) { lastCountIn = clamped; setCountInRemaining(clamped); }
+      }
+
+      // 4. Phase transitions (fired exactly once each)
+      if (!didTapReady && ct >= listenEnd) {
+        didTapReady = true; setPhase("tap_ready");
+      }
+      if (!didTapping && ct >= tapStart) {
+        didTapping = true; setPhase("tapping");
+      }
+      if (!didResult && ct >= tapEnd) {
+        didResult = true;
+        beatDotsRef.current.forEach((dotEl, i) => {
+          if (!dotEl) return;
+          dotEl.style.transform = "scale(1)"; dotEl.style.background = "white";
+          dotEl.style.color = "#9ca3af"; dotEl.style.borderColor = i === 0 ? "#7c3aed" : "#c4b5fd"; dotEl.style.boxShadow = "none";
+        });
+        setPhase("result");
+        evaluateTapsRef.current();
+        return; // ← stops the RAF loop
+      }
+
+      tapRafRef.current = requestAnimationFrame(rafLoop);
+    };
+    tapRafRef.current = requestAnimationFrame(rafLoop);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bpm, currentPattern]);
 
@@ -437,6 +490,8 @@ export default function RhythmGame() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getExpectedBeats, bpm, playSuccess, playFail]);
+  // Keep ref current so the RAF loop always calls the latest version
+  evaluateTapsRef.current = evaluateTaps;
 
   const handleTap = useCallback(() => {
     if (phase !== "tapping") return;
