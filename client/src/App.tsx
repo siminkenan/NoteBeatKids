@@ -23,7 +23,8 @@ import DrumKit from "@/pages/drum-kit";
 import AmbientSound from "@/components/ambient-sound";
 
 // Pages where ambient background sound should be active
-const AMBIENT_PATHS = ["/", "/teacher", "/student"];
+// Student section excluded — ambient sound conflicts with educational game audio
+const AMBIENT_PATHS = ["/", "/teacher"];
 function useAmbientActive() {
   const [location] = useLocation();
   return AMBIENT_PATHS.some(p => location === p || location.startsWith(p + "/"));
