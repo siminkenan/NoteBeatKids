@@ -928,28 +928,51 @@ export default function RhythmGame() {
             })()}
           </div>
 
-          {/* Panel 3: Vurma — below the rhythm pattern */}
+          {/* Panel 3: Vurma / Sonraki — below the rhythm pattern */}
           <div className={`rounded-2xl border-2 transition-colors duration-300 ${
-            phase === "tapping" ? "border-green-300 bg-green-50" : "border-gray-200 bg-gray-50/40 opacity-40"
+            phase === "tapping" ? "border-green-300 bg-green-50"
+            : phase === "result" && !retryPending && feedback?.correct ? "border-green-300 bg-green-50"
+            : phase === "result" && !retryPending ? "border-orange-300 bg-orange-50"
+            : "border-gray-200 bg-gray-50/40 opacity-40"
           }`}>
             <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-              <span className={`w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center ${phase === "tapping" ? "bg-green-500" : "bg-gray-300"}`}>3</span>
-              <p className="text-xs font-extrabold text-green-600 uppercase tracking-widest">Vurma</p>
+              <span className={`w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center ${phase === "tapping" ? "bg-green-500" : phase === "result" && !retryPending ? (feedback?.correct ? "bg-green-500" : "bg-orange-400") : "bg-gray-300"}`}>3</span>
+              <p className={`text-xs font-extrabold uppercase tracking-widest ${phase === "result" && !retryPending ? (feedback?.correct ? "text-green-600" : "text-orange-500") : "text-green-600"}`}>
+                {phase === "result" && !retryPending ? (feedback?.correct ? "Mükemmel! 🎉" : "Olmadı!") : "Vurma"}
+              </p>
             </div>
             <div className="px-4 pb-4">
-              <motion.button data-testid="button-tap"
-                className={`w-full py-10 rounded-2xl text-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 transition-all ${
-                  phase === "tapping" ? "text-white shadow-2xl cursor-pointer" : "text-gray-300 bg-gray-100 cursor-not-allowed"
-                }`}
-                style={phase === "tapping" ? { background: "linear-gradient(135deg, #16a34a, #15803d)", border: "4px solid rgba(255,255,255,0.4)" } : {}}
-                animate={phase === "tapping" ? { boxShadow: ["0 0 0 0 rgba(22,163,74,0.6)", "0 0 0 18px rgba(22,163,74,0)", "0 0 0 0 rgba(22,163,74,0)"] } : {}}
-                transition={{ duration: beatMs / 1000, repeat: phase === "tapping" ? Infinity : 0 }}
-                onPointerDown={phase === "tapping" ? handleTap : undefined}
-                disabled={phase !== "tapping"}>
-                <span className="text-6xl">🥁</span>
-                <span>{phase === "tapping" ? "DOKUN!" : "Bekliyor…"}</span>
-                {phase === "tapping" && <span className="text-green-200 text-xs font-semibold">Boşluk tuşu da çalışır</span>}
-              </motion.button>
+              <AnimatePresence mode="wait">
+                {phase === "result" && !retryPending ? (
+                  <motion.button key="next" data-testid="button-next"
+                    className="w-full py-10 rounded-2xl text-2xl font-extrabold text-white shadow-2xl cursor-pointer flex flex-col items-center justify-center gap-1.5"
+                    style={{ background: feedback?.correct ? "linear-gradient(135deg, #22c55e, #16a34a)" : "linear-gradient(135deg, #f97316, #ea580c)" }}
+                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    onClick={nextExercise}>
+                    <span className="text-5xl">{feedback?.correct ? "🏆" : "➡️"}</span>
+                    <span>
+                      {exerciseIdx + 1 >= PATTERNS_PER_LEVEL
+                        ? (feedback?.correct ? "Seviye Tamamla!" : "Sonuçları Gör")
+                        : `Sonraki (${exerciseIdx + 2}/${PATTERNS_PER_LEVEL})`}
+                    </span>
+                  </motion.button>
+                ) : (
+                  <motion.button key="tap" data-testid="button-tap"
+                    className={`w-full py-10 rounded-2xl text-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 transition-all ${
+                      phase === "tapping" ? "text-white shadow-2xl cursor-pointer" : "text-gray-300 bg-gray-100 cursor-not-allowed"
+                    }`}
+                    style={phase === "tapping" ? { background: "linear-gradient(135deg, #16a34a, #15803d)", border: "4px solid rgba(255,255,255,0.4)" } : {}}
+                    animate={phase === "tapping" ? { boxShadow: ["0 0 0 0 rgba(22,163,74,0.6)", "0 0 0 18px rgba(22,163,74,0)", "0 0 0 0 rgba(22,163,74,0)"] } : {}}
+                    transition={{ duration: beatMs / 1000, repeat: phase === "tapping" ? Infinity : 0 }}
+                    onPointerDown={phase === "tapping" ? handleTap : undefined}
+                    disabled={phase !== "tapping"}>
+                    <span className="text-6xl">🥁</span>
+                    <span>{phase === "tapping" ? "DOKUN!" : "Bekliyor…"}</span>
+                    {phase === "tapping" && <span className="text-green-200 text-xs font-semibold">Boşluk tuşu da çalışır</span>}
+                  </motion.button>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -978,22 +1001,6 @@ export default function RhythmGame() {
 
         {/* ── RIGHT column ── */}
         <div className="flex flex-col gap-3">
-
-          {/* Next button */}
-          {phase === "result" && !retryPending && (
-            <motion.button data-testid="button-next"
-              className="w-full py-5 rounded-3xl text-lg font-extrabold text-white shadow-xl cursor-pointer flex items-center justify-center gap-2"
-              style={{ background: feedback?.correct ? "linear-gradient(135deg, #22c55e, #16a34a)" : "linear-gradient(135deg, #f97316, #ea580c)" }}
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-              onClick={nextExercise}>
-              {exerciseIdx + 1 >= PATTERNS_PER_LEVEL ? (
-                feedback?.correct ? "Seviye Tamamla! 🏆" : "Sonuçları Gör →"
-              ) : (
-                <>Sonraki <span className="text-sm opacity-75">({exerciseIdx + 2}/{PATTERNS_PER_LEVEL})</span></>
-              )}
-            </motion.button>
-          )}
 
           {/* Star progress to next badge */}
           <div className="bg-white/60 rounded-2xl p-3 shadow-sm">
