@@ -208,9 +208,9 @@ export default function StudentHome() {
             </div>
           </motion.button>
 
-          {/* Ritim Orkestrası */}
+          {/* Maestro */}
           <motion.button
-            data-testid="button-orchestra-game"
+            data-testid="button-maestro-game"
             className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
             style={{
               background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
@@ -224,16 +224,16 @@ export default function StudentHome() {
             transition={{ delay: 0.45 }}
           >
             <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <span className="text-5xl">🎼</span>
+              <span className="text-5xl">🎬</span>
             </div>
             <div>
-              <h2 className="text-2xl font-extrabold text-white">Ritim Orkestrası</h2>
-              <p className="text-white/85 font-bold text-sm mt-1">Çok şeritli ritim oyunu! Müzikle dans et.</p>
+              <h2 className="text-2xl font-extrabold text-white">Maestro</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Öğretmen videoları & fotoğrafları izle!</p>
               <div className="flex items-center gap-2 mt-2">
                 <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
-                  Çoklu Enstrüman
+                  Video &amp; Fotoğraf
                 </div>
-                <div className="text-white/80 text-xs font-bold">Yeni 🆕</div>
+                <div className="text-white/80 text-xs font-bold">Öğretmen 🎬</div>
               </div>
             </div>
           </motion.button>

@@ -245,11 +245,11 @@ export default function TeacherDashboard() {
               transition={{ delay: 0.1 }}
             >
               <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center bg-white/20 rounded-2xl">
-                <span className="text-4xl">🎼</span>
+                <span className="text-4xl">🎬</span>
               </div>
               <div>
-                <p className="text-white font-extrabold text-lg leading-tight">Ritim Orkestrası</p>
-                <p className="text-white/80 text-sm font-semibold">Şarkı yükle & performans izle</p>
+                <p className="text-white font-extrabold text-lg leading-tight">Maestro</p>
+                <p className="text-white/80 text-sm font-semibold">Video & fotoğraf ödev yükle</p>
               </div>
             </motion.button>
           </div>
