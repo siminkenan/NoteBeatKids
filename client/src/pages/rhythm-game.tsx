@@ -221,7 +221,7 @@ export default function RhythmGame() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [countdown, setCountdown] = useState(3);
   const [highlightIdx, setHighlightIdx] = useState(-1);
-  const [currentBeat, setCurrentBeat] = useState(-1);
+  const beatDotsRef = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
   const [feedback, setFeedback] = useState<{ correct: boolean; accuracy: number; hits: number; total: number } | null>(null);
   const [totalStars, setTotalStars] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
@@ -298,7 +298,14 @@ export default function RhythmGame() {
 
   const stopMetronome = useCallback(() => {
     if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
-    setCurrentBeat(-1);
+    beatDotsRef.current.forEach((el, i) => {
+      if (!el) return;
+      el.style.transform = "scale(1)";
+      el.style.background = "white";
+      el.style.color = "#c4b5fd";
+      el.style.borderColor = i === 0 ? "#7c3aed" : "#c4b5fd";
+      el.style.boxShadow = "none";
+    });
   }, []);
 
   const getExpectedBeatNotes = useCallback(() => {
@@ -344,9 +351,25 @@ export default function RhythmGame() {
     const tapEndWall = tapStartWall + totalBeats * beatMs;
     gameStartRef.current = tapStartWall;
 
+    let lastBeat = -1;
     const updateBeat = () => {
       const el = (Date.now() - wallStart) / 1000;
-      if (el >= 0) setCurrentBeat(Math.floor(el / beatSec) % 4);
+      if (el >= 0) {
+        const beat = Math.floor(el / beatSec) % 4;
+        if (beat !== lastBeat) {
+          lastBeat = beat;
+          beatDotsRef.current.forEach((el, i) => {
+            if (!el) return;
+            const isActive = i === beat;
+            const isAccent = i === 0;
+            el.style.transform = isActive ? "scale(1.3)" : "scale(1)";
+            el.style.background = isActive ? (isAccent ? "#7c3aed" : "#a78bfa") : "white";
+            el.style.color = isActive ? "white" : "#c4b5fd";
+            el.style.borderColor = isAccent ? "#7c3aed" : "#c4b5fd";
+            el.style.boxShadow = isActive ? (isAccent ? "0 0 14px #7c3aed88" : "0 0 10px #a78bfa66") : "none";
+          });
+        }
+      }
       tapRafRef.current = requestAnimationFrame(updateBeat);
     };
     tapRafRef.current = requestAnimationFrame(updateBeat);
@@ -740,7 +763,7 @@ export default function RhythmGame() {
             <div className="flex justify-center overflow-x-auto">
               <VexFlowRenderer
                 notes={currentPattern}
-                width={480} height={110}
+                width={480} height={150}
                 showClef showTimeSignature
                 highlightIndex={highlightIdx}
                 hitIndices={hitNoteIndices}
@@ -783,26 +806,27 @@ export default function RhythmGame() {
             })()}
           </div>
 
-          {/* ── Row 3: 4/4 Beat counter ── */}
+          {/* ── Row 3: 4/4 Beat counter — direct DOM refs for zero-lag sync ── */}
           <div className={`rounded-2xl px-4 py-2.5 transition-colors duration-300 ${
             phase === "listening" || phase === "tap_ready" || phase === "tapping" ? "bg-purple-50 border-2 border-purple-200" : "bg-white/60 border-2 border-gray-100"
           }`}>
             <p className="text-[10px] font-extrabold text-purple-400 uppercase tracking-widest mb-2 text-center">4/4 Sayma</p>
             <div className="flex justify-center gap-3">
               {[0, 1, 2, 3].map(beat => (
-                <motion.div key={beat}
-                  className="w-14 h-14 rounded-2xl border-2 flex flex-col items-center justify-center font-extrabold"
+                <div
+                  key={beat}
+                  ref={el => { beatDotsRef.current[beat] = el; }}
+                  className="w-14 h-14 rounded-2xl border-2 flex flex-col items-center justify-center font-extrabold select-none"
                   style={{
                     borderColor: beat === 0 ? "#7c3aed" : "#c4b5fd",
-                    background: currentBeat === beat && (phase === "tapping" || phase === "listening" || phase === "tap_ready")
-                      ? beat === 0 ? "#7c3aed" : "#a78bfa" : "white",
-                    color: currentBeat === beat && (phase === "tapping" || phase === "listening" || phase === "tap_ready") ? "white" : "#c4b5fd",
-                  }}
-                  animate={currentBeat === beat && (phase === "tapping" || phase === "listening" || phase === "tap_ready") ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-                  transition={{ duration: beatMs / 1000, ease: "easeOut" }}>
+                    background: "white",
+                    color: "#c4b5fd",
+                    transition: "transform 0.06s ease-out, background 0.06s, box-shadow 0.06s",
+                    willChange: "transform",
+                  }}>
                   <span className="text-xl leading-none">{beat + 1}</span>
                   {beat === 0 && <span className="text-[8px] opacity-60 mt-0.5">GÜÇLÜ</span>}
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>

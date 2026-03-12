@@ -42,7 +42,7 @@ export function VexFlowRenderer({
       context.setFont("Arial", 10);
 
       const staveX = 10;
-      const staveY = 20;
+      const staveY = 28;          // extra top margin so notes/stems don't clip
       const staveWidth = width - 20;
 
       const stave = new Stave(staveX, staveY, staveWidth);
@@ -99,7 +99,7 @@ export function VexFlowRenderer({
     <div
       ref={containerRef}
       className="vexflow-container"
-      style={{ width, minHeight: height, overflow: "visible" }}
+      style={{ width, height, overflow: "visible", flexShrink: 0 }}
     />
   );
 }
