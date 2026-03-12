@@ -106,6 +106,27 @@ export const orchestraProgress = pgTable("orchestra_progress", {
   completedAt: timestamp("completed_at").defaultNow().notNull(),
 });
 
+export const maestroResources = pgTable("maestro_resources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teacherId: varchar("teacher_id").references(() => teachers.id).notNull(),
+  type: text("type").notNull(), // "video" | "photo"
+  title: text("title").notNull().default(""),
+  originalFilename: text("original_filename").notNull(),
+  storedFilename: text("stored_filename").notNull(),
+  durationSeconds: integer("duration_seconds").notNull().default(0),
+  fileSize: integer("file_size").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const maestroViewProgress = pgTable("maestro_view_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").references(() => students.id).notNull(),
+  resourceId: varchar("resource_id").references(() => maestroResources.id).notNull(),
+  watchedSeconds: integer("watched_seconds").notNull().default(0),
+  completed: boolean("completed").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertInstitutionSchema = createInsertSchema(institutions).omit({ id: true, createdAt: true });
 export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true, createdAt: true }).extend({
   email: z.string().email().optional().nullable(),
@@ -130,6 +151,9 @@ export type TeacherCode = typeof teacherCodes.$inferSelect;
 export type StudentCode = typeof studentCodes.$inferSelect;
 export type OrchestraSong = typeof orchestraSongs.$inferSelect;
 export type OrchestraProgress = typeof orchestraProgress.$inferSelect;
+
+export type MaestroResource = typeof maestroResources.$inferSelect;
+export type MaestroViewProgress = typeof maestroViewProgress.$inferSelect;
 
 export type InsertUser = { username: string; password: string };
 export type User = { id: string; username: string; password: string };

@@ -22,6 +22,18 @@ const upload = multer({
   },
 });
 
+const maestroUpload = multer({
+  dest: uploadsDir,
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB for videos
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("video/") || file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only video and image files are allowed"));
+    }
+  },
+});
+
 function generateRhythmPattern(bpm: number) {
   const original = {
     kick:  [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
@@ -569,6 +581,134 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       goodCount: goodCount || 0,
       missCount: missCount || 0,
     });
+    res.json(prog);
+  });
+
+  // ── Maestro Routes ───────────────────────────────────────────────────────────
+
+  // Serve Maestro files (video/photo)
+  app.get("/api/maestro/file/:filename", (req: Request, res: Response) => {
+    const filepath = path.join(uploadsDir, req.params.filename);
+    if (!fs.existsSync(filepath)) return res.status(404).json({ message: "File not found" });
+    res.sendFile(filepath);
+  });
+
+  // Teacher: upload video (max 3, max 197s = 3m17s — duration validated client-side)
+  app.post("/api/teacher/maestro/videos", maestroUpload.single("video"), async (req: Request, res: Response) => {
+    try {
+      const teacherId = (req.session as any).teacherId;
+      if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+      if (!req.file) return res.status(400).json({ message: "No video file provided" });
+
+      const count = await storage.countMaestroVideosByTeacher(teacherId);
+      if (count >= 3) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ message: "Video limiti doldu. Yeni video eklemek için mevcut bir videoyu silin." });
+      }
+
+      const durationSeconds = parseInt(req.body.durationSeconds) || 0;
+      if (durationSeconds > 197) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ message: "Video süresi 3:17 (197 sn) sınırını aşıyor." });
+      }
+
+      const resource = await storage.createMaestroResource({
+        teacherId,
+        type: "video",
+        title: (req.body.title || req.file.originalname.replace(/\.[^.]+$/, "")).trim(),
+        originalFilename: req.file.originalname,
+        storedFilename: req.file.filename,
+        durationSeconds,
+        fileSize: req.file.size,
+      });
+
+      res.json(resource);
+    } catch (err: any) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Teacher: upload photo (no limit on count)
+  app.post("/api/teacher/maestro/photos", maestroUpload.single("photo"), async (req: Request, res: Response) => {
+    try {
+      const teacherId = (req.session as any).teacherId;
+      if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+      if (!req.file) return res.status(400).json({ message: "No photo file provided" });
+
+      const resource = await storage.createMaestroResource({
+        teacherId,
+        type: "photo",
+        title: (req.body.title || req.file.originalname.replace(/\.[^.]+$/, "")).trim(),
+        originalFilename: req.file.originalname,
+        storedFilename: req.file.filename,
+        durationSeconds: 0,
+        fileSize: req.file.size,
+      });
+
+      res.json(resource);
+    } catch (err: any) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Teacher: list all resources
+  app.get("/api/teacher/maestro/resources", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const resources = await storage.getMaestroResourcesByTeacher(teacherId);
+    res.json(resources);
+  });
+
+  // Teacher: delete resource
+  app.delete("/api/teacher/maestro/resources/:id", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const resource = await storage.getMaestroResource(req.params.id);
+    if (!resource) return res.status(404).json({ message: "Resource not found" });
+    if (resource.teacherId !== teacherId) return res.status(403).json({ message: "Not authorized" });
+    const filepath = path.join(uploadsDir, resource.storedFilename);
+    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+    await storage.deleteMaestroResource(req.params.id);
+    res.json({ ok: true });
+  });
+
+  // Teacher: watch report
+  app.get("/api/teacher/maestro/watch-report", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const data = await storage.getMaestroViewProgressByTeacher(teacherId);
+    res.json(data);
+  });
+
+  // Student: get resources for their class
+  app.get("/api/student/:studentId/maestro/resources", async (req: Request, res: Response) => {
+    const student = await storage.getStudent(req.params.studentId);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    const resources = await storage.getMaestroResourcesByClass(student.classId);
+    res.json(resources);
+  });
+
+  // Student: update watch progress
+  app.post("/api/student/:studentId/maestro/progress", async (req: Request, res: Response) => {
+    const student = await storage.getStudent(req.params.studentId);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    const { resourceId, watchedSeconds, completed } = req.body;
+    if (!resourceId) return res.status(400).json({ message: "resourceId required" });
+    const prog = await storage.upsertMaestroViewProgress(
+      req.params.studentId, resourceId,
+      Math.round(watchedSeconds) || 0,
+      !!completed,
+    );
+    res.json(prog);
+  });
+
+  // Student: get own watch progress
+  app.get("/api/student/:studentId/maestro/progress", async (req: Request, res: Response) => {
+    const student = await storage.getStudent(req.params.studentId);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    const prog = await storage.getMaestroViewProgressByStudent(req.params.studentId);
     res.json(prog);
   });
 

@@ -2,7 +2,7 @@ import { eq, and, sql, desc } from "drizzle-orm";
 import { db } from "./db";
 import {
   institutions, admins, teachers, classes, students, studentProgress, teacherCodes, studentCodes,
-  orchestraSongs, orchestraProgress,
+  orchestraSongs, orchestraProgress, maestroResources, maestroViewProgress,
   type Institution, type InsertInstitution,
   type Admin, type Teacher, type InsertTeacher,
   type Class, type InsertClass,
@@ -10,6 +10,7 @@ import {
   type StudentProgress, type InsertProgress,
   type TeacherCode, type StudentCode,
   type OrchestraSong, type OrchestraProgress,
+  type MaestroResource, type MaestroViewProgress,
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
@@ -99,6 +100,17 @@ export interface IStorage {
   createOrchestraProgress(data: Omit<OrchestraProgress, "id" | "completedAt">): Promise<OrchestraProgress>;
   getOrchestraProgressByStudent(studentId: string): Promise<OrchestraProgress[]>;
   getOrchestraProgressByTeacher(teacherId: string): Promise<Array<OrchestraProgress & { studentName: string; songName: string }>>;
+  // Maestro Resources
+  createMaestroResource(data: Omit<MaestroResource, "id" | "createdAt">): Promise<MaestroResource>;
+  getMaestroResourcesByTeacher(teacherId: string): Promise<MaestroResource[]>;
+  getMaestroResourcesByClass(classId: string): Promise<MaestroResource[]>;
+  getMaestroResource(id: string): Promise<MaestroResource | undefined>;
+  deleteMaestroResource(id: string): Promise<void>;
+  countMaestroVideosByTeacher(teacherId: string): Promise<number>;
+  // Maestro View Progress
+  upsertMaestroViewProgress(studentId: string, resourceId: string, watchedSeconds: number, completed: boolean): Promise<MaestroViewProgress>;
+  getMaestroViewProgressByTeacher(teacherId: string): Promise<Array<{ resourceId: string; resourceTitle: string; studentId: string; studentName: string; watchedSeconds: number; completed: boolean; durationSeconds: number }>>;
+  getMaestroViewProgressByStudent(studentId: string): Promise<MaestroViewProgress[]>;
   // Seed
   seedData(): Promise<void>;
 }
@@ -675,6 +687,87 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(orchestraProgress.completedAt));
 
     return rows;
+  }
+
+  // ── Maestro Resources ──────────────────────────────────────────────────────
+  async createMaestroResource(data: Omit<MaestroResource, "id" | "createdAt">): Promise<MaestroResource> {
+    const [r] = await db.insert(maestroResources).values(data).returning();
+    return r;
+  }
+
+  async getMaestroResourcesByTeacher(teacherId: string): Promise<MaestroResource[]> {
+    return db.select().from(maestroResources)
+      .where(eq(maestroResources.teacherId, teacherId))
+      .orderBy(maestroResources.createdAt);
+  }
+
+  async getMaestroResourcesByClass(classId: string): Promise<MaestroResource[]> {
+    const cls = await db.select().from(classes).where(eq(classes.id, classId)).limit(1);
+    if (!cls[0]) return [];
+    return this.getMaestroResourcesByTeacher(cls[0].teacherId);
+  }
+
+  async getMaestroResource(id: string): Promise<MaestroResource | undefined> {
+    const [r] = await db.select().from(maestroResources).where(eq(maestroResources.id, id)).limit(1);
+    return r;
+  }
+
+  async deleteMaestroResource(id: string): Promise<void> {
+    await db.delete(maestroViewProgress).where(eq(maestroViewProgress.resourceId, id));
+    await db.delete(maestroResources).where(eq(maestroResources.id, id));
+  }
+
+  async countMaestroVideosByTeacher(teacherId: string): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`count(*)` })
+      .from(maestroResources)
+      .where(and(eq(maestroResources.teacherId, teacherId), eq(maestroResources.type, "video")));
+    return Number(row?.count ?? 0);
+  }
+
+  // ── Maestro View Progress ──────────────────────────────────────────────────
+  async upsertMaestroViewProgress(studentId: string, resourceId: string, watchedSeconds: number, completed: boolean): Promise<MaestroViewProgress> {
+    const existing = await db.select().from(maestroViewProgress)
+      .where(and(eq(maestroViewProgress.studentId, studentId), eq(maestroViewProgress.resourceId, resourceId)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const newWatched = Math.max(existing[0].watchedSeconds, watchedSeconds);
+      const newCompleted = existing[0].completed || completed;
+      const [updated] = await db.update(maestroViewProgress)
+        .set({ watchedSeconds: newWatched, completed: newCompleted, updatedAt: new Date() })
+        .where(eq(maestroViewProgress.id, existing[0].id))
+        .returning();
+      return updated;
+    } else {
+      const [inserted] = await db.insert(maestroViewProgress)
+        .values({ studentId, resourceId, watchedSeconds, completed })
+        .returning();
+      return inserted;
+    }
+  }
+
+  async getMaestroViewProgressByTeacher(teacherId: string): Promise<Array<{ resourceId: string; resourceTitle: string; studentId: string; studentName: string; watchedSeconds: number; completed: boolean; durationSeconds: number }>> {
+    const rows = await db
+      .select({
+        resourceId: maestroResources.id,
+        resourceTitle: maestroResources.title,
+        durationSeconds: maestroResources.durationSeconds,
+        studentId: students.id,
+        studentName: sql<string>`concat(${students.firstName}, ' ', ${students.lastName})`,
+        watchedSeconds: maestroViewProgress.watchedSeconds,
+        completed: maestroViewProgress.completed,
+      })
+      .from(maestroViewProgress)
+      .innerJoin(maestroResources, eq(maestroViewProgress.resourceId, maestroResources.id))
+      .innerJoin(students, eq(maestroViewProgress.studentId, students.id))
+      .where(eq(maestroResources.teacherId, teacherId))
+      .orderBy(maestroResources.createdAt, students.firstName);
+    return rows;
+  }
+
+  async getMaestroViewProgressByStudent(studentId: string): Promise<MaestroViewProgress[]> {
+    return db.select().from(maestroViewProgress)
+      .where(eq(maestroViewProgress.studentId, studentId));
   }
 }
 
