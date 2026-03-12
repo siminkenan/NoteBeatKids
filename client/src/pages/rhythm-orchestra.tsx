@@ -29,14 +29,14 @@ export default function RhythmOrchestra() {
 
   const { data: resources = [] } = useQuery<MaestroResource[]>({
     queryKey: ["/api/student", studentId, "maestro/resources"],
-    queryFn: () => fetch(`/api/student/${studentId}/maestro/resources`).then(r => r.json()),
+    queryFn: () => fetch(`/api/student/${studentId}/maestro/resources`, { credentials: "include" }).then(r => r.json()),
     enabled: !!studentId,
     staleTime: 0,
   });
 
   const { data: myProgress = [], refetch: refetchProgress } = useQuery<MaestroViewProgress[]>({
     queryKey: ["/api/student", studentId, "maestro/progress"],
-    queryFn: () => fetch(`/api/student/${studentId}/maestro/progress`).then(r => r.json()),
+    queryFn: () => fetch(`/api/student/${studentId}/maestro/progress`, { credentials: "include" }).then(r => r.json()),
     enabled: !!studentId,
     staleTime: 0,
   });
@@ -54,6 +54,7 @@ export default function RhythmOrchestra() {
         await fetch(`/api/student/${studentId}/maestro/progress`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ resourceId, watchedSeconds, completed }),
         });
         refetchProgress();
