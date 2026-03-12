@@ -390,7 +390,12 @@ export default function RhythmGame() {
     }, tapStartWall - Date.now() + 10);
     setTimeout(() => {
       if (tapRafRef.current) { cancelAnimationFrame(tapRafRef.current); tapRafRef.current = null; }
-      setCurrentBeat(-1); setPhase("result"); evaluateTaps();
+      beatDotsRef.current.forEach((el, i) => {
+        if (!el) return;
+        el.style.transform = "scale(1)"; el.style.background = "white";
+        el.style.color = "#c4b5fd"; el.style.borderColor = i === 0 ? "#7c3aed" : "#c4b5fd"; el.style.boxShadow = "none";
+      });
+      setPhase("result"); evaluateTaps();
     }, tapEndWall - Date.now() + beatMs * 0.5);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bpm, currentPattern]);
