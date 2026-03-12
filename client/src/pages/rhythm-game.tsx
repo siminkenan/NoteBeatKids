@@ -929,15 +929,15 @@ export default function RhythmGame() {
           </div>
 
           {/* VexFlow notation */}
-          <div className="bg-white rounded-3xl p-4 shadow-md">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-extrabold text-purple-400 uppercase tracking-widest">Ritim Kalıbı</p>
-              <p className="text-xs font-bold text-muted-foreground">{meta.desc}</p>
+          <div className="bg-white rounded-3xl p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-extrabold text-purple-500 uppercase tracking-widest">🎼 Ritim Kalıbı</p>
+              <p className="text-sm font-semibold text-muted-foreground">{meta.desc}</p>
             </div>
             <div className="flex justify-center overflow-x-auto">
               <VexFlowRenderer
                 notes={currentPattern}
-                width={460} height={150}
+                width={580} height={200}
                 showClef showTimeSignature
                 highlightIndex={highlightIdx}
                 hitIndices={hitNoteIndices}

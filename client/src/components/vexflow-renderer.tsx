@@ -42,7 +42,7 @@ export function VexFlowRenderer({
       context.setFont("Arial", 10);
 
       const staveX = 10;
-      const staveY = 28;          // extra top margin so notes/stems don't clip
+      const staveY = Math.round(height * 0.18); // proportional top margin (≈18% of height)
       const staveWidth = width - 20;
 
       const stave = new Stave(staveX, staveY, staveWidth);
