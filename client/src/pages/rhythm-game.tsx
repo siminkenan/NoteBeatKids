@@ -443,8 +443,11 @@ export default function RhythmGame() {
 
   const handleTap = useCallback(() => {
     if (phase !== "tapping") return;
-    const t = Date.now() - gameStartRef.current;
-    if (t < 0) return;
+    const raw = Date.now() - gameStartRef.current;
+    // Allow taps up to half a beat early (setTimeout imprecision) — clamp to 0
+    const halfBeat = (60 / bpm) * 1000 * 0.5;
+    if (raw < -halfBeat) return;
+    const t = Math.max(0, raw);
     tapTimesRef.current.push(t);
     playDrumHit(getAudioCtx());
     const beatNotes = getExpectedBeatNotes();
@@ -560,9 +563,10 @@ export default function RhythmGame() {
     <div className="min-h-screen select-none flex flex-col"
       style={{ background: "linear-gradient(160deg, #fdf4ff 0%, #ede9fe 50%, #ddd6fe 100%)" }}>
 
-      {/* ── Header ── */}
-      <header className="bg-white/80 backdrop-blur border-b border-purple-100 sticky top-0 z-50">
-        <div className="max-w-xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
+      {/* ── Header (2-row sticky) ── */}
+      <header className="bg-white/90 backdrop-blur border-b border-purple-100 sticky top-0 z-50">
+        {/* Row 1: Back | Title */}
+        <div className="max-w-xl mx-auto px-3 pt-2 pb-1 flex items-center justify-between">
           <Button variant="ghost" size="sm"
             onClick={() => { stopMetronome(); navigate("/student/home"); }}
             className="gap-1 rounded-xl font-bold text-purple-700 shrink-0" data-testid="btn-back">
@@ -572,19 +576,40 @@ export default function RhythmGame() {
             <span className="text-xl">🥁</span>
             <h1 className="font-extrabold text-base text-purple-700">Ritim Antrenörü</h1>
           </div>
-          {/* Top-right: badge path + stars */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Badge path mini display */}
-            <div className="flex items-center gap-0.5 bg-purple-50 border border-purple-200 rounded-full px-2 py-1">
-              {(["bronze", "silver", "gold"] as const).map(b => (
-                <span key={b} className="text-sm leading-none"
-                  style={{ filter: BADGE_ORDER.indexOf(badge) >= BADGE_ORDER.indexOf(b) ? "none" : "grayscale(1) opacity(0.3)" }}
-                  title={BADGE_TR[b]}>
-                  {BADGE_EMOJI[b]}
-                </span>
-              ))}
-              <span className="text-[10px] font-extrabold text-purple-600 ml-1">{totalStars}/30⭐</span>
-            </div>
+          <div className="w-16" />
+        </div>
+        {/* Row 2: Beat counter (left) | Badge path (right) */}
+        <div className="max-w-xl mx-auto px-3 pb-2 flex items-center justify-between gap-2">
+          {/* Beat counter — direct DOM refs */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-extrabold text-purple-400 uppercase tracking-widest mr-0.5">4/4</span>
+            {[0, 1, 2, 3].map(beat => (
+              <div
+                key={beat}
+                ref={el => { beatDotsRef.current[beat] = el; }}
+                className="w-9 h-9 rounded-xl border-2 flex flex-col items-center justify-center font-extrabold select-none"
+                style={{
+                  borderColor: beat === 0 ? "#7c3aed" : "#c4b5fd",
+                  background: "white",
+                  color: "#c4b5fd",
+                  fontSize: beat === 0 ? "14px" : "13px",
+                  transition: "transform 0.06s ease-out, background 0.06s, box-shadow 0.06s",
+                  willChange: "transform",
+                }}>
+                {beat + 1}
+              </div>
+            ))}
+          </div>
+          {/* Badge path + stars */}
+          <div className="flex items-center gap-0.5 bg-purple-50 border border-purple-200 rounded-full px-2.5 py-1">
+            {(["bronze", "silver", "gold"] as const).map(b => (
+              <span key={b} className="text-sm leading-none"
+                style={{ filter: BADGE_ORDER.indexOf(badge) >= BADGE_ORDER.indexOf(b) ? "none" : "grayscale(1) opacity(0.3)" }}
+                title={BADGE_TR[b]}>
+                {BADGE_EMOJI[b]}
+              </span>
+            ))}
+            <span className="text-[10px] font-extrabold text-purple-600 ml-1" data-testid="text-stars">{totalStars}/30⭐</span>
           </div>
         </div>
       </header>
@@ -811,32 +836,7 @@ export default function RhythmGame() {
             })()}
           </div>
 
-          {/* ── Row 3: 4/4 Beat counter — direct DOM refs for zero-lag sync ── */}
-          <div className={`rounded-2xl px-4 py-2.5 transition-colors duration-300 ${
-            phase === "listening" || phase === "tap_ready" || phase === "tapping" ? "bg-purple-50 border-2 border-purple-200" : "bg-white/60 border-2 border-gray-100"
-          }`}>
-            <p className="text-[10px] font-extrabold text-purple-400 uppercase tracking-widest mb-2 text-center">4/4 Sayma</p>
-            <div className="flex justify-center gap-3">
-              {[0, 1, 2, 3].map(beat => (
-                <div
-                  key={beat}
-                  ref={el => { beatDotsRef.current[beat] = el; }}
-                  className="w-14 h-14 rounded-2xl border-2 flex flex-col items-center justify-center font-extrabold select-none"
-                  style={{
-                    borderColor: beat === 0 ? "#7c3aed" : "#c4b5fd",
-                    background: "white",
-                    color: "#c4b5fd",
-                    transition: "transform 0.06s ease-out, background 0.06s, box-shadow 0.06s",
-                    willChange: "transform",
-                  }}>
-                  <span className="text-xl leading-none">{beat + 1}</span>
-                  {beat === 0 && <span className="text-[8px] opacity-60 mt-0.5">GÜÇLÜ</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Row 4: Tempo ── */}
+          {/* ── Row 3: Tempo ── */}
           <div className="bg-white/80 rounded-2xl px-4 py-3 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
