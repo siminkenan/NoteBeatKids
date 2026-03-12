@@ -928,6 +928,31 @@ export default function RhythmGame() {
             })()}
           </div>
 
+          {/* Panel 3: Vurma — below the rhythm pattern */}
+          <div className={`rounded-2xl border-2 transition-colors duration-300 ${
+            phase === "tapping" ? "border-green-300 bg-green-50" : "border-gray-200 bg-gray-50/40 opacity-40"
+          }`}>
+            <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+              <span className={`w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center ${phase === "tapping" ? "bg-green-500" : "bg-gray-300"}`}>3</span>
+              <p className="text-xs font-extrabold text-green-600 uppercase tracking-widest">Vurma</p>
+            </div>
+            <div className="px-4 pb-4">
+              <motion.button data-testid="button-tap"
+                className={`w-full py-10 rounded-2xl text-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 transition-all ${
+                  phase === "tapping" ? "text-white shadow-2xl cursor-pointer" : "text-gray-300 bg-gray-100 cursor-not-allowed"
+                }`}
+                style={phase === "tapping" ? { background: "linear-gradient(135deg, #16a34a, #15803d)", border: "4px solid rgba(255,255,255,0.4)" } : {}}
+                animate={phase === "tapping" ? { boxShadow: ["0 0 0 0 rgba(22,163,74,0.6)", "0 0 0 18px rgba(22,163,74,0)", "0 0 0 0 rgba(22,163,74,0)"] } : {}}
+                transition={{ duration: beatMs / 1000, repeat: phase === "tapping" ? Infinity : 0 }}
+                onPointerDown={phase === "tapping" ? handleTap : undefined}
+                disabled={phase !== "tapping"}>
+                <span className="text-6xl">🥁</span>
+                <span>{phase === "tapping" ? "DOKUN!" : "Bekliyor…"}</span>
+                {phase === "tapping" && <span className="text-green-200 text-xs font-semibold">Boşluk tuşu da çalışır</span>}
+              </motion.button>
+            </div>
+          </div>
+
           {/* Feedback */}
           <AnimatePresence>
             {feedback && phase === "result" && (
@@ -953,31 +978,6 @@ export default function RhythmGame() {
 
         {/* ── RIGHT column ── */}
         <div className="flex flex-col gap-3">
-
-          {/* Panel 3: Vurma */}
-          <div className={`rounded-2xl border-2 transition-colors duration-300 ${
-            phase === "tapping" ? "border-green-300 bg-green-50" : "border-gray-200 bg-gray-50/40 opacity-40"
-          }`}>
-            <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-              <span className={`w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center ${phase === "tapping" ? "bg-green-500" : "bg-gray-300"}`}>3</span>
-              <p className="text-xs font-extrabold text-green-600 uppercase tracking-widest">Vurma</p>
-            </div>
-            <div className="px-4 pb-4">
-              <motion.button data-testid="button-tap"
-                className={`w-full py-10 rounded-2xl text-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 transition-all ${
-                  phase === "tapping" ? "text-white shadow-2xl cursor-pointer" : "text-gray-300 bg-gray-100 cursor-not-allowed"
-                }`}
-                style={phase === "tapping" ? { background: "linear-gradient(135deg, #16a34a, #15803d)", border: "4px solid rgba(255,255,255,0.4)" } : {}}
-                animate={phase === "tapping" ? { boxShadow: ["0 0 0 0 rgba(22,163,74,0.6)", "0 0 0 18px rgba(22,163,74,0)", "0 0 0 0 rgba(22,163,74,0)"] } : {}}
-                transition={{ duration: beatMs / 1000, repeat: phase === "tapping" ? Infinity : 0 }}
-                onPointerDown={phase === "tapping" ? handleTap : undefined}
-                disabled={phase !== "tapping"}>
-                <span className="text-6xl">🥁</span>
-                <span>{phase === "tapping" ? "DOKUN!" : "Bekliyor…"}</span>
-                {phase === "tapping" && <span className="text-green-200 text-xs font-semibold">Boşluk tuşu da çalışır</span>}
-              </motion.button>
-            </div>
-          </div>
 
           {/* Next button */}
           {phase === "result" && !retryPending && (
