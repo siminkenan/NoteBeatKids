@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -125,7 +125,7 @@ export const maestroViewProgress = pgTable("maestro_view_progress", {
   watchedSeconds: integer("watched_seconds").notNull().default(0),
   completed: boolean("completed").notNull().default(false),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (t) => [uniqueIndex("mvp_student_resource_idx").on(t.studentId, t.resourceId)]);
 
 export const insertInstitutionSchema = createInsertSchema(institutions).omit({ id: true, createdAt: true });
 export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true, createdAt: true }).extend({

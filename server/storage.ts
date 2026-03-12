@@ -726,24 +726,18 @@ export class DatabaseStorage implements IStorage {
 
   // ── Maestro View Progress ──────────────────────────────────────────────────
   async upsertMaestroViewProgress(studentId: string, resourceId: string, watchedSeconds: number, completed: boolean): Promise<MaestroViewProgress> {
-    const existing = await db.select().from(maestroViewProgress)
-      .where(and(eq(maestroViewProgress.studentId, studentId), eq(maestroViewProgress.resourceId, resourceId)))
-      .limit(1);
-
-    if (existing.length > 0) {
-      const newWatched = Math.max(existing[0].watchedSeconds, watchedSeconds);
-      const newCompleted = existing[0].completed || completed;
-      const [updated] = await db.update(maestroViewProgress)
-        .set({ watchedSeconds: newWatched, completed: newCompleted, updatedAt: new Date() })
-        .where(eq(maestroViewProgress.id, existing[0].id))
-        .returning();
-      return updated;
-    } else {
-      const [inserted] = await db.insert(maestroViewProgress)
-        .values({ studentId, resourceId, watchedSeconds, completed })
-        .returning();
-      return inserted;
-    }
+    const [row] = await db.insert(maestroViewProgress)
+      .values({ studentId, resourceId, watchedSeconds, completed })
+      .onConflictDoUpdate({
+        target: [maestroViewProgress.studentId, maestroViewProgress.resourceId],
+        set: {
+          watchedSeconds: sql`greatest(excluded.watched_seconds, maestro_view_progress.watched_seconds)`,
+          completed: sql`excluded.completed OR maestro_view_progress.completed`,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return row;
   }
 
   async getMaestroViewProgressByTeacher(teacherId: string): Promise<Array<{ resourceId: string; resourceTitle: string; studentId: string; studentName: string; watchedSeconds: number; completed: boolean; durationSeconds: number }>> {
