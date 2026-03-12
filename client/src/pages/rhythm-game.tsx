@@ -217,7 +217,7 @@ export default function RhythmGame() {
   const [level, setLevel] = useState(1);
   const [exerciseIdx, setExerciseIdx] = useState(0);
   const [exerciseResults, setExerciseResults] = useState<boolean[]>([]);
-  const [bpm, setBpm] = useState(80);
+  const [bpm, setBpm] = useState(40);
   const [phase, setPhase] = useState<Phase>("idle");
   const [countdown, setCountdown] = useState(3);
   const [highlightIdx, setHighlightIdx] = useState(-1);
@@ -859,6 +859,20 @@ export default function RhythmGame() {
             <span className="text-xs font-bold text-amber-600 flex-shrink-0">{PASS_THRESHOLD}/10</span>
           </div>
 
+          {/* BPM Slider — above the notation */}
+          <div className="bg-white/70 rounded-2xl p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
+              <span className="bg-purple-600 text-white text-sm font-extrabold px-3 py-1 rounded-full" data-testid="text-bpm">{bpm} BPM</span>
+            </div>
+            <input type="range" min={40} max={140} step={1} value={bpm}
+              onChange={e => setBpm(Number(e.target.value))} disabled={phase !== "idle"}
+              className="w-full accent-purple-600 cursor-pointer" data-testid="slider-bpm" />
+            <div className="flex justify-between text-xs text-muted-foreground font-semibold mt-1">
+              <span>40</span><span>90</span><span>140</span>
+            </div>
+          </div>
+
           {/* VexFlow notation */}
           <div className="bg-white rounded-3xl p-4 shadow-md">
             <div className="flex items-center justify-between mb-2">
@@ -912,20 +926,6 @@ export default function RhythmGame() {
                 </div>
               );
             })()}
-          </div>
-
-          {/* BPM Slider */}
-          <div className="bg-white/70 rounded-2xl p-3 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
-              <span className="bg-purple-600 text-white text-sm font-extrabold px-3 py-1 rounded-full" data-testid="text-bpm">{bpm} BPM</span>
-            </div>
-            <input type="range" min={60} max={140} step={1} value={bpm}
-              onChange={e => setBpm(Number(e.target.value))} disabled={phase !== "idle"}
-              className="w-full accent-purple-600 cursor-pointer" data-testid="slider-bpm" />
-            <div className="flex justify-between text-xs text-muted-foreground font-semibold mt-1">
-              <span>60</span><span>100</span><span>140</span>
-            </div>
           </div>
 
           {/* Feedback */}
