@@ -133,7 +133,7 @@ export default function Home() {
           <img
             src={logoPath}
             alt="NoteBeat Kids"
-            className="w-52 h-52 object-contain drop-shadow-2xl"
+            className="w-72 h-72 object-contain drop-shadow-2xl"
             data-testid="img-logo"
           />
           {/* Bilingual tagline */}
