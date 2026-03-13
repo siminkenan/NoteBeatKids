@@ -460,7 +460,11 @@ export class DatabaseStorage implements IStorage {
         students: Array<{
           id: string; firstName: string; lastName: string;
           rhythmLevel: number; rhythmStars: number;
+          rhythmCorrect: number; rhythmWrong: number;
           notesLevel: number; notesStars: number;
+          notesCorrect: number; notesWrong: number;
+          drumTimeSeconds: number;
+          melodyCorrect: number; melodyWrong: number; melodyStars: number;
           totalCorrect: number; totalTimeSeconds: number;
         }>;
       }>;
@@ -479,10 +483,18 @@ export class DatabaseStorage implements IStorage {
           lastName: s.lastName,
           rhythmLevel: s.rhythmProgress?.level ?? 0,
           rhythmStars: s.rhythmProgress?.starsEarned ?? 0,
+          rhythmCorrect: s.rhythmProgress?.correctAnswers ?? 0,
+          rhythmWrong: s.rhythmProgress?.wrongAnswers ?? 0,
           notesLevel: s.notesProgress?.level ?? 0,
           notesStars: s.notesProgress?.starsEarned ?? 0,
-          totalCorrect: (s.rhythmProgress?.correctAnswers ?? 0) + (s.notesProgress?.correctAnswers ?? 0),
-          totalTimeSeconds: (s.rhythmProgress?.timeSpentSeconds ?? 0) + (s.notesProgress?.timeSpentSeconds ?? 0),
+          notesCorrect: s.notesProgress?.correctAnswers ?? 0,
+          notesWrong: s.notesProgress?.wrongAnswers ?? 0,
+          drumTimeSeconds: s.drumProgress?.timeSpentSeconds ?? 0,
+          melodyCorrect: s.melodyProgress?.correctAnswers ?? 0,
+          melodyWrong: s.melodyProgress?.wrongAnswers ?? 0,
+          melodyStars: s.melodyProgress?.starsEarned ?? 0,
+          totalCorrect: (s.rhythmProgress?.correctAnswers ?? 0) + (s.notesProgress?.correctAnswers ?? 0) + (s.melodyProgress?.correctAnswers ?? 0),
+          totalTimeSeconds: (s.rhythmProgress?.timeSpentSeconds ?? 0) + (s.notesProgress?.timeSpentSeconds ?? 0) + (s.drumProgress?.timeSpentSeconds ?? 0) + (s.melodyProgress?.timeSpentSeconds ?? 0),
         }));
         classResults.push({
           id: cls.id,

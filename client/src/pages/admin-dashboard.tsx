@@ -44,21 +44,42 @@ type AdminStats = {
   totalTimeSpentSeconds: number;
 };
 
+type InstStudent = {
+  id: string; firstName: string; lastName: string;
+  rhythmLevel: number; rhythmStars: number; rhythmCorrect: number; rhythmWrong: number;
+  notesLevel: number; notesStars: number; notesCorrect: number; notesWrong: number;
+  drumTimeSeconds: number;
+  melodyCorrect: number; melodyWrong: number; melodyStars: number;
+  totalCorrect: number; totalTimeSeconds: number;
+};
+
 type InstitutionDetails = {
   institution: Institution;
   teachers: Array<{
     id: string; name: string; email: string;
     classes: Array<{
       id: string; name: string; classCode: string; maxStudents: number; expiresAt: string | null;
-      students: Array<{
-        id: string; firstName: string; lastName: string;
-        rhythmLevel: number; rhythmStars: number;
-        notesLevel: number; notesStars: number;
-        totalCorrect: number; totalTimeSeconds: number;
-      }>;
+      students: InstStudent[];
     }>;
   }>;
 };
+
+function accuracy(correct: number, wrong: number) {
+  const total = correct + wrong;
+  return total === 0 ? null : Math.round((correct / total) * 100);
+}
+
+function AccBar({ pct, color }: { pct: number | null; color: string }) {
+  if (pct === null) return <span className="text-xs text-muted-foreground font-semibold">—</span>;
+  return (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex-1 bg-slate-100 rounded-full h-2 min-w-[40px]">
+        <div className={`h-2 rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs font-bold w-8 text-right">{pct}%</span>
+    </div>
+  );
+}
 
 const institutionSchema = z.object({
   name: z.string().min(1, "Kurum adı gerekli"),
@@ -967,14 +988,49 @@ export default function AdminDashboard() {
                                 {cls.students.length === 0 ? (
                                   <p className="text-xs text-muted-foreground pl-5">Henüz öğrenci yok.</p>
                                 ) : (
+                                  <>
+                                  {/* Sınıf Performans Özeti */}
+                                  {(() => {
+                                    const withRhythm = cls.students.filter(s => s.rhythmCorrect + s.rhythmWrong > 0);
+                                    const withNotes = cls.students.filter(s => s.notesCorrect + s.notesWrong > 0);
+                                    const withMelody = cls.students.filter(s => s.melodyCorrect + s.melodyWrong > 0);
+                                    const avgRhythm = withRhythm.length ? Math.round(withRhythm.reduce((a, s) => a + accuracy(s.rhythmCorrect, s.rhythmWrong)!, 0) / withRhythm.length) : null;
+                                    const avgNotes = withNotes.length ? Math.round(withNotes.reduce((a, s) => a + accuracy(s.notesCorrect, s.notesWrong)!, 0) / withNotes.length) : null;
+                                    const avgMelody = withMelody.length ? Math.round(withMelody.reduce((a, s) => a + accuracy(s.melodyCorrect, s.melodyWrong)!, 0) / withMelody.length) : null;
+                                    const totalDrumSec = cls.students.reduce((a, s) => a + s.drumTimeSeconds, 0);
+                                    return (
+                                      <div className="mb-2 p-2.5 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-blue-100 space-y-1.5">
+                                        <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wide mb-1.5">Sınıf Başarı Özeti</p>
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                                          <div>
+                                            <p className="text-xs text-muted-foreground font-semibold mb-0.5">🎵 Ritim Yakalama</p>
+                                            <AccBar pct={avgRhythm} color="bg-orange-400" />
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground font-semibold mb-0.5">🔍 Nota Dedektifi</p>
+                                            <AccBar pct={avgNotes} color="bg-purple-400" />
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground font-semibold mb-0.5">🥁 Davul Süresi</p>
+                                            <span className="text-xs font-bold text-amber-700">{totalDrumSec > 0 ? `${Math.floor(totalDrumSec / 60)}d ${totalDrumSec % 60}s` : "—"}</span>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground font-semibold mb-0.5">🎹 Melodi Tekrarı</p>
+                                            <AccBar pct={avgMelody} color="bg-pink-400" />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                   <div className="overflow-x-auto rounded-lg border">
                                     <table className="w-full text-xs">
                                       <thead className="bg-slate-50">
                                         <tr>
                                           <th className="text-left p-2 font-bold">Öğrenci</th>
-                                          <th className="text-center p-2 font-bold">Ritim</th>
-                                          <th className="text-center p-2 font-bold">Nota</th>
-                                          <th className="text-center p-2 font-bold">Doğru</th>
+                                          <th className="text-center p-2 font-bold">🎵 Ritim</th>
+                                          <th className="text-center p-2 font-bold">🔍 Nota</th>
+                                          <th className="text-center p-2 font-bold">🥁 Davul</th>
+                                          <th className="text-center p-2 font-bold">🎹 Melodi</th>
                                           <th className="text-center p-2 font-bold">Süre</th>
                                         </tr>
                                       </thead>
@@ -983,28 +1039,35 @@ export default function AdminDashboard() {
                                           <tr key={s.id} className="border-t hover:bg-slate-50" data-testid={`row-student-${s.id}`}>
                                             <td className="p-2 font-semibold">{s.firstName} {s.lastName}</td>
                                             <td className="p-2 text-center">
-                                              <div className="flex items-center justify-center gap-0.5">
-                                                <span className="font-bold">Sv.{s.rhythmLevel}</span>
-                                                <span className="text-yellow-500 flex">
-                                                  {Array.from({ length: s.rhythmStars }).map((_, i) => <Star key={i} className="w-2.5 h-2.5 fill-current" />)}
-                                                </span>
+                                              <div className="flex flex-col items-center gap-0.5">
+                                                <span className="font-bold text-orange-600">{accuracy(s.rhythmCorrect, s.rhythmWrong) !== null ? `${accuracy(s.rhythmCorrect, s.rhythmWrong)}%` : "—"}</span>
+                                                <span className="text-slate-400 text-[10px]">Sv.{s.rhythmLevel}</span>
                                               </div>
                                             </td>
                                             <td className="p-2 text-center">
-                                              <div className="flex items-center justify-center gap-0.5">
-                                                <span className="font-bold">Sv.{s.notesLevel}</span>
-                                                <span className="text-yellow-500 flex">
-                                                  {Array.from({ length: s.notesStars }).map((_, i) => <Star key={i} className="w-2.5 h-2.5 fill-current" />)}
+                                              <div className="flex flex-col items-center gap-0.5">
+                                                <span className="font-bold text-purple-600">{accuracy(s.notesCorrect, s.notesWrong) !== null ? `${accuracy(s.notesCorrect, s.notesWrong)}%` : "—"}</span>
+                                                <span className="text-slate-400 text-[10px]">Sv.{s.notesLevel}</span>
+                                              </div>
+                                            </td>
+                                            <td className="p-2 text-center font-bold text-amber-600">
+                                              {s.drumTimeSeconds > 0 ? `${Math.floor(s.drumTimeSeconds / 60)}d` : "—"}
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              <div className="flex flex-col items-center gap-0.5">
+                                                <span className="font-bold text-pink-600">{accuracy(s.melodyCorrect, s.melodyWrong) !== null ? `${accuracy(s.melodyCorrect, s.melodyWrong)}%` : "—"}</span>
+                                                <span className="text-yellow-500 flex justify-center">
+                                                  {Array.from({ length: Math.min(s.melodyStars, 5) }).map((_, i) => <Star key={i} className="w-2 h-2 fill-current" />)}
                                                 </span>
                                               </div>
                                             </td>
-                                            <td className="p-2 text-center font-bold text-green-700">{s.totalCorrect}</td>
                                             <td className="p-2 text-center text-muted-foreground">{Math.floor(s.totalTimeSeconds / 60)}d</td>
                                           </tr>
                                         ))}
                                       </tbody>
                                     </table>
                                   </div>
+                                  </>
                                 )}
                               </div>
                             ))}
