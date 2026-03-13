@@ -215,7 +215,7 @@ export default function ClassDetail() {
                 { label: "Öğrenciler", value: data?.students.length ?? 0, color: "text-blue-500", bg: "bg-blue-50", icon: "👥" },
                 { label: "Ort. Ritim %", value: `${Math.round(chartData.reduce((a, c) => a + c.rhythmAccuracy, 0) / (chartData.length || 1))}%`, color: "text-orange-500", bg: "bg-orange-50", icon: "🎵" },
                 { label: "Ort. Nota %", value: `${Math.round(chartData.reduce((a, c) => a + c.notesAccuracy, 0) / (chartData.length || 1))}%`, color: "text-purple-500", bg: "bg-purple-50", icon: "🔍" },
-                { label: "Ort. Davul %", value: `${Math.round(chartData.filter(c => c.drumAccuracy > 0).reduce((a, c) => a + c.drumAccuracy, 0) / (chartData.filter(c => c.drumAccuracy > 0).length || 1))}%`, color: "text-amber-500", bg: "bg-amber-50", icon: "🥁" },
+                { label: "Top. Davul Süresi", value: formatTime(data?.students.reduce((a, s) => a + (s.drumProgress?.timeSpentSeconds ?? 0), 0) ?? 0), color: "text-amber-500", bg: "bg-amber-50", icon: "🥁" },
                 { label: "Ort. Melodi %", value: `${Math.round(chartData.filter(c => c.melodyAccuracy > 0).reduce((a, c) => a + c.melodyAccuracy, 0) / (chartData.filter(c => c.melodyAccuracy > 0).length || 1))}%`, color: "text-pink-500", bg: "bg-pink-50", icon: "🎹" },
                 { label: "Toplam Yıldız", value: data?.students.reduce((a, s) => a + (s.rhythmProgress?.starsEarned ?? 0) + (s.notesProgress?.starsEarned ?? 0) + (s.melodyProgress?.starsEarned ?? 0), 0) ?? 0, color: "text-yellow-500", bg: "bg-yellow-50", icon: "⭐" },
               ].map((stat, i) => (
@@ -389,7 +389,6 @@ export default function ClassDetail() {
                       <Legend wrapperStyle={{ fontSize: 12, fontWeight: "bold" }} />
                       <Bar dataKey="rhythmAccuracy" fill="#f97316" name="Ritim" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="notesAccuracy" fill="#8b5cf6" name="Notalar" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="drumAccuracy" fill="#f59e0b" name="Davul" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="melodyAccuracy" fill="#ec4899" name="Melodi" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
