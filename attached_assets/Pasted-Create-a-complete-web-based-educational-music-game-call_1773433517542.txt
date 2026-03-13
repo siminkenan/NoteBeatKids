@@ -1,0 +1,241 @@
+Create a complete web-based educational music game called “Melody Echo” for the NoteBeat Kids platform.
+
+This game is designed for primary school children (ages 6–8, Grade 1 and Grade 2). The main goal of the game is to improve musical hearing, melody recognition, and melody imitation using a simple piano interface and short melodies that children repeat.
+
+The application must run smoothly in Replit using HTML, CSS, and JavaScript and should be optimized for tablet and classroom use.
+
+--------------------------------
+
+CORE GAME IDEA
+
+The game is based on melody imitation.
+
+Game flow:
+
+1. Child presses LISTEN
+2. The system plays a short melody
+3. Piano keys light up while the melody plays
+4. The child listens carefully
+5. The child repeats the melody by pressing the piano keys
+6. The system checks the sequence
+7. If correct → reward animation
+8. If incorrect → replay option
+
+Children should be able to play along using melodica or the on-screen piano.
+
+The main educational goal is ear training and melodic memory.
+
+--------------------------------
+
+PIANO KEYBOARD DESIGN
+
+Display a large one-octave piano keyboard.
+
+Range:
+
+C4 D4 E4 F4 G4 A4 B4 C5
+
+Requirements:
+
+* Large child-friendly keys  
+* Colorful pastel visual style  
+* Keys highlight when played  
+* Each key plays an authentic piano sound  
+* Keys glow when melody is played by the system  
+
+Sound must use WebAudio API with real piano samples so children develop accurate pitch recognition.
+
+--------------------------------
+
+VISUAL DESIGN
+
+Interface must be extremely simple for children.
+
+Design style:
+
+* pastel colors  
+* rounded buttons  
+* cartoon style  
+* big icons  
+* friendly music characters  
+
+Add small animated reactions when children succeed.
+
+--------------------------------
+
+GAME STRUCTURE
+
+The game contains 100 melodies divided into 4 sections.
+
+Each section contains 25 melodies.
+
+Sections represent learning stages.
+
+However, the game must use a melody progression system that constantly refreshes.
+
+This means:
+
+When a child finishes a section, the system can generate new melodies using the same note rules so the learning never stops.
+
+--------------------------------
+
+MELODY PROGRESSION SYSTEM
+
+Stage 1 (Section 1)
+
+Melodies 1–25
+
+Notes used:
+C D E
+
+Melody length:
+3 notes
+
+Purpose:
+Children learn to recognize pitch direction and imitate simple patterns.
+
+--------------------------------
+
+Stage 2 (Section 2)
+
+Melodies 26–50
+
+Notes used:
+C D E F
+
+Melody length:
+4 notes
+
+Purpose:
+Improve melody memory and expand listening range.
+
+--------------------------------
+
+Stage 3 (Section 3)
+
+Melodies 51–75
+
+Notes used:
+C D E F G
+
+Melody length:
+5 notes
+
+Purpose:
+Train melodic hearing and improve pitch accuracy.
+
+--------------------------------
+
+Stage 4 (Section 4)
+
+Melodies 76–100
+
+Notes used:
+C D E F G
+
+Melody length:
+5 notes
+
+But melodies must be more musical and melodic, not random.
+
+Purpose:
+Strengthen ear training and melodic imitation skills.
+
+--------------------------------
+
+MELODY DATABASE
+
+Create a melody database with 100 melodies.
+
+Format example:
+
+melodies = [
+["C","D","C"],
+["C","E","D"],
+["D","C","E"]
+]
+
+Each melody must follow the rules of its stage.
+
+--------------------------------
+
+MELODY REFRESH SYSTEM
+
+After finishing the 100 melodies, the system must automatically generate new melodies using the same stage rules.
+
+This ensures:
+
+* the game never repeats exactly the same sequence  
+* children can practice endlessly  
+* learning stays fresh and engaging
+
+--------------------------------
+
+REWARD SYSTEM
+
+Correct melody:
+
+⭐ show star animation  
+⭐ play success sound  
+
+After every 5 correct melodies:
+
+show celebration animation.
+
+After completing 25 melodies:
+
+unlock next stage.
+
+--------------------------------
+
+TEACHER MODE
+
+Include a simple teacher control panel.
+
+Teacher options:
+
+* select stage  
+* restart progress  
+* replay melody  
+* choose number of rounds  
+
+This makes the game easy to use in classrooms.
+
+--------------------------------
+
+ANIMATIONS
+
+Add light animations:
+
+* glowing keys when melody plays  
+* star explosion when correct  
+* friendly character dancing  
+
+Animations must remain simple and not distracting.
+
+--------------------------------
+
+TECHNICAL REQUIREMENTS
+
+Use:
+
+HTML  
+CSS  
+JavaScript  
+WebAudio API
+
+Code structure should be modular:
+
+pianoKeyboard module  
+melodyPlayer module  
+gameLogic module  
+stageSystem module  
+teacherPanel module  
+
+The game must run smoothly on tablets, laptops, and classroom projectors.
+
+--------------------------------
+
+FINAL GOAL
+
+The final application should be a child-friendly melody imitation game that improves musical listening skills, supports melodica learning, and helps teachers easily conduct ear training activities in primary school classrooms.

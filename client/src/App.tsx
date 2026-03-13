@@ -21,6 +21,7 @@ import RhythmOrchestra from "@/pages/rhythm-orchestra";
 import TeacherOrchestra from "@/pages/teacher-orchestra";
 import DrumKit from "@/pages/drum-kit";
 import AmbientSound from "@/components/ambient-sound";
+import MelodyEcho from "@/pages/melody-echo";
 
 // Pages where ambient background sound should be active
 // Student section excluded — ambient sound conflicts with educational game audio
@@ -50,6 +51,7 @@ function Router() {
         <Route path="/admin/dashboard" component={AdminDashboard} />
         <Route path="/metronome" component={Metronome} />
         <Route path="/student/drum" component={DrumKit} />
+        <Route path="/student/melody" component={MelodyEcho} />
         <Route component={NotFound} />
       </Switch>
       <AmbientSound active={ambientActive} />

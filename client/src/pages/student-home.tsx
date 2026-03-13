@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import metronomeImgPath from "@assets/metronome-logo.png";
+import melodyLogoPath from "@assets/ChatGPT_Image_13_Mar_2026_23_21_37_1773433578533.png";
 import type { StudentProgress } from "@shared/schema";
 
 export default function StudentHome() {
@@ -234,6 +235,37 @@ export default function StudentHome() {
                   Video &amp; Fotoğraf
                 </div>
                 <div className="text-white/80 text-xs font-bold">Öğretmen 🎬</div>
+              </div>
+            </div>
+          </motion.button>
+
+          {/* Melodi Taklit Oyunu */}
+          <motion.button
+            data-testid="button-melody-echo"
+            className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
+            style={{
+              background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(240,147,251,0.4)" }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/student/melody")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <img src={melodyLogoPath} alt="Melodi Taklit Oyunu"
+                className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold text-white">Melodi Taklit Oyunu</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Melodiyi dinle ve piyano tuşlarıyla tekrarla!</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
+                  4 Bölüm · 100 Melodi
+                </div>
+                <div className="text-white/80 text-xs font-bold">🎹 Kulak Eğitimi</div>
               </div>
             </div>
           </motion.button>
