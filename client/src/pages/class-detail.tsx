@@ -17,6 +17,7 @@ type StudentWithProgress = Student & {
   rhythmProgress?: StudentProgress;
   notesProgress?: StudentProgress;
   drumProgress?: StudentProgress;
+  melodyProgress?: StudentProgress;
 };
 
 type ClassDetailData = {
@@ -452,7 +453,7 @@ export default function ClassDetail() {
                                 <p className="font-extrabold text-foreground">{student.firstName} {student.lastName}</p>
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                                  <span className="text-xs font-bold text-muted-foreground">{(student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0)} yıldız toplam</span>
+                                  <span className="text-xs font-bold text-muted-foreground">{(student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0) + (student.melodyProgress?.starsEarned ?? 0)} yıldız toplam</span>
                                   {assignedCode && (
                                     <span
                                       className="font-mono text-[10px] font-extrabold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-md tracking-widest"
@@ -464,7 +465,7 @@ export default function ClassDetail() {
                                 </div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-1.5 text-sm">
+                            <div className="grid grid-cols-4 gap-1.5 text-sm">
                               <div className="bg-orange-50 rounded-xl p-2 text-center">
                                 <p className="text-xs font-bold text-orange-500 mb-0.5">🎵 Ritim</p>
                                 <p className="font-extrabold text-orange-600 text-xs">Sv.{student.rhythmProgress?.level ?? 1}</p>
@@ -498,11 +499,28 @@ export default function ClassDetail() {
                                   <p className="text-[10px] text-muted-foreground font-semibold mt-1">—</p>
                                 )}
                               </div>
+                              <div className="bg-pink-50 rounded-xl p-2 text-center" data-testid={`melody-progress-${student.id}`}>
+                                <p className="text-xs font-bold text-pink-500 mb-0.5">🎹 Melodi</p>
+                                {student.melodyProgress ? (
+                                  <>
+                                    <p className="font-extrabold text-pink-600 text-xs">Bölüm {student.melodyProgress.level}</p>
+                                    <p className="text-xs text-muted-foreground font-semibold">{student.melodyProgress.starsEarned} ⭐</p>
+                                    <div className="flex items-center justify-center gap-1 mt-0.5">
+                                      <CheckCircle className="w-3 h-3 text-green-500" />
+                                      <span className="text-xs font-bold text-green-600">{student.melodyProgress.correctAnswers}</span>
+                                      <XCircle className="w-3 h-3 text-red-500" />
+                                      <span className="text-xs font-bold text-red-500">{student.melodyProgress.wrongAnswers}</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <p className="text-[10px] text-muted-foreground font-semibold mt-1">—</p>
+                                )}
+                              </div>
                             </div>
                             <div className="text-center">
                               <Clock className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
                               <p className="text-xs font-bold text-muted-foreground">
-                                {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0) + (student.drumProgress?.timeSpentSeconds ?? 0))}
+                                {formatTime((student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0) + (student.drumProgress?.timeSpentSeconds ?? 0) + (student.melodyProgress?.timeSpentSeconds ?? 0))}
                               </p>
                             </div>
                             <Button

@@ -429,7 +429,8 @@ export class DatabaseStorage implements IStorage {
       const rhythmProgress = progress.find(p => p.appType === 'rhythm');
       const notesProgress = progress.find(p => p.appType === 'notes');
       const drumProgress = progress.find(p => p.appType === 'drum_kit');
-      result.push({ ...student, rhythmProgress, notesProgress, drumProgress });
+      const melodyProgress = progress.find(p => p.appType === 'melody');
+      result.push({ ...student, rhythmProgress, notesProgress, drumProgress, melodyProgress });
     }
     return result;
   }

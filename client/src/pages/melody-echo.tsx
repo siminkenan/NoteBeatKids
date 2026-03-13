@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
 
 // ── WebAudio Piano ────────────────────────────────────────────────────────────
 let _ctx: AudioContext | null = null;
@@ -107,6 +109,7 @@ type Phase = "idle" | "playing" | "listening" | "correct" | "wrong";
 
 export default function MelodyEcho() {
   const [, navigate] = useLocation();
+  const { student } = useAuth();
   const [phase, setPhase] = useState<Phase>("idle");
   const [melodyIdx, setMelodyIdx] = useState(0);
   const [playerSeq, setPlayerSeq] = useState<string[]>([]);
@@ -119,6 +122,22 @@ export default function MelodyEcho() {
   const [showTeacher, setShowTeacher] = useState(false);
   const [wrongPulse, setWrongPulse] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const wrongCountRef = useRef(0);
+  const startTimeRef = useRef(Date.now());
+
+  function saveProgress(newScore: number, newStage: number) {
+    const sid = student?.student.id;
+    if (!sid) return;
+    const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
+    apiRequest("POST", `/api/student/${sid}/progress`, {
+      appType: "melody",
+      level: newStage,
+      starsEarned: newScore,
+      correctAnswers: newScore,
+      wrongAnswers: wrongCountRef.current,
+      timeSpentSeconds: elapsed,
+    }).catch(() => {});
+  }
 
   const melody = getMelody(melodyIdx);
   const stage = getStageNum(melodyIdx);
@@ -154,6 +173,7 @@ export default function MelodyEcho() {
 
     if (newSeq[newSeq.length - 1] !== melody[newSeq.length - 1]) {
       playError();
+      wrongCountRef.current += 1;
       setWrongPulse(true);
       setTimeout(() => setWrongPulse(false), 600);
       setPhase("wrong");
@@ -166,6 +186,7 @@ export default function MelodyEcho() {
       setScore(newScore);
       setStreak(newStreak);
       setPhase("correct");
+      saveProgress(newScore, getStageNum(melodyIdx));
       if (newStreak % 5 === 0) {
         setShowCelebration(true);
         timers.current.push(setTimeout(() => setShowCelebration(false), 3000));
