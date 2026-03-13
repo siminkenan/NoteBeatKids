@@ -68,23 +68,33 @@ function buildShareText(
   className: string,
   rAcc: number,
   nAcc: number,
+  dAcc: number,
+  mAcc: number,
 ) {
-  const totalStars = (student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0);
+  const totalStars = (student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0) + (student.melodyProgress?.starsEarned ?? 0);
   const totalTime = formatTime(
-    (student.rhythmProgress?.timeSpentSeconds ?? 0) + (student.notesProgress?.timeSpentSeconds ?? 0),
+    (student.rhythmProgress?.timeSpentSeconds ?? 0) +
+    (student.notesProgress?.timeSpentSeconds ?? 0) +
+    (student.drumProgress?.timeSpentSeconds ?? 0) +
+    (student.melodyProgress?.timeSpentSeconds ?? 0),
   );
   const starsRow = "⭐".repeat(Math.min(totalStars, 10));
 
-  return [
+  const lines = [
     `🎵 NoteBeat Kids — Öğrenci Raporu`,
     `👤 ${student.firstName} ${student.lastName} (${className})`,
     ``,
-    `🥁 Ritim  →  Seviye ${student.rhythmProgress?.level ?? 1}  |  ${rAcc}% doğruluk  |  ✅${student.rhythmProgress?.correctAnswers ?? 0} ❌${student.rhythmProgress?.wrongAnswers ?? 0}`,
-    `🎵 Notalar →  Seviye ${student.notesProgress?.level ?? 1}  |  ${nAcc}% doğruluk  |  ✅${student.notesProgress?.correctAnswers ?? 0} ❌${student.notesProgress?.wrongAnswers ?? 0}`,
-    ``,
-    `${starsRow || "—"}  (${totalStars} yıldız)`,
-    `⏱ Toplam süre: ${totalTime}`,
-  ].join("\n");
+    `🎵 Ritim   →  Seviye ${student.rhythmProgress?.level ?? 1}  |  ${rAcc}% doğruluk  |  ✅${student.rhythmProgress?.correctAnswers ?? 0} ❌${student.rhythmProgress?.wrongAnswers ?? 0}`,
+    `🔍 Notalar →  Seviye ${student.notesProgress?.level ?? 1}  |  ${nAcc}% doğruluk  |  ✅${student.notesProgress?.correctAnswers ?? 0} ❌${student.notesProgress?.wrongAnswers ?? 0}`,
+  ];
+  if (student.drumProgress) {
+    lines.push(`🥁 Davul   →  ${formatTime(student.drumProgress.timeSpentSeconds)} süre  |  ${dAcc}% doğruluk  |  ✅${student.drumProgress.correctAnswers} ❌${student.drumProgress.wrongAnswers}`);
+  }
+  if (student.melodyProgress) {
+    lines.push(`🎹 Melodi  →  Bölüm ${student.melodyProgress.level}  |  ${mAcc}% doğruluk  |  ✅${student.melodyProgress.correctAnswers} ❌${student.melodyProgress.wrongAnswers}`);
+  }
+  lines.push(``, `${starsRow || "—"}  (${totalStars} yıldız)`, `⏱ Toplam süre: ${totalTime}`);
+  return lines.join("\n");
 }
 
 export default function ClassDetail() {
@@ -111,6 +121,7 @@ export default function ClassDetail() {
     queryFn: async () => {
       const res = await fetch(`/api/teacher/classes/${classId}/students`, {
         credentials: "include",
+        cache: "no-store",
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -423,7 +434,9 @@ export default function ClassDetail() {
                 {filteredStudents.map((student, i) => {
                   const rAcc = accuracy(student.rhythmProgress?.correctAnswers ?? 0, student.rhythmProgress?.wrongAnswers ?? 0);
                   const nAcc = accuracy(student.notesProgress?.correctAnswers ?? 0, student.notesProgress?.wrongAnswers ?? 0);
-                  const shareText = buildShareText(student, data!.class.name, rAcc, nAcc);
+                  const dAcc = accuracy(student.drumProgress?.correctAnswers ?? 0, student.drumProgress?.wrongAnswers ?? 0);
+                  const mAcc = accuracy(student.melodyProgress?.correctAnswers ?? 0, student.melodyProgress?.wrongAnswers ?? 0);
+                  const shareText = buildShareText(student, data!.class.name, rAcc, nAcc, dAcc, mAcc);
                   const assignedCode = studentIdToCode.get(student.id);
                   const isHighlighted = !!searchTrimmed && student.id === matchedStudentId;
 
