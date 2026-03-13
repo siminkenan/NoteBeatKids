@@ -421,7 +421,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getClassProgress(classId: string): Promise<Array<Student & { rhythmProgress?: StudentProgress; notesProgress?: StudentProgress; drumProgress?: StudentProgress }>> {
+  async getClassProgress(classId: string): Promise<Array<Student & { rhythmProgress?: StudentProgress; notesProgress?: StudentProgress; drumProgress?: StudentProgress; melodyProgress?: StudentProgress }>> {
     const studentList = await this.getStudentsByClass(classId);
     const result = [];
     for (const student of studentList) {
