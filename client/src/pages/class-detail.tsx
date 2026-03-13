@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Star, Clock, CheckCircle, XCircle, Share2, Key, Copy, ChevronDown, ChevronUp } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { Student, StudentProgress, StudentCode } from "@shared/schema";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 
@@ -181,6 +181,8 @@ export default function ClassDetail() {
     name: s.firstName,
     rhythmAccuracy: accuracy(s.rhythmProgress?.correctAnswers ?? 0, s.rhythmProgress?.wrongAnswers ?? 0),
     notesAccuracy: accuracy(s.notesProgress?.correctAnswers ?? 0, s.notesProgress?.wrongAnswers ?? 0),
+    drumAccuracy: accuracy(s.drumProgress?.correctAnswers ?? 0, s.drumProgress?.wrongAnswers ?? 0),
+    melodyAccuracy: accuracy(s.melodyProgress?.correctAnswers ?? 0, s.melodyProgress?.wrongAnswers ?? 0),
   })) ?? [];
 
   return (
@@ -208,12 +210,14 @@ export default function ClassDetail() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
               {[
                 { label: "Öğrenciler", value: data?.students.length ?? 0, color: "text-blue-500", bg: "bg-blue-50", icon: "👥" },
-                { label: "Ort. Ritim %", value: `${Math.round(chartData.reduce((a, c) => a + c.rhythmAccuracy, 0) / (chartData.length || 1))}%`, color: "text-orange-500", bg: "bg-orange-50", icon: "🥁" },
-                { label: "Ort. Nota %", value: `${Math.round(chartData.reduce((a, c) => a + c.notesAccuracy, 0) / (chartData.length || 1))}%`, color: "text-purple-500", bg: "bg-purple-50", icon: "🎵" },
-                { label: "Toplam Yıldız", value: data?.students.reduce((a, s) => a + (s.rhythmProgress?.starsEarned ?? 0) + (s.notesProgress?.starsEarned ?? 0), 0) ?? 0, color: "text-yellow-500", bg: "bg-yellow-50", icon: "⭐" },
+                { label: "Ort. Ritim %", value: `${Math.round(chartData.reduce((a, c) => a + c.rhythmAccuracy, 0) / (chartData.length || 1))}%`, color: "text-orange-500", bg: "bg-orange-50", icon: "🎵" },
+                { label: "Ort. Nota %", value: `${Math.round(chartData.reduce((a, c) => a + c.notesAccuracy, 0) / (chartData.length || 1))}%`, color: "text-purple-500", bg: "bg-purple-50", icon: "🔍" },
+                { label: "Ort. Davul %", value: `${Math.round(chartData.filter(c => c.drumAccuracy > 0).reduce((a, c) => a + c.drumAccuracy, 0) / (chartData.filter(c => c.drumAccuracy > 0).length || 1))}%`, color: "text-amber-500", bg: "bg-amber-50", icon: "🥁" },
+                { label: "Ort. Melodi %", value: `${Math.round(chartData.filter(c => c.melodyAccuracy > 0).reduce((a, c) => a + c.melodyAccuracy, 0) / (chartData.filter(c => c.melodyAccuracy > 0).length || 1))}%`, color: "text-pink-500", bg: "bg-pink-50", icon: "🎹" },
+                { label: "Toplam Yıldız", value: data?.students.reduce((a, s) => a + (s.rhythmProgress?.starsEarned ?? 0) + (s.notesProgress?.starsEarned ?? 0) + (s.melodyProgress?.starsEarned ?? 0), 0) ?? 0, color: "text-yellow-500", bg: "bg-yellow-50", icon: "⭐" },
               ].map((stat, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
                   <Card className="rounded-2xl">
@@ -376,14 +380,17 @@ export default function ClassDetail() {
               <Card className="rounded-2xl mb-6">
                 <CardHeader><CardTitle className="font-extrabold">Öğrenci Doğruluk Özeti</CardTitle></CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: "bold" }} />
                       <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                       <Tooltip formatter={(v) => `${v}%`} />
+                      <Legend wrapperStyle={{ fontSize: 12, fontWeight: "bold" }} />
                       <Bar dataKey="rhythmAccuracy" fill="#f97316" name="Ritim" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="notesAccuracy" fill="#8b5cf6" name="Notalar" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="drumAccuracy" fill="#f59e0b" name="Davul" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="melodyAccuracy" fill="#ec4899" name="Melodi" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
