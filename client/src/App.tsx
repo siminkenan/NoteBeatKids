@@ -24,8 +24,10 @@ import DrumKit from "@/pages/drum-kit";
 import AmbientSound from "@/components/ambient-sound";
 import MelodyEcho from "@/pages/melody-echo";
 import IntroSplash from "@/components/intro-splash";
+import Mascot from "@/components/mascot";
 
 const INTRO_KEY = "notebeat_intro_v3";
+const MASCOT_PATHS = ["/", "/student/home"];
 
 // Pages where ambient background sound should be active
 // Student section excluded — ambient sound conflicts with educational game audio
@@ -35,8 +37,14 @@ function useAmbientActive() {
   return AMBIENT_PATHS.some(p => location === p || location.startsWith(p + "/"));
 }
 
+function useMascotActive() {
+  const [location] = useLocation();
+  return MASCOT_PATHS.includes(location);
+}
+
 function Router() {
   const ambientActive = useAmbientActive();
+  const mascotActive = useMascotActive();
   return (
     <>
       <Switch>
@@ -59,6 +67,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
       <AmbientSound active={ambientActive} />
+      {mascotActive && <Mascot />}
     </>
   );
 }

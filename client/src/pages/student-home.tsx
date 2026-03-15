@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
+import { triggerMascotReaction } from "@/components/mascot";
 import { useQuery } from "@tanstack/react-query";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import metronomeImgPath from "@assets/metronome-logo.png";
@@ -155,6 +156,7 @@ export default function StudentHome() {
             }}
             whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(255, 100, 50, 0.4)" }}
             whileTap={{ scale: 0.97 }}
+            onMouseEnter={() => triggerMascotReaction("pulse")}
             onClick={() => navigate("/student/rhythm")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -187,6 +189,7 @@ export default function StudentHome() {
             }}
             whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(139, 92, 246, 0.4)" }}
             whileTap={{ scale: 0.97 }}
+            onMouseEnter={() => triggerMascotReaction("note")}
             onClick={() => navigate("/student/notes")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -219,6 +222,7 @@ export default function StudentHome() {
             }}
             whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(124, 58, 237, 0.4)" }}
             whileTap={{ scale: 0.97 }}
+            onMouseEnter={() => triggerMascotReaction("point")}
             onClick={() => navigate("/student/orchestra")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -249,6 +253,7 @@ export default function StudentHome() {
             }}
             whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(240,147,251,0.4)" }}
             whileTap={{ scale: 0.97 }}
+            onMouseEnter={() => triggerMascotReaction("bounce")}
             onClick={() => navigate("/student/melody")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -304,6 +309,7 @@ export default function StudentHome() {
             }}
             whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(30,58,95,0.5)" }}
             whileTap={{ scale: 0.97 }}
+            onMouseEnter={() => triggerMascotReaction("pulse")}
             onClick={() => navigate("/student/drum")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
