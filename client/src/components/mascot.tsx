@@ -18,17 +18,18 @@ function loadPos(key: string) {
 
 interface MascotProps {
   draggable?: boolean;
+  storeKey?: string;
 }
 
-export default function Mascot({ draggable = false }: MascotProps) {
+export default function Mascot({ draggable = false, storeKey }: MascotProps) {
   const [reaction, setReaction] = useState<MascotReaction>("idle");
   const [showNote, setShowNote] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
   const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const storageKey = draggable ? DRAG_POS_KEY : FIXED_POS_KEY;
+  const storageKey = storeKey ?? (draggable ? DRAG_POS_KEY : FIXED_POS_KEY);
 
-  const [pos, setPos] = useState(() => draggable ? loadPos(storageKey) : DEFAULT_POS);
+  const [pos, setPos] = useState(() => loadPos(storageKey));
   const draggingRef = useRef(false);
   const wrapperRef  = useRef<HTMLDivElement>(null);
 
