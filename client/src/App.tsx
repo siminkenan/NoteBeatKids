@@ -1,4 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
+import { useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -22,6 +23,9 @@ import TeacherOrchestra from "@/pages/teacher-orchestra";
 import DrumKit from "@/pages/drum-kit";
 import AmbientSound from "@/components/ambient-sound";
 import MelodyEcho from "@/pages/melody-echo";
+import IntroSplash from "@/components/intro-splash";
+
+const INTRO_KEY = "notebeat_intro_v1";
 
 // Pages where ambient background sound should be active
 // Student section excluded — ambient sound conflicts with educational game audio
@@ -60,12 +64,26 @@ function Router() {
 }
 
 function App() {
+  const [showIntro, setShowIntro] = useState(() => {
+    try {
+      return !localStorage.getItem(INTRO_KEY);
+    } catch {
+      return false;
+    }
+  });
+
+  const handleIntroDone = () => {
+    try { localStorage.setItem(INTRO_KEY, "1"); } catch {}
+    setShowIntro(false);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
           <Toaster />
           <Router />
+          {showIntro && <IntroSplash onDone={handleIntroDone} />}
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

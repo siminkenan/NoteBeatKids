@@ -1,0 +1,60 @@
+NOTE BEAT KIDS INTRO ANIMATION – ENTEGRASYON PROMPTU
+
+Prompt:
+
+I have an existing web application called NoteBeat Kids, a music learning game for primary school children.
+I want to add a lightweight animated intro splash screen before the main page loads.
+The intro must integrate smoothly with the current project structure and must not break any existing functionality.
+
+Intro Animation Requirements
+	•	Duration: 3–4 seconds maximum
+	•	Target audience: Primary school children
+	•	Style: Colorful, playful, musical
+	•	Performance: Very lightweight and fast loading
+	•	Must work on mobile, tablet, and desktop browsers
+
+Animation Scenario
+	1.	When the app starts, a full-screen splash screen appears.
+	2.	Background color: soft pastel gradient (kid-friendly).
+	3.	Four music notes appear one by one in the center of the screen.
+	4.	Each note plays a short sound forming a mini melody:
+
+Do – Mi – Re – Do
+	5.	The notes animate slightly (bounce or pop effect).
+	6.	After the melody finishes, the notes smoothly transform into the NOTE BEAT KIDS logo text.
+	7.	The logo stays visible for about 1 second.
+	8.	The splash screen then fades out smoothly.
+	9.	The application automatically transitions to the main screen.
+
+Technical Requirements
+	•	Use HTML + CSS + JavaScript
+	•	Animation must be smooth and optimized
+	•	Use CSS animations or lightweight JS
+	•	Avoid heavy libraries
+	•	Total asset size should stay under 500KB
+
+Audio
+	•	Use soft kid-friendly instrument sounds
+	•	Preferred instruments:
+	•	xylophone
+	•	glockenspiel
+	•	soft piano
+
+Melody sequence:
+
+C – E – D – C
+
+Each note should trigger when the animation appears.
+
+UX Rule
+
+The intro animation should play only on the first app launch.
+If the user refreshes or reopens shortly after, it should skip the intro and go directly to the main screen.
+
+Additional Requirements
+	•	The intro must not block loading of the main application
+	•	The transition must be smooth
+	•	Ensure the design matches a kids music learning game
+	•	Code should be clean and well structured
+
+Return the complete code implementation ready to integrate into the project.
