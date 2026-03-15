@@ -42,9 +42,15 @@ function useMascotActive() {
   return MASCOT_PATHS.includes(location);
 }
 
+function useMascotDraggable() {
+  const [location] = useLocation();
+  return location === "/student/home";
+}
+
 function Router() {
   const ambientActive = useAmbientActive();
   const mascotActive = useMascotActive();
+  const mascotDraggable = useMascotDraggable();
   return (
     <>
       <Switch>
@@ -67,7 +73,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
       <AmbientSound active={ambientActive} />
-      {mascotActive && <Mascot />}
+      {mascotActive && <Mascot draggable={mascotDraggable} />}
     </>
   );
 }
