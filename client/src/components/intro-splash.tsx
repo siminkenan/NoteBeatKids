@@ -3,9 +3,9 @@ import logoPath from "@assets/ChatGPT_Image_15_Mar_2026_17_32_30_1773585221618.p
 
 const MELODY = [
   { symbol: "♩", label: "Do", freq: 523.25, color: "#f97316", bg: "#fff7ed", delay: 0 },
-  { symbol: "♪", label: "Mi", freq: 659.25, color: "#8b5cf6", bg: "#f5f3ff", delay: 550 },
-  { symbol: "♫", label: "Re", freq: 587.33, color: "#06b6d4", bg: "#ecfeff", delay: 1100 },
-  { symbol: "♬", label: "Do", freq: 523.25, color: "#ec4899", bg: "#fdf2f8", delay: 1650 },
+  { symbol: "♪", label: "Mi", freq: 659.25, color: "#8b5cf6", bg: "#f5f3ff", delay: 800 },
+  { symbol: "♫", label: "Re", freq: 587.33, color: "#06b6d4", bg: "#ecfeff", delay: 1600 },
+  { symbol: "♬", label: "Do", freq: 523.25, color: "#ec4899", bg: "#fdf2f8", delay: 2400 },
 ];
 
 function playXylophone(freq: number) {
@@ -56,15 +56,15 @@ export default function IntroSplash({ onDone }: { onDone: () => void }) {
     });
 
     // Notes fade out
-    timers.push(setTimeout(() => setNotesOut(true), 2300));
+    timers.push(setTimeout(() => setNotesOut(true), 3800));
     // Logo fades in
-    timers.push(setTimeout(() => { setPhase("logo"); setLogoIn(true); }, 2500));
-    // Fade out the whole splash
-    timers.push(setTimeout(() => setPhase("fadeout"), 3600));
+    timers.push(setTimeout(() => { setPhase("logo"); setLogoIn(true); }, 4100));
+    // Logo visible for 10 seconds, then fade out
+    timers.push(setTimeout(() => setPhase("fadeout"), 14200));
     // Signal done
     timers.push(setTimeout(() => {
       if (!called.current) { called.current = true; onDone(); }
-    }, 4100));
+    }, 14800));
 
     return () => timers.forEach(clearTimeout);
   }, [onDone]);
@@ -104,22 +104,55 @@ export default function IntroSplash({ onDone }: { onDone: () => void }) {
 
       {/* Logo */}
       <div
-        className="absolute inset-0 flex flex-col items-center justify-center gap-3 transition-all"
+        className="absolute inset-0 flex flex-col items-center justify-center gap-4 transition-all"
         style={{
           opacity: logoIn ? 1 : 0,
-          transform: logoIn ? "scale(1)" : "scale(0.6)",
-          transitionDuration: "500ms",
+          transform: logoIn ? "scale(1)" : "scale(0.5)",
+          transitionDuration: "600ms",
           transitionTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+          pointerEvents: logoIn ? "auto" : "none",
         }}
       >
-        <img
-          src={logoPath}
-          alt="NoteBeat Kids"
-          className="w-56 h-56 sm:w-72 sm:h-72 object-contain drop-shadow-2xl intro-logo-glow"
-          draggable={false}
-        />
-        <p className="text-white text-sm sm:text-base font-extrabold tracking-widest uppercase drop-shadow-lg" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-          Müzikle Öğren, Eğlenerek Büyü!
+        {/* Orbiting notes ring */}
+        <div className="relative flex items-center justify-center" style={{ width: 320, height: 320 }}>
+          {["🎵","⭐","🎶","🌟","🎵","✨"].map((icon, i) => (
+            <span
+              key={i}
+              className="absolute text-2xl"
+              style={{
+                animation: `intro-orbit ${3.5 + i * 0.4}s linear ${logoIn ? "0s" : "99999s"} infinite`,
+                animationDelay: `${(i * (360 / 6)) / 360 * -(3.5 + i * 0.4)}s`,
+                top: "50%", left: "50%",
+                marginTop: "-1rem", marginLeft: "-1rem",
+              }}
+            >
+              {icon}
+            </span>
+          ))}
+
+          <img
+            src={logoPath}
+            alt="NoteBeat Kids"
+            style={{
+              width: 220, height: 220,
+              objectFit: "contain",
+              animation: logoIn
+                ? "intro-logo-pulse 2s ease-in-out infinite, intro-logo-float 3.8s ease-in-out infinite"
+                : "none",
+            }}
+            draggable={false}
+          />
+        </div>
+
+        <p
+          className="text-white font-extrabold uppercase drop-shadow-lg"
+          style={{
+            fontSize: "clamp(0.75rem, 2.5vw, 1rem)",
+            textShadow: "0 2px 10px rgba(0,0,0,0.3)",
+            animation: logoIn ? "intro-text-shimmer 3s ease-in-out infinite" : "none",
+          }}
+        >
+          Müzikle Öğren, Eğlenerek Büyü! 🎼
         </p>
       </div>
     </div>
