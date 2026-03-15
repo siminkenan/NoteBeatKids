@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
-import { triggerMascotReaction } from "@/components/mascot";
+import { triggerMascotReaction } from "@/lib/mascot-trigger";
 import { useQuery } from "@tanstack/react-query";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 import metronomeImgPath from "@assets/metronome-logo.png";
