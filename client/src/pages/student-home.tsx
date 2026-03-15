@@ -146,40 +146,7 @@ export default function StudentHome() {
 
         {/* Oyun butonları */}
         <div className="flex flex-col gap-5 flex-1">
-          {/* Ritmi Yakala */}
-          <motion.button
-            data-testid="button-rhythm-game"
-            className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
-            style={{
-              background: "linear-gradient(135deg, #ff9a56 0%, #ff6348 100%)",
-              border: "3px solid rgba(255,255,255,0.5)",
-            }}
-            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(255, 100, 50, 0.4)" }}
-            whileTap={{ scale: 0.97 }}
-            onMouseEnter={() => triggerMascotReaction("pulse")}
-            onClick={() => navigate("/student/rhythm")}
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <span className="text-5xl">🥁</span>
-            </div>
-            <div>
-              <h2 className="text-2xl font-extrabold text-white">Ritmi Yakala</h2>
-              <p className="text-white/85 font-bold text-sm mt-1">Ritme eşlik et! Ritim kalıbını eşleştir.</p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
-                  Seviye {rhythmProgress?.level ?? 1}
-                </div>
-                <div className="text-white/80 text-xs font-bold">
-                  {rhythmProgress?.starsEarned ?? 0} yıldız kazanıldı
-                </div>
-              </div>
-            </div>
-          </motion.button>
-
-          {/* Nota Dedektifi */}
+          {/* 1. Nota Dedektifi */}
           <motion.button
             data-testid="button-notes-game"
             className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
@@ -193,7 +160,7 @@ export default function StudentHome() {
             onClick={() => navigate("/student/notes")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.35 }}
+            transition={{ delay: 0.2 }}
           >
             <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
               <span className="text-5xl">🔍</span>
@@ -212,38 +179,7 @@ export default function StudentHome() {
             </div>
           </motion.button>
 
-          {/* Maestro */}
-          <motion.button
-            data-testid="button-maestro-game"
-            className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
-            style={{
-              background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-              border: "3px solid rgba(255,255,255,0.5)",
-            }}
-            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(124, 58, 237, 0.4)" }}
-            whileTap={{ scale: 0.97 }}
-            onMouseEnter={() => triggerMascotReaction("point")}
-            onClick={() => navigate("/student/orchestra")}
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.45 }}
-          >
-            <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <span className="text-5xl">🎬</span>
-            </div>
-            <div>
-              <h2 className="text-2xl font-extrabold text-white">Maestro</h2>
-              <p className="text-white/85 font-bold text-sm mt-1">Öğretmen videoları & fotoğrafları izle!</p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
-                  Video &amp; Fotoğraf
-                </div>
-                <div className="text-white/80 text-xs font-bold">Öğretmen 🎬</div>
-              </div>
-            </div>
-          </motion.button>
-
-          {/* Melodi Taklit Oyunu */}
+          {/* 2. Melodi Taklit Oyunu */}
           <motion.button
             data-testid="button-melody-echo"
             className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
@@ -257,7 +193,7 @@ export default function StudentHome() {
             onClick={() => navigate("/student/melody")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.3 }}
           >
             <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
               <img src={melodyLogoPath} alt="Melodi Taklit Oyunu"
@@ -275,31 +211,40 @@ export default function StudentHome() {
             </div>
           </motion.button>
 
-          {/* İlerleme Haritası */}
+          {/* 3. Ritmi Yakala */}
           <motion.button
-            data-testid="button-level-map"
-            className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
+            data-testid="button-rhythm-game"
+            className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
             style={{
-              background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+              background: "linear-gradient(135deg, #ff9a56 0%, #ff6348 100%)",
               border: "3px solid rgba(255,255,255,0.5)",
             }}
-            whileHover={{ scale: 1.03 }}
+            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(255, 100, 50, 0.4)" }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => navigate("/student/map")}
+            onMouseEnter={() => triggerMascotReaction("pulse")}
+            onClick={() => navigate("/student/rhythm")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.4 }}
           >
-            <div className="w-14 h-14 bg-white/30 rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-3xl">🗺️</span>
+            <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-5xl">🥁</span>
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-white">İlerleme Haritam</h2>
-              <p className="text-white/85 font-semibold text-sm">Öğrenme yolculuğunu gör!</p>
+              <h2 className="text-2xl font-extrabold text-white">Ritmi Yakala</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Ritme eşlik et! Ritim kalıbını eşleştir.</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
+                  Seviye {rhythmProgress?.level ?? 1}
+                </div>
+                <div className="text-white/80 text-xs font-bold">
+                  {rhythmProgress?.starsEarned ?? 0} yıldız kazanıldı
+                </div>
+              </div>
             </div>
           </motion.button>
 
-          {/* Online Davul Seti */}
+          {/* 4. Online Davul Seti */}
           <motion.button
             data-testid="button-drum-kit"
             className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
@@ -313,7 +258,7 @@ export default function StudentHome() {
             onClick={() => navigate("/student/drum")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.55 }}
+            transition={{ delay: 0.5 }}
           >
             <div className="w-14 h-14 bg-white/15 rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-3xl">🥁</span>
@@ -330,7 +275,7 @@ export default function StudentHome() {
             </div>
           </motion.button>
 
-          {/* Metronom */}
+          {/* 5. Metronom */}
           <motion.button
             data-testid="button-metronome"
             className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
@@ -343,7 +288,7 @@ export default function StudentHome() {
             onClick={() => navigate("/metronome")}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.55 }}
           >
             <div className="w-16 h-16 flex items-center justify-center flex-shrink-0">
               <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" />
@@ -351,6 +296,61 @@ export default function StudentHome() {
             <div>
               <h2 className="text-xl font-extrabold text-white">Metronom</h2>
               <p className="text-white/85 font-semibold text-sm">Ritim için tempo ayarla!</p>
+            </div>
+          </motion.button>
+
+          {/* 6. İlerleme Haritası */}
+          <motion.button
+            data-testid="button-level-map"
+            className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
+            style={{
+              background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/student/map")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="w-14 h-14 bg-white/30 rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-3xl">🗺️</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-white">İlerleme Haritam</h2>
+              <p className="text-white/85 font-semibold text-sm">Öğrenme yolculuğunu gör!</p>
+            </div>
+          </motion.button>
+
+          {/* 7. Maestro */}
+          <motion.button
+            data-testid="button-maestro-game"
+            className="w-full p-6 rounded-3xl shadow-xl cursor-pointer text-left flex items-center gap-5"
+            style={{
+              background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03, boxShadow: "0 20px 40px rgba(124, 58, 237, 0.4)" }}
+            whileTap={{ scale: 0.97 }}
+            onMouseEnter={() => triggerMascotReaction("point")}
+            onClick={() => navigate("/student/orchestra")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.65 }}
+          >
+            <div className="w-20 h-20 bg-white/25 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-5xl">🎬</span>
+            </div>
+            <div>
+              <h2 className="text-2xl font-extrabold text-white">Maestro</h2>
+              <p className="text-white/85 font-bold text-sm mt-1">Öğretmen videoları & fotoğrafları izle!</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="bg-white/25 rounded-full px-3 py-1 text-xs text-white font-extrabold">
+                  Video &amp; Fotoğraf
+                </div>
+                <div className="text-white/80 text-xs font-bold">Öğretmen 🎬</div>
+              </div>
             </div>
           </motion.button>
 
