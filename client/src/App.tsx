@@ -25,7 +25,7 @@ import AmbientSound from "@/components/ambient-sound";
 import MelodyEcho from "@/pages/melody-echo";
 import IntroSplash from "@/components/intro-splash";
 
-const INTRO_KEY = "notebeat_intro_v2";
+const INTRO_KEY = "notebeat_intro_v3";
 
 // Pages where ambient background sound should be active
 // Student section excluded — ambient sound conflicts with educational game audio
