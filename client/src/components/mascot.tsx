@@ -9,11 +9,22 @@ export default function Mascot() {
   const [showNote, setShowNote] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
 
-  const [pos, setPos] = useState({ x: 20, y: 24 });
+  const [pos, setPos] = useState(() => {
+    try {
+      const saved = localStorage.getItem("mascot_pos");
+      if (saved) return JSON.parse(saved) as { x: number; y: number };
+    } catch {}
+    return { x: 20, y: 24 };
+  });
   const dragging = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, px: 0, py: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function savePos(p: { x: number; y: number }) {
+    setPos(p);
+    try { localStorage.setItem("mascot_pos", JSON.stringify(p)); } catch {}
+  }
 
   function applyReaction(r: MascotReaction) {
     setReaction(r);
@@ -52,12 +63,18 @@ export default function Mascot() {
     e.preventDefault();
     dragging.current = true;
     const snap = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
+    let lastPos = { x: pos.x, y: pos.y };
 
     const move = (ev: MouseEvent) => {
       if (!dragging.current) return;
-      setPos(clamp(snap.px - (ev.clientX - snap.mx), snap.py - (ev.clientY - snap.my)));
+      lastPos = clamp(snap.px - (ev.clientX - snap.mx), snap.py - (ev.clientY - snap.my));
+      setPos(lastPos);
     };
-    const up = () => { dragging.current = false; window.removeEventListener("mousemove", move); };
+    const up = () => {
+      dragging.current = false;
+      window.removeEventListener("mousemove", move);
+      savePos(lastPos);
+    };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up, { once: true });
   }, [pos]);
@@ -67,13 +84,19 @@ export default function Mascot() {
     const t = e.touches[0];
     dragging.current = true;
     const snap = { mx: t.clientX, my: t.clientY, px: pos.x, py: pos.y };
+    let lastPos = { x: pos.x, y: pos.y };
 
     const move = (ev: TouchEvent) => {
       if (!dragging.current) return;
       const tt = ev.touches[0];
-      setPos(clamp(snap.px - (tt.clientX - snap.mx), snap.py - (tt.clientY - snap.my)));
+      lastPos = clamp(snap.px - (tt.clientX - snap.mx), snap.py - (tt.clientY - snap.my));
+      setPos(lastPos);
     };
-    const up = () => { dragging.current = false; window.removeEventListener("touchmove", move); };
+    const up = () => {
+      dragging.current = false;
+      window.removeEventListener("touchmove", move);
+      savePos(lastPos);
+    };
     window.addEventListener("touchmove", move, { passive: true });
     window.addEventListener("touchend", up, { once: true });
   }, [pos]);
