@@ -73,7 +73,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
       <AmbientSound active={ambientActive} />
-      {mascotActive && <Mascot storeKey="mascot_pos_home" />}
+      {mascotActive && <Mascot draggable storeKey="mascot_pos_home" />}
     </>
   );
 }

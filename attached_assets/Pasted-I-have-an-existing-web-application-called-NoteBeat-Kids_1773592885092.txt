@@ -1,0 +1,131 @@
+I have an existing web application called NoteBeat Kids, a music learning game designed for primary and middle school students.
+
+I already have a mascot image (PNG with transparent background) and I will add the image file to the project manually. I want to use this mascot as an animated interactive menu guide inside the application.
+
+The implementation must integrate smoothly with the current project and must not break any existing functionality.
+
+------------------------------------------------
+
+MASCOT MENU GUIDE SYSTEM
+
+Create a small animated mascot assistant that appears in the bottom-right corner of the screen.
+
+The mascot should behave like a friendly music guide for kids.
+
+Characteristics:
+- Always visible but not intrusive
+- Friendly and playful feeling
+- Smooth lightweight animations
+- Clean UI integration
+
+Size rules:
+Desktop: about 100px width
+Mobile: about 70px width
+
+The mascot must never block buttons or UI elements.
+
+------------------------------------------------
+
+IDLE ANIMATION SYSTEM (IMPORTANT)
+
+The mascot should NOT constantly move or bounce because that could distract children.
+
+Instead implement a smart idle animation system:
+
+Every 3 seconds the mascot randomly performs one small animation such as:
+
+* a small bounce  
+* a blink (eye blink effect)  
+* a tiny music note appearing briefly  
+* a subtle head tilt  
+
+Animations must be very small and smooth so the mascot feels alive but not distracting.
+
+------------------------------------------------
+
+MENU INTERACTION BEHAVIOR
+
+When the user hovers over or taps different menu items, the mascot reacts.
+
+Example menu sections:
+
+1. Melody Game
+When the user hovers or taps:
+- the mascot gently points toward the button
+- small floating music notes appear
+- a short bounce animation plays
+
+2. Rhythm Game
+When the user hovers or taps:
+- the mascot performs a rhythmic bounce
+- two small pulse circles appear briefly
+
+3. Note Learning
+When the user hovers or taps:
+- the mascot raises a finger like explaining
+- glowing note symbols appear around it
+
+------------------------------------------------
+
+ANIMATION REQUIREMENTS
+
+Animations must be lightweight and optimized.
+
+Use:
+- CSS animations
+- SVG animations
+- minimal JavaScript logic
+
+Avoid heavy animation libraries.
+
+Animations needed:
+
+* idle animation loop  
+* bounce animation  
+* pointing animation  
+* glow effect for small notes  
+* small pulse effect
+
+------------------------------------------------
+
+PERFORMANCE REQUIREMENTS
+
+The mascot system must:
+
+* load instantly  
+* not block page rendering  
+* work on mobile, tablet, and desktop  
+* stay under 300KB animation weight
+
+------------------------------------------------
+
+CODE STRUCTURE
+
+Provide clean and modular code.
+
+Example structure:
+
+/assets/mascot.png  
+/css/mascot.css  
+/js/mascot.js  
+
+------------------------------------------------
+
+USER EXPERIENCE
+
+The mascot should feel like a friendly musical assistant guiding children through the app.
+
+Rules:
+
+* never cover UI elements  
+* stay in a corner  
+* react smoothly to user interaction  
+* animations must feel playful but minimal
+
+------------------------------------------------
+
+Return the complete ready-to-integrate implementation including:
+
+* HTML structure  
+* CSS animations  
+* JavaScript interaction logic

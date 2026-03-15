@@ -27,8 +27,9 @@ export default function Mascot({ draggable = false, storeKey }: MascotProps) {
   const [showPulse, setShowPulse] = useState(false);
   const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const storageKey = storeKey ?? (draggable ? DRAG_POS_KEY : FIXED_POS_KEY);
+  const storageKey = storeKey ?? DRAG_POS_KEY;
 
+  // Reads saved position once on mount; non-draggable never writes back
   const [pos, setPos] = useState(() => loadPos(storageKey));
   const draggingRef = useRef(false);
   const wrapperRef  = useRef<HTMLDivElement>(null);
