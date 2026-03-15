@@ -28,7 +28,7 @@ export default function Mascot({ draggable = false }: MascotProps) {
 
   const storageKey = draggable ? DRAG_POS_KEY : FIXED_POS_KEY;
 
-  const [pos, setPos] = useState(() => loadPos(storageKey));
+  const [pos, setPos] = useState(() => draggable ? loadPos(storageKey) : DEFAULT_POS);
   const draggingRef = useRef(false);
   const wrapperRef  = useRef<HTMLDivElement>(null);
 
