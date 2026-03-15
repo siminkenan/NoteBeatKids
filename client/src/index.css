@@ -420,14 +420,8 @@
   z-index: 9000;
   width: 340px;
   height: 340px;
-  pointer-events: auto;
+  pointer-events: none;
   user-select: none;
-  cursor: grab;
-  touch-action: none;
-}
-
-.mascot-wrapper:active {
-  cursor: grabbing;
 }
 
 @media (max-width: 640px) {

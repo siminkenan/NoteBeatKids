@@ -1,30 +1,27 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import mascotPath from "@/assets/mascot.png";
 
 type MascotReaction = "idle" | "bounce" | "tilt" | "note" | "pulse" | "point";
 const IDLE_LIST: MascotReaction[] = ["bounce", "tilt", "note"];
 
+const DEFAULT_POS = { x: 20, y: 24 };
+
+function loadPos() {
+  try {
+    const saved = localStorage.getItem("mascot_pos");
+    if (saved) return JSON.parse(saved) as { x: number; y: number };
+  } catch {}
+  return DEFAULT_POS;
+}
+
 export default function Mascot() {
   const [reaction, setReaction] = useState<MascotReaction>("idle");
   const [showNote, setShowNote] = useState(false);
   const [showPulse, setShowPulse] = useState(false);
-
-  const [pos, setPos] = useState(() => {
-    try {
-      const saved = localStorage.getItem("mascot_pos");
-      if (saved) return JSON.parse(saved) as { x: number; y: number };
-    } catch {}
-    return { x: 20, y: 24 };
-  });
-  const dragging = useRef(false);
-  const dragStart = useRef({ mx: 0, my: 0, px: 0, py: 0 });
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function savePos(p: { x: number; y: number }) {
-    setPos(p);
-    try { localStorage.setItem("mascot_pos", JSON.stringify(p)); } catch {}
-  }
+  // Fixed position loaded once from localStorage
+  const pos = loadPos();
 
   function applyReaction(r: MascotReaction) {
     setReaction(r);
@@ -58,58 +55,6 @@ export default function Mascot() {
     };
   }, []);
 
-  // Mouse drag
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    dragging.current = true;
-    const snap = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
-    let lastPos = { x: pos.x, y: pos.y };
-
-    const move = (ev: MouseEvent) => {
-      if (!dragging.current) return;
-      lastPos = clamp(snap.px - (ev.clientX - snap.mx), snap.py - (ev.clientY - snap.my));
-      setPos(lastPos);
-    };
-    const up = () => {
-      dragging.current = false;
-      window.removeEventListener("mousemove", move);
-      savePos(lastPos);
-    };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up, { once: true });
-  }, [pos]);
-
-  // Touch drag
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    const t = e.touches[0];
-    dragging.current = true;
-    const snap = { mx: t.clientX, my: t.clientY, px: pos.x, py: pos.y };
-    let lastPos = { x: pos.x, y: pos.y };
-
-    const move = (ev: TouchEvent) => {
-      if (!dragging.current) return;
-      const tt = ev.touches[0];
-      lastPos = clamp(snap.px - (tt.clientX - snap.mx), snap.py - (tt.clientY - snap.my));
-      setPos(lastPos);
-    };
-    const up = () => {
-      dragging.current = false;
-      window.removeEventListener("touchmove", move);
-      savePos(lastPos);
-    };
-    window.addEventListener("touchmove", move, { passive: true });
-    window.addEventListener("touchend", up, { once: true });
-  }, [pos]);
-
-  function clamp(x: number, y: number) {
-    const w = wrapperRef.current?.offsetWidth ?? 340;
-    const h = wrapperRef.current?.offsetHeight ?? 340;
-    return {
-      x: Math.max(-w * 0.4, Math.min(window.innerWidth - w * 0.6, x)),
-      y: Math.max(-h * 0.4, Math.min(window.innerHeight - h * 0.6, y)),
-    };
-  }
-
   const anim =
     reaction === "bounce" ? "mascot-bounce"     :
     reaction === "tilt"   ? "mascot-tilt"       :
@@ -118,11 +63,8 @@ export default function Mascot() {
 
   return (
     <div
-      ref={wrapperRef}
       className="mascot-wrapper"
       style={{ right: pos.x, bottom: pos.y }}
-      onMouseDown={onMouseDown}
-      onTouchStart={onTouchStart}
       aria-hidden
     >
       {showNote && (
