@@ -27,7 +27,7 @@ import IntroSplash from "@/components/intro-splash";
 import Mascot from "@/components/mascot";
 
 const INTRO_KEY = "notebeat_intro_v3";
-const MASCOT_PATHS = ["/", "/student/home"];
+const MASCOT_PATHS = ["/"];
 
 // Pages where ambient background sound should be active
 // Student section excluded — ambient sound conflicts with educational game audio
@@ -73,12 +73,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
       <AmbientSound active={ambientActive} />
-      {mascotActive && (
-        <Mascot
-          draggable
-          storeKey={mascotDraggable ? "mascot_pos_student" : "mascot_pos_home"}
-        />
-      )}
+      {mascotActive && <Mascot storeKey="mascot_pos_home" />}
     </>
   );
 }
