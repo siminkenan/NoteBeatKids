@@ -4,14 +4,25 @@ import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+function getContentType(filename: string): string {
+  const ext = (filename.split(".").pop() || "").toLowerCase();
+  const map: Record<string, string> = {
+    mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg",
+    aac: "audio/aac", m4a: "audio/mp4",
+    mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+    gif: "image/gif", webp: "image/webp",
+  };
+  return map[ext] || "application/octet-stream";
+}
+
+function makeStoredFilename(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 const upload = multer({
-  dest: uploadsDir,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("audio/") || file.originalname.match(/\.(mp3|wav|ogg|aac|m4a)$/i)) {
@@ -23,8 +34,8 @@ const upload = multer({
 });
 
 const maestroUpload = multer({
-  dest: uploadsDir,
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB for videos
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/") || file.mimetype.startsWith("image/")) {
       cb(null, true);
@@ -464,10 +475,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Serve uploaded audio files
-  app.get("/api/orchestra/audio/:filename", (req: Request, res: Response) => {
-    const filepath = path.join(uploadsDir, req.params.filename);
-    if (!fs.existsSync(filepath)) return res.status(404).json({ message: "File not found" });
-    res.sendFile(filepath);
+  app.get("/api/orchestra/audio/:filename", async (req: Request, res: Response) => {
+    const song = await storage.getOrchestraSongByStoredFilename(req.params.filename);
+    if (!song || !song.fileData) return res.status(404).json({ message: "File not found" });
+    const buf = Buffer.from(song.fileData, "base64");
+    res.set("Content-Type", getContentType(song.originalFilename));
+    res.set("Content-Length", String(buf.length));
+    res.send(buf);
   });
 
   // Teacher: upload song
@@ -479,7 +493,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const count = await storage.countOrchestraSongsByTeacher(teacherId);
       if (count >= 10) {
-        fs.unlinkSync(req.file.path);
         return res.status(400).json({ message: "Song limit reached. Please delete an existing song to upload a new one." });
       }
 
@@ -491,7 +504,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         teacherId,
         name,
         originalFilename: req.file.originalname,
-        storedFilename: req.file.filename,
+        storedFilename: makeStoredFilename(),
+        fileData: req.file.buffer.toString("base64"),
         bpm,
         durationSeconds: parseInt(req.body.durationSeconds) || 0,
         rhythmPatternOriginal: JSON.stringify(patterns.original),
@@ -500,7 +514,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       res.json(song);
     } catch (err: any) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       res.status(500).json({ message: err.message });
     }
   });
@@ -520,9 +533,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const song = await storage.getOrchestraSong(req.params.id);
     if (!song) return res.status(404).json({ message: "Song not found" });
     if (song.teacherId !== teacherId) return res.status(403).json({ message: "Not authorized" });
-
-    const filepath = path.join(uploadsDir, song.storedFilename);
-    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
     await storage.deleteOrchestraSong(req.params.id);
     res.json({ ok: true });
   });
@@ -587,10 +597,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ── Maestro Routes ───────────────────────────────────────────────────────────
 
   // Serve Maestro files (video/photo)
-  app.get("/api/maestro/file/:filename", (req: Request, res: Response) => {
-    const filepath = path.join(uploadsDir, req.params.filename);
-    if (!fs.existsSync(filepath)) return res.status(404).json({ message: "File not found" });
-    res.sendFile(filepath);
+  app.get("/api/maestro/file/:filename", async (req: Request, res: Response) => {
+    const resource = await storage.getMaestroResourceByStoredFilename(req.params.filename);
+    if (!resource || !resource.fileData) return res.status(404).json({ message: "File not found" });
+    const buf = Buffer.from(resource.fileData, "base64");
+    res.set("Content-Type", getContentType(resource.originalFilename));
+    res.set("Content-Length", String(buf.length));
+    res.send(buf);
   });
 
   // Teacher: upload video (max 3, max 197s = 3m17s — duration validated client-side)
@@ -602,13 +615,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const count = await storage.countMaestroVideosByTeacher(teacherId);
       if (count >= 3) {
-        fs.unlinkSync(req.file.path);
         return res.status(400).json({ message: "Video limiti doldu. Yeni video eklemek için mevcut bir videoyu silin." });
       }
 
       const durationSeconds = parseInt(req.body.durationSeconds) || 0;
       if (durationSeconds > 197) {
-        fs.unlinkSync(req.file.path);
         return res.status(400).json({ message: "Video süresi 3:17 (197 sn) sınırını aşıyor." });
       }
 
@@ -617,14 +628,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         type: "video",
         title: (req.body.title || req.file.originalname.replace(/\.[^.]+$/, "")).trim(),
         originalFilename: req.file.originalname,
-        storedFilename: req.file.filename,
+        storedFilename: makeStoredFilename(),
+        fileData: req.file.buffer.toString("base64"),
         durationSeconds,
         fileSize: req.file.size,
       });
 
       res.json(resource);
     } catch (err: any) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       res.status(500).json({ message: err.message });
     }
   });
@@ -641,14 +652,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         type: "photo",
         title: (req.body.title || req.file.originalname.replace(/\.[^.]+$/, "")).trim(),
         originalFilename: req.file.originalname,
-        storedFilename: req.file.filename,
+        storedFilename: makeStoredFilename(),
+        fileData: req.file.buffer.toString("base64"),
         durationSeconds: 0,
         fileSize: req.file.size,
       });
 
       res.json(resource);
     } catch (err: any) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       res.status(500).json({ message: err.message });
     }
   });
@@ -668,8 +679,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const resource = await storage.getMaestroResource(req.params.id);
     if (!resource) return res.status(404).json({ message: "Resource not found" });
     if (resource.teacherId !== teacherId) return res.status(403).json({ message: "Not authorized" });
-    const filepath = path.join(uploadsDir, resource.storedFilename);
-    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
     await storage.deleteMaestroResource(req.params.id);
     res.json({ ok: true });
   });

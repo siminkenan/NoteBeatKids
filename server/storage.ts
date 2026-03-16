@@ -91,6 +91,7 @@ export interface IStorage {
   // Orchestra Songs
   getOrchestraSongsByTeacher(teacherId: string): Promise<OrchestraSong[]>;
   getOrchestraSong(id: string): Promise<OrchestraSong | undefined>;
+  getOrchestraSongByStoredFilename(storedFilename: string): Promise<OrchestraSong | undefined>;
   createOrchestraSong(data: Omit<OrchestraSong, "id" | "createdAt">): Promise<OrchestraSong>;
   updateOrchestraSong(id: string, data: Partial<OrchestraSong>): Promise<OrchestraSong | undefined>;
   deleteOrchestraSong(id: string): Promise<void>;
@@ -105,6 +106,7 @@ export interface IStorage {
   getMaestroResourcesByTeacher(teacherId: string): Promise<MaestroResource[]>;
   getMaestroResourcesByClass(classId: string): Promise<MaestroResource[]>;
   getMaestroResource(id: string): Promise<MaestroResource | undefined>;
+  getMaestroResourceByStoredFilename(storedFilename: string): Promise<MaestroResource | undefined>;
   deleteMaestroResource(id: string): Promise<void>;
   countMaestroVideosByTeacher(teacherId: string): Promise<number>;
   // Maestro View Progress
@@ -634,6 +636,11 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getOrchestraSongByStoredFilename(storedFilename: string): Promise<OrchestraSong | undefined> {
+    const result = await db.select().from(orchestraSongs).where(eq(orchestraSongs.storedFilename, storedFilename)).limit(1);
+    return result[0];
+  }
+
   async createOrchestraSong(data: Omit<OrchestraSong, "id" | "createdAt">): Promise<OrchestraSong> {
     const [song] = await db.insert(orchestraSongs).values(data).returning();
     return song;
@@ -722,6 +729,11 @@ export class DatabaseStorage implements IStorage {
 
   async getMaestroResource(id: string): Promise<MaestroResource | undefined> {
     const [r] = await db.select().from(maestroResources).where(eq(maestroResources.id, id)).limit(1);
+    return r;
+  }
+
+  async getMaestroResourceByStoredFilename(storedFilename: string): Promise<MaestroResource | undefined> {
+    const [r] = await db.select().from(maestroResources).where(eq(maestroResources.storedFilename, storedFilename)).limit(1);
     return r;
   }
 
