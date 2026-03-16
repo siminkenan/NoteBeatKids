@@ -4,8 +4,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "vite",
-    "test":"echo \"Error: no test specified\" && exit 1"
+    "dev": "NODE_ENV=development tsx server/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsx && vite build",
     "start": "node server/index.js",
     "check": "tsc",
