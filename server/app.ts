@@ -24,6 +24,9 @@ export async function createApp() {
   const app = express();
   const httpServer = createServer(app);
 
+  // Trust Replit's reverse proxy so secure cookies work over HTTPS
+  app.set("trust proxy", 1);
+
   app.use(
     express.json({
       verify: (req, _res, buf) => {
@@ -39,6 +42,7 @@ export async function createApp() {
     secret: process.env.SESSION_SECRET || "notebeat-kids-secret-2024",
     resave: false,
     saveUninitialized: false,
+    proxy: isProduction,
     cookie: {
       secure: isProduction,
       sameSite: isProduction ? "none" : "lax",

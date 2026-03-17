@@ -82,7 +82,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const valid = await bcrypt.compare(password, admin.password);
       if (!valid) return res.status(401).json({ message: "Invalid credentials" });
       (req.session as any).adminId = admin.id;
-      res.json({ id: admin.id, name: admin.name, email: admin.email, role: "admin" });
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session error" });
+        res.json({ id: admin.id, name: admin.name, email: admin.email, role: "admin" });
+      });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
     }
@@ -125,7 +128,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
         (req.session as any).teacherId = existingTeacher.id;
         const { password: _, ...safe } = existingTeacher;
-        return res.json({ ...safe, role: "teacher" });
+        return req.session.save((err) => {
+          if (err) return res.status(500).json({ message: "Session error" });
+          res.json({ ...safe, role: "teacher" });
+        });
       }
 
       // Code is unused — register new teacher
@@ -133,7 +139,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       await storage.linkTeacherToCode(codeRecord.id, teacher.id);
       (req.session as any).teacherId = teacher.id;
       const { password: _, ...safeTeacher } = teacher;
-      res.json({ ...safeTeacher, role: "teacher" });
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session error" });
+        res.json({ ...safeTeacher, role: "teacher" });
+      });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
     }
