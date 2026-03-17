@@ -308,13 +308,12 @@ export default function MelodyEcho() {
                   const correct = pressed && playerSeq[i] === n;
                   return (
                     <span key={i}
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold border-2"
+                      className="w-8 h-8 rounded-full border-2 transition-all"
                       style={{
                         backgroundColor: pressed ? (correct ? KEY_GLOW[n] : "#ef4444") : "rgba(255,255,255,0.05)",
                         borderColor: pressed ? (correct ? KEY_GLOW[n] : "#ef4444") : "rgba(255,255,255,0.2)",
-                        color: pressed ? "#fff" : "rgba(255,255,255,0.3)",
                       }}
-                    >{n === "C5" ? "C" : n}</span>
+                    />
                   );
                 })}
               </div>
