@@ -10,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -279,6 +280,13 @@ export default function AdminDashboard() {
     },
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
 
   const deleteInstitution = useMutation({
     mutationFn: async (id: string) => {
@@ -556,9 +564,12 @@ export default function AdminDashboard() {
                             size="sm"
                             className="rounded-xl font-bold gap-1.5 text-red-500 hover:bg-red-50"
                             onClick={() => {
-                              if (window.confirm(`"${inst.name}" kurumu ve bağlı tüm öğretmen, sınıf ve öğrenciler kalıcı olarak silinecek. Emin misiniz?`)) {
-                                deleteInstitution.mutate(inst.id);
-                              }
+                              setConfirmDialog({
+                                open: true,
+                                title: "Kurumu Sil",
+                                description: `"${inst.name}" kurumu ve bağlı tüm öğretmen, sınıf ve öğrenciler kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+                                onConfirm: () => deleteInstitution.mutate(inst.id),
+                              });
                             }}
                             disabled={deleteInstitution.isPending}
                             data-testid={`button-delete-institution-${inst.id}`}
@@ -703,9 +714,12 @@ export default function AdminDashboard() {
                             className="text-red-500 hover:bg-red-50 rounded-xl flex-shrink-0"
                             disabled={deleteClass.isPending}
                             onClick={() => {
-                              if (window.confirm(`"${cls.name}" sınıfı ve içindeki tüm öğrenciler silinecek. Emin misiniz?`)) {
-                                deleteClass.mutate(cls.id);
-                              }
+                              setConfirmDialog({
+                                open: true,
+                                title: "Sınıfı Sil",
+                                description: `"${cls.name}" sınıfı ve içindeki tüm öğrenciler kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+                                onConfirm: () => deleteClass.mutate(cls.id),
+                              });
                             }}
                             data-testid={`button-delete-class-${cls.id}`}
                           >
@@ -1082,6 +1096,40 @@ export default function AdminDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}
+      >
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-extrabold text-red-600">
+              {confirmDialog.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              {confirmDialog.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className="rounded-xl"
+              data-testid="button-confirm-cancel"
+            >
+              Vazgeç
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-delete"
+              onClick={() => {
+                confirmDialog.onConfirm();
+                setConfirmDialog((prev) => ({ ...prev, open: false }));
+              }}
+            >
+              Evet, Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -78,7 +78,11 @@ function Router() {
 }
 
 function App() {
-  const [showIntro, setShowIntro] = useState(true);
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as any).standalone === true;
+
+  const [showIntro, setShowIntro] = useState(!isStandalone);
 
   const handleIntroDone = () => {
     setShowIntro(false);
