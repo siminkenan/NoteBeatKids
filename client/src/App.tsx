@@ -29,7 +29,6 @@ const TeacherOrchestra  = lazy(() => import("@/pages/teacher-orchestra"));
 const DrumKit           = lazy(() => import("@/pages/drum-kit"));
 const MelodyEcho        = lazy(() => import("@/pages/melody-echo"));
 
-const INTRO_KEY = "notebeat_intro_v3";
 const AMBIENT_PATHS = ["/", "/teacher"];
 
 function useAmbientActive() {
@@ -79,16 +78,9 @@ function Router() {
 }
 
 function App() {
-  const [showIntro, setShowIntro] = useState(() => {
-    try {
-      return !localStorage.getItem(INTRO_KEY);
-    } catch {
-      return false;
-    }
-  });
+  const [showIntro, setShowIntro] = useState(true);
 
   const handleIntroDone = () => {
-    try { localStorage.setItem(INTRO_KEY, "1"); } catch {}
     setShowIntro(false);
   };
 

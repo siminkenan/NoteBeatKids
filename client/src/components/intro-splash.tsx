@@ -17,10 +17,10 @@ export default function IntroSplash({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     timers.push(setTimeout(() => setPhase("hold"), 50));
-    timers.push(setTimeout(() => setPhase("out"), 4500));
+    timers.push(setTimeout(() => setPhase("out"), 5500));
     timers.push(setTimeout(() => {
       if (!called.current) { called.current = true; onDone(); }
-    }, 5200));
+    }, 6200));
     return () => timers.forEach(clearTimeout);
   }, [onDone]);
 
@@ -116,7 +116,7 @@ export default function IntroSplash({ onDone }: { onDone: () => void }) {
             letterSpacing: "0.05em",
           }}
         >
-          🎵 Dokunun — müzik başlasın
+          🎵 Dokunarak geçebilirsiniz
         </p>
       </div>
     </div>
