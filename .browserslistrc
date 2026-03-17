@@ -1,0 +1,11 @@
+[production]
+iOS >= 11
+Safari >= 11
+Chrome >= 67
+Firefox >= 63
+Edge >= 79
+
+[development]
+last 1 chrome version
+last 1 firefox version
+last 1 safari version

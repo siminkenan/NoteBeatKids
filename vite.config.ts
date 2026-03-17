@@ -53,7 +53,11 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  esbuild: {
+    target: ["es2019", "safari11"],
+  },
   build: {
+    target: ["es2019", "safari11"],
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 1600,
