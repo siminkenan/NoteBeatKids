@@ -801,6 +801,58 @@ export default function RhythmGame() {
             </div>
           </div>
 
+        </div>
+
+        {/* ── CENTER column ── */}
+        <div className="flex flex-col gap-3">
+
+          {/* Score bar */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
+              <p className="text-lg font-extrabold text-green-500">{correctCount}</p>
+              <p className="text-[10px] text-muted-foreground font-bold">Doğru</p>
+            </div>
+            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
+              <p className="text-lg font-extrabold text-red-400">{wrongCount}</p>
+              <p className="text-[10px] text-muted-foreground font-bold">Yanlış</p>
+            </div>
+            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
+              <p className="text-lg font-extrabold text-purple-600">
+                {correctCount + wrongCount > 0 ? Math.round((correctCount / (correctCount + wrongCount)) * 100) : 0}%
+              </p>
+              <p className="text-[10px] text-muted-foreground font-bold">Doğruluk</p>
+            </div>
+          </div>
+
+          {/* Pass requirement bar */}
+          <div className="bg-white/70 rounded-xl px-3 py-2 flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground flex-shrink-0">Geçmek için:</span>
+            <div className="flex gap-1 flex-1">
+              {Array.from({ length: PATTERNS_PER_LEVEL }).map((_, i) => (
+                <div key={i} className={`flex-1 h-1.5 rounded-full transition-all ${
+                  i < exerciseResults.filter(Boolean).length ? "bg-green-400" :
+                  i < exerciseResults.length ? "bg-red-300" :
+                  i < PASS_THRESHOLD ? "bg-amber-200" : "bg-gray-100"
+                }`} />
+              ))}
+            </div>
+            <span className="text-xs font-bold text-amber-600 flex-shrink-0">{PASS_THRESHOLD}/10</span>
+          </div>
+
+          {/* BPM Slider — above the notation */}
+          <div className="bg-white/70 rounded-2xl p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
+              <span className="bg-purple-600 text-white text-sm font-extrabold px-3 py-1 rounded-full" data-testid="text-bpm">{bpm} BPM</span>
+            </div>
+            <input type="range" min={40} max={140} step={1} value={bpm}
+              onChange={e => setBpm(Number(e.target.value))} disabled={phase !== "idle"}
+              className="w-full accent-purple-600 cursor-pointer" data-testid="slider-bpm" />
+            <div className="flex justify-between text-xs text-muted-foreground font-semibold mt-1">
+              <span>40</span><span>90</span><span>140</span>
+            </div>
+          </div>
+
           {/* Panel 1: Hazırlan */}
           <div className={`rounded-2xl border-2 transition-colors duration-300 overflow-hidden ${
             phase === "listening" || phase === "listen_countdown" ? "border-indigo-300 bg-indigo-50"
@@ -870,12 +922,12 @@ export default function RhythmGame() {
               }`}>2</span>
               <p className="text-xs font-extrabold text-purple-600 uppercase tracking-widest">4/4 Sayma</p>
             </div>
-            <div className="flex justify-center gap-2 px-4 pb-4">
+            <div className="flex justify-center gap-3 px-4 pb-4">
               {[0, 1, 2, 3].map(beat => (
                 <div
                   key={beat}
                   ref={el => { beatDotsRef.current[beat] = el; }}
-                  className="w-11 h-11 rounded-full border-2 flex items-center justify-center text-sm font-extrabold select-none"
+                  className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-extrabold select-none"
                   style={{
                     borderColor: beat === 0 ? "#7c3aed" : "#c4b5fd",
                     background: "white",
@@ -886,58 +938,6 @@ export default function RhythmGame() {
                   {beat + 1}
                 </div>
               ))}
-            </div>
-          </div>
-
-        </div>
-
-        {/* ── CENTER column ── */}
-        <div className="flex flex-col gap-3">
-
-          {/* Score bar */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
-              <p className="text-lg font-extrabold text-green-500">{correctCount}</p>
-              <p className="text-[10px] text-muted-foreground font-bold">Doğru</p>
-            </div>
-            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
-              <p className="text-lg font-extrabold text-red-400">{wrongCount}</p>
-              <p className="text-[10px] text-muted-foreground font-bold">Yanlış</p>
-            </div>
-            <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
-              <p className="text-lg font-extrabold text-purple-600">
-                {correctCount + wrongCount > 0 ? Math.round((correctCount / (correctCount + wrongCount)) * 100) : 0}%
-              </p>
-              <p className="text-[10px] text-muted-foreground font-bold">Doğruluk</p>
-            </div>
-          </div>
-
-          {/* Pass requirement bar */}
-          <div className="bg-white/70 rounded-xl px-3 py-2 flex items-center gap-2">
-            <span className="text-xs font-bold text-muted-foreground flex-shrink-0">Geçmek için:</span>
-            <div className="flex gap-1 flex-1">
-              {Array.from({ length: PATTERNS_PER_LEVEL }).map((_, i) => (
-                <div key={i} className={`flex-1 h-1.5 rounded-full transition-all ${
-                  i < exerciseResults.filter(Boolean).length ? "bg-green-400" :
-                  i < exerciseResults.length ? "bg-red-300" :
-                  i < PASS_THRESHOLD ? "bg-amber-200" : "bg-gray-100"
-                }`} />
-              ))}
-            </div>
-            <span className="text-xs font-bold text-amber-600 flex-shrink-0">{PASS_THRESHOLD}/10</span>
-          </div>
-
-          {/* BPM Slider — above the notation */}
-          <div className="bg-white/70 rounded-2xl p-3 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
-              <span className="bg-purple-600 text-white text-sm font-extrabold px-3 py-1 rounded-full" data-testid="text-bpm">{bpm} BPM</span>
-            </div>
-            <input type="range" min={40} max={140} step={1} value={bpm}
-              onChange={e => setBpm(Number(e.target.value))} disabled={phase !== "idle"}
-              className="w-full accent-purple-600 cursor-pointer" data-testid="slider-bpm" />
-            <div className="flex justify-between text-xs text-muted-foreground font-semibold mt-1">
-              <span>40</span><span>90</span><span>140</span>
             </div>
           </div>
 

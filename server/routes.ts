@@ -619,6 +619,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/teacher/maestro/videos", maestroUpload.single("video"), async (req: Request, res: Response) => {
     try {
       const teacherId = (req.session as any).teacherId;
+      console.log(`[video-upload] teacherId=${teacherId}, file=${req.file?.originalname}, size=${req.file?.size}`);
       if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
       if (!req.file) return res.status(400).json({ message: "No video file provided" });
 

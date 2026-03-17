@@ -10,6 +10,7 @@ import type { MaestroResource } from "@shared/schema";
 
 const MAX_DURATION = 197; // 3 dk 17 sn
 const MAX_VIDEOS = 3;
+const MAX_VIDEO_BYTES = 45 * 1024 * 1024; // 45 MB deployment proxy limit
 
 function fmtSeconds(s: number) {
   const m = Math.floor(s / 60);
@@ -80,6 +81,16 @@ export default function TeacherOrchestra() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check file size before anything else
+    if (file.size > MAX_VIDEO_BYTES) {
+      toast({
+        title: `Video çok büyük (${(file.size / 1024 / 1024).toFixed(0)}MB). Maksimum 45MB olmalı.`,
+        variant: "destructive",
+      });
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      return;
+    }
+
     // Immediately make the file available
     setVideoFile(file);
     setVideoTitle(file.name.replace(/\.[^.]+$/, ""));
@@ -136,9 +147,15 @@ export default function TeacherOrchestra() {
 
       const r = await authFetch("/api/teacher/maestro/videos", { method: "POST", body: fd });
 
+      if (r.status === 401) {
+        toast({ title: "Oturum sona erdi. Lütfen tekrar giriş yapın.", variant: "destructive" });
+        navigate("/teacher/login");
+        return;
+      }
+
       if (!r.ok) {
-        const err = await r.json().catch(() => ({ message: "Yükleme başarısız" }));
-        throw new Error(err.message || "Yükleme başarısız");
+        const err = await r.json().catch(() => ({ message: "Video yüklenemedi" }));
+        throw new Error(err.message || "Video yüklenemedi");
       }
 
       await r.json(); // consume body
