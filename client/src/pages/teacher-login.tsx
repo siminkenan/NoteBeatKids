@@ -201,10 +201,10 @@ export default function TeacherLogin() {
 
         <Card className="shadow-2xl border-0 rounded-3xl overflow-hidden">
           <CardHeader className="text-center pb-2 pt-8 px-8">
-            <div className="flex justify-center mb-4">
-              <img src={logoPath} alt="NoteBeat Kids" className="w-20 h-20 object-contain" />
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <img src={logoPath} alt="NoteBeat Kids" className="h-8 w-auto object-contain" />
+              <CardTitle className="text-2xl font-extrabold text-foreground">Öğretmen Girişi</CardTitle>
             </div>
-            <CardTitle className="text-2xl font-extrabold text-foreground">Öğretmen Girişi</CardTitle>
             <CardDescription className="text-base text-muted-foreground">
               Adınızı ve kurumunuzun kodunu girin
             </CardDescription>

@@ -263,7 +263,7 @@ export default function StudentHome() {
               <span className="text-3xl">🥁</span>
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-white">Online Davul Seti</h2>
+              <h2 className="text-xl font-extrabold text-white">Davul Seti</h2>
               <p className="text-white/85 font-semibold text-sm">Gerçekçi davul seti — dokun, çal!</p>
               <div className="flex items-center gap-2 mt-1.5">
                 <div className="bg-white/20 rounded-full px-2.5 py-0.5 text-xs text-white font-extrabold">

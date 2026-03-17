@@ -272,7 +272,7 @@ export default function StudentLogin() {
         <Card className="shadow-2xl border-0 rounded-3xl">
           <CardHeader className="text-center pb-2 pt-8 px-8">
             <div className="flex items-center justify-center gap-3 mb-2">
-              <img src={logoPath} alt="NoteBeat Kids" className="h-8 w-auto object-contain" />
+              <img src={logoPath} alt="NoteBeat Kids" className="h-6 w-auto object-contain" />
               <CardTitle className="text-2xl font-extrabold">Öğrenci Girişi</CardTitle>
             </div>
             <CardDescription className="text-base">
@@ -336,6 +336,15 @@ export default function StudentLogin() {
                             className="rounded-xl h-14 text-center text-xl font-mono font-extrabold tracking-widest uppercase"
                             maxLength={8}
                             onChange={e => field.onChange(e.target.value.toUpperCase())}
+                            onPaste={e => {
+                              e.preventDefault();
+                              const text = e.clipboardData
+                                .getData("text")
+                                .replace(/\s/g, "")
+                                .toUpperCase()
+                                .slice(0, 8);
+                              field.onChange(text);
+                            }}
                             data-testid="input-class-code"
                           />
                         </FormControl>

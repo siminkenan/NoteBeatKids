@@ -57,7 +57,7 @@ export default function TeacherOrchestra() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   // ── Queries ───────────────────────────────────────────────────────────────
-  const { data: resources = [], isLoading, refetch: refetchResources } = useQuery<MaestroResource[]>({
+  const { data: resources = [], isLoading } = useQuery<MaestroResource[]>({
     queryKey: ["/api/teacher/maestro/resources"],
     queryFn: () => authFetch("/api/teacher/maestro/resources").then(r => r.json()),
     enabled: !!teacher,
@@ -158,8 +158,11 @@ export default function TeacherOrchestra() {
         throw new Error(err.message || "Video yüklenemedi");
       }
 
-      await r.json(); // consume body
-      await refetchResources();
+      const newResource: MaestroResource = await r.json();
+      qc.setQueryData<MaestroResource[]>(
+        ["/api/teacher/maestro/resources"],
+        (old = []) => [...old, newResource]
+      );
       toast({ title: "Video yüklendi!" });
       setVideoFile(null);
       setVideoTitle("");
@@ -196,8 +199,12 @@ export default function TeacherOrchestra() {
         throw new Error(err.message || "Yükleme başarısız");
       }
 
-      await r.json(); // consume body
-      await refetchResources();
+      const newResource: MaestroResource = await r.json();
+      qc.setQueryData<MaestroResource[]>(
+        ["/api/teacher/maestro/resources"],
+        (old = []) => [...old, newResource]
+      );
+      setTab("photos");
       toast({ title: "Fotoğraf yüklendi!" });
       setPhotoFile(null);
       setPhotoTitle("");
@@ -211,11 +218,13 @@ export default function TeacherOrchestra() {
 
   // ── Delete resource ───────────────────────────────────────────────────────
   async function deleteResource(id: string) {
-    if (!confirm("Bu içeriği silmek istediğinize emin misiniz?")) return;
     try {
       const r = await authFetch(`/api/teacher/maestro/resources/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("Silme başarısız");
-      await refetchResources();
+      qc.setQueryData<MaestroResource[]>(
+        ["/api/teacher/maestro/resources"],
+        (old = []) => old.filter(res => res.id !== id)
+      );
       toast({ title: "Silindi" });
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
