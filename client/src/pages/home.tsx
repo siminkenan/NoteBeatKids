@@ -1,8 +1,39 @@
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
 
-// Note symbols at fa-anahtarı scale
+// ── Language detection ──────────────────────────────────────────────────────
+const deviceLang = navigator.language?.toLowerCase() ?? "tr";
+const isTurkish = deviceLang.startsWith("tr");
+
+const T = {
+  tagline1: isTurkish
+    ? "Müzikle Öğren, Eğlenerek Büyü!"
+    : "Learn Music Through Play!",
+  tagline2: isTurkish
+    ? "Learn Music Through Play!"
+    : "Müzikle Öğren, Eğlenerek Büyü!",
+  teacherLabel: isTurkish ? "Öğretmen Girişi" : "Teacher Login",
+  teacherSub: isTurkish ? "Teacher Login" : "Öğretmen Girişi",
+  studentLabel: isTurkish ? "Öğrenci Girişi" : "Student Login",
+  studentSub: isTurkish ? "Student Login" : "Öğrenci Girişi",
+  installTitle: isTurkish ? "Ana Ekrana Ekle" : "Add to Home Screen",
+  installBody: isTurkish
+    ? "Uygulamayı ana ekranına ekleyerek kolayca açabilirsin."
+    : "Add the app to your home screen for easy access.",
+  iosStep1: isTurkish
+    ? "1. Alttaki 📤 Paylaş butonuna dokun"
+    : "1. Tap the 📤 Share button below",
+  iosStep2: isTurkish
+    ? "2. \"Ana Ekrana Ekle\" seçeneğine dokun"
+    : "2. Tap \"Add to Home Screen\"",
+  iosStep3: isTurkish ? "3. \"Ekle\" butonuna dokun" : "3. Tap \"Add\"",
+  installBtn: isTurkish ? "Kur" : "Install",
+  closeBtn: isTurkish ? "Kapat" : "Close",
+};
+
+// ── Note symbols ────────────────────────────────────────────────────────────
 const NOTE_SYMBOLS = [
   { symbol: "♩",  color: "rgba(255,255,255,0.22)" },
   { symbol: "♪",  color: "rgba(255,200,255,0.20)" },
@@ -18,14 +49,12 @@ const NOTE_SYMBOLS = [
   { symbol: "𝅜",  color: "rgba(255,255,255,0.21)" },
 ];
 
-// 12 large notes spread across the screen
 const FLOATING_NOTES = Array.from({ length: 12 }, (_, i) => {
   const noteData = NOTE_SYMBOLS[i % NOTE_SYMBOLS.length];
   const leftPercent = (i % 6) * 16 + 2 + (i % 3) * 3;
   const goingDown = i % 2 === 0;
   const duration = 38 + (i % 6) * 4;
   const delay = -(((i * 3.1) % duration));
-
   return {
     id: i,
     ...noteData,
@@ -37,8 +66,48 @@ const FLOATING_NOTES = Array.from({ length: 12 }, (_, i) => {
   };
 });
 
+// ── iOS detection ───────────────────────────────────────────────────────────
+const isIOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+const isStandalone =
+  ("standalone" in window.navigator && (window.navigator as any).standalone) ||
+  window.matchMedia("(display-mode: standalone)").matches;
+
 export default function Home() {
   const [, navigate] = useLocation();
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const deferredPromptRef = useRef<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+
+  useEffect(() => {
+    if (isStandalone) return; // already installed
+    if (isIOS) {
+      setCanInstall(true);
+      return;
+    }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      deferredPromptRef.current = e;
+      setCanInstall(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler as any);
+    return () => window.removeEventListener("beforeinstallprompt", handler as any);
+  }, []);
+
+  async function handleInstallClick() {
+    if (isIOS) {
+      setShowInstallModal(true);
+      return;
+    }
+    if (deferredPromptRef.current) {
+      deferredPromptRef.current.prompt();
+      await deferredPromptRef.current.userChoice;
+      deferredPromptRef.current = null;
+      setCanInstall(false);
+    } else {
+      setShowInstallModal(true);
+    }
+  }
 
   return (
     <div
@@ -48,7 +117,7 @@ export default function Home() {
           "linear-gradient(135deg, #667eea 0%, #764ba2 30%, #f093fb 60%, #f5576c 100%)",
       }}
     >
-      {/* Fa (bass) clef — top left — admin giriş */}
+      {/* Fa (bass) clef — top left — admin giriş (gizli) */}
       <motion.span
         className="absolute font-bold select-none cursor-pointer z-10"
         style={{ left: "12px", top: "8px", fontSize: "96px", lineHeight: 1, color: "rgba(255,255,255,0.20)" }}
@@ -58,6 +127,75 @@ export default function Home() {
       >
         𝄢
       </motion.span>
+
+      {/* Install button — top right */}
+      {canInstall && !isStandalone && (
+        <motion.button
+          data-testid="button-install-pwa"
+          className="absolute z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold cursor-pointer select-none"
+          style={{
+            right: "12px",
+            top: "12px",
+            background: "rgba(255,255,255,0.22)",
+            color: "white",
+            border: "1.5px solid rgba(255,255,255,0.45)",
+            backdropFilter: "blur(8px)",
+          }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          whileHover={{ scale: 1.07, background: "rgba(255,255,255,0.32)" } as any}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleInstallClick}
+          title={T.installTitle}
+        >
+          <span style={{ fontSize: "16px" }}>📲</span>
+          <span>{T.installBtn}</span>
+        </motion.button>
+      )}
+
+      {/* ─── iOS / generic install modal ─── */}
+      <AnimatePresence>
+        {showInstallModal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end justify-center"
+            style={{ background: "rgba(0,0,0,0.55)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowInstallModal(false)}
+          >
+            <motion.div
+              className="w-full max-w-sm mb-8 mx-4 rounded-3xl p-6 text-center"
+              style={{
+                background: "linear-gradient(135deg, #764ba2, #f093fb)",
+                color: "white",
+              }}
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="text-4xl mb-3">📲</div>
+              <h3 className="text-lg font-extrabold mb-2">{T.installTitle}</h3>
+              <p className="text-sm text-white/80 mb-4">{T.installBody}</p>
+              {isIOS && (
+                <div className="bg-white/15 rounded-2xl p-4 text-left space-y-2 text-sm font-semibold mb-4">
+                  <p>{T.iosStep1}</p>
+                  <p>{T.iosStep2}</p>
+                  <p>{T.iosStep3}</p>
+                </div>
+              )}
+              <button
+                className="w-full py-3 rounded-2xl font-extrabold text-base cursor-pointer"
+                style={{ background: "rgba(255,255,255,0.25)", color: "white" }}
+                onClick={() => setShowInstallModal(false)}
+              >
+                {T.closeBtn}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ─── Falling / Rising Note Symbols ─── */}
       <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
@@ -124,7 +262,7 @@ export default function Home() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
       >
-        {/* Logo — click secretly opens admin login */}
+        {/* Logo */}
         <motion.div
           className="flex flex-col items-center gap-3"
           animate={{ y: [0, -8, 0] }}
@@ -136,13 +274,13 @@ export default function Home() {
             className="w-72 h-72 object-contain drop-shadow-2xl"
             data-testid="img-logo"
           />
-          {/* Bilingual tagline */}
+          {/* Bilingual tagline — primary = device language */}
           <div className="text-center space-y-0.5">
             <p className="text-white font-extrabold text-lg drop-shadow tracking-wide">
-              Learn Music Through Play!
+              {T.tagline1}
             </p>
             <p className="text-white/75 font-bold text-sm drop-shadow">
-              Müzik Öğrenmenin En Eğlenceli Yolu!
+              {T.tagline2}
             </p>
           </div>
         </motion.div>
@@ -164,8 +302,8 @@ export default function Home() {
           >
             <span className="text-3xl">👩‍🏫</span>
             <div className="text-left leading-tight">
-              <p className="text-lg font-extrabold">Teacher Login</p>
-              <p className="text-xs font-bold text-white/80">Öğretmen Girişi</p>
+              <p className="text-lg font-extrabold">{T.teacherLabel}</p>
+              <p className="text-xs font-bold text-white/80">{T.teacherSub}</p>
             </div>
           </motion.button>
 
@@ -184,8 +322,8 @@ export default function Home() {
           >
             <span className="text-3xl">🎵</span>
             <div className="text-left leading-tight">
-              <p className="text-lg font-extrabold">Student Login</p>
-              <p className="text-xs font-bold text-white/80">Öğrenci Girişi</p>
+              <p className="text-lg font-extrabold">{T.studentLabel}</p>
+              <p className="text-xs font-bold text-white/80">{T.studentSub}</p>
             </div>
           </motion.button>
         </div>
