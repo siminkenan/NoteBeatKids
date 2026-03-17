@@ -11,14 +11,14 @@ export default function IntroSplash({ onDone }: { onDone: () => void }) {
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     // Logo fades in immediately (600ms transition)
-    // Hold for 10 seconds
+    // Hold for 5 seconds
     timers.push(setTimeout(() => setPhase("hold"), 50));
-    // Start fading out at 10.5s
-    timers.push(setTimeout(() => setPhase("out"), 10500));
-    // Signal done at 11.2s
+    // Start fading out at 4.5s
+    timers.push(setTimeout(() => setPhase("out"), 4500));
+    // Signal done at 5.2s
     timers.push(setTimeout(() => {
       if (!called.current) { called.current = true; onDone(); }
-    }, 11200));
+    }, 5200));
 
     return () => timers.forEach(clearTimeout);
   }, [onDone]);
