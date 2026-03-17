@@ -7,25 +7,27 @@ export default function IntroSplash({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = useState<Phase>("in");
   const called = useRef(false);
 
+  function finish() {
+    if (called.current) return;
+    called.current = true;
+    setPhase("out");
+    setTimeout(onDone, 500);
+  }
+
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
-
-    // Logo fades in immediately (600ms transition)
-    // Hold for 5 seconds
     timers.push(setTimeout(() => setPhase("hold"), 50));
-    // Start fading out at 4.5s
     timers.push(setTimeout(() => setPhase("out"), 4500));
-    // Signal done at 5.2s
     timers.push(setTimeout(() => {
       if (!called.current) { called.current = true; onDone(); }
     }, 5200));
-
     return () => timers.forEach(clearTimeout);
   }, [onDone]);
 
   return (
     <div
-      className={`intro-splash fixed inset-0 z-[9999] overflow-hidden ${phase === "out" ? "intro-fadeout" : ""}`}
+      onClick={finish}
+      className={`intro-splash fixed inset-0 z-[9999] overflow-hidden cursor-pointer ${phase === "out" ? "intro-fadeout" : ""}`}
       style={{
         background: "linear-gradient(135deg, #fde68a 0%, #fca5a5 30%, #c4b5fd 65%, #86efac 100%)",
       }}
@@ -103,6 +105,18 @@ export default function IntroSplash({ onDone }: { onDone: () => void }) {
           }}
         >
           Müzikle Öğren, Eğlenerek Büyü! 🎼
+        </p>
+
+        {/* Tap hint */}
+        <p
+          className="text-white/60 text-sm select-none"
+          style={{
+            opacity: phase === "hold" ? 1 : 0,
+            transition: "opacity 1s ease 0.8s",
+            letterSpacing: "0.05em",
+          }}
+        >
+          🎵 Dokunun — müzik başlasın
         </p>
       </div>
     </div>
