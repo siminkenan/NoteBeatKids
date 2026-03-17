@@ -405,3 +405,16 @@
 .intro-star-7 { top: 88%; left: 50%; animation-duration: 3.3s; animation-delay: 0.3s; font-size: 1.5rem; }
 /* ========== END INTRO SPLASH ANIMATIONS ========== */
 
+/* ========== SAFE AREA / FULL SCREEN ========== */
+html, body, #root {
+  min-height: 100dvh;
+  background: #0f0c29;
+}
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+/* ========== END SAFE AREA ========== */
+

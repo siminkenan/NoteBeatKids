@@ -124,6 +124,17 @@ export default function MelodyEcho() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const wrongCountRef = useRef(0);
   const startTimeRef = useRef(Date.now());
+  const [pianoScale, setPianoScale] = useState(1);
+
+  useEffect(() => {
+    function updateScale() {
+      const available = Math.min(window.innerWidth - 24, 680);
+      setPianoScale(Math.min(1, available / 540));
+    }
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
 
   function saveProgress(newScore: number, newStage: number) {
     const sid = student?.student.id;
@@ -351,7 +362,8 @@ export default function MelodyEcho() {
 
       {/* ── Piano keyboard ── */}
       {/* White key: 62px, gap: 6px → keyboard total = 8×62 + 7×6 = 538px */}
-      <div className="relative w-full max-w-2xl px-2 mb-6 select-none flex flex-col items-center overflow-x-auto">
+      <div className="relative w-full max-w-2xl px-2 mb-6 select-none flex flex-col items-center">
+        <div style={{ transform: `scale(${pianoScale})`, transformOrigin: "top center", width: 540, height: (230) * pianoScale }}>
         <motion.div
           className="relative"
           style={{ width: 538 }}
@@ -423,6 +435,7 @@ export default function MelodyEcho() {
         <p className="text-white/25 text-xs mt-1 font-bold">
           Bu melodide kullanılan notalar ● ile işaretli
         </p>
+        </div>{/* end scale wrapper */}
       </div>
 
       {/* ── Celebration overlay ── */}

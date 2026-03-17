@@ -251,7 +251,9 @@ export default function RhythmOrchestra() {
               {photos.map(p => (
                 <div
                   key={p.id}
-                  className="relative group rounded-2xl overflow-hidden bg-white/10 aspect-square border border-white/10"
+                  className="relative rounded-2xl overflow-hidden bg-white/10 aspect-square border border-white/10 cursor-pointer active:scale-95 transition-transform"
+                  onClick={() => setActivePhoto(p)}
+                  data-testid={`card-photo-${p.id}`}
                 >
                   <img
                     src={`/api/maestro/file/${p.storedFilename}`}
@@ -259,22 +261,16 @@ export default function RhythmOrchestra() {
                     className="w-full h-full object-cover"
                     data-testid={`img-photo-${p.id}`}
                   />
-                  <div className="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-2 p-3">
-                    <p className="text-white font-bold text-sm text-center line-clamp-2">
-                      {p.title}
-                    </p>
+                  {/* Bottom gradient with title + download */}
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-2 flex items-end justify-between">
+                    <p className="text-white text-xs font-bold line-clamp-2 flex-1 mr-1">{p.title}</p>
                     <button
-                      onClick={() => setActivePhoto(p)}
-                      className="bg-white/20 hover:bg-white/35 text-white px-3 py-2 rounded-xl text-xs font-bold cursor-pointer w-full"
-                    >
-                      🔍 Büyüt
-                    </button>
-                    <button
-                      onClick={() => downloadPhoto(p)}
-                      className="bg-blue-500/80 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold cursor-pointer w-full flex items-center justify-center gap-1"
+                      onClick={e => { e.stopPropagation(); downloadPhoto(p); }}
+                      className="bg-blue-500/90 hover:bg-blue-500 text-white p-1.5 rounded-lg cursor-pointer flex-shrink-0"
                       data-testid={`button-download-photo-${p.id}`}
+                      title="İndir"
                     >
-                      <Download size={13} /> İndir
+                      <Download size={14} />
                     </button>
                   </div>
                 </div>

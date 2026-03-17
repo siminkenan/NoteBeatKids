@@ -234,6 +234,19 @@ export default function RhythmGame() {
   const [badge, setBadge] = useState<Badge>(null);
   const [earnedBadge, setEarnedBadge] = useState<Badge>(null); // shown in completion screen
   const [levelStarsEarned, setLevelStarsEarned] = useState(0); // for levelup screen
+  const [vexW, setVexW] = useState(480);
+
+  useEffect(() => {
+    function updateVexW() {
+      const w = window.innerWidth;
+      if (w < 480) setVexW(w - 48);
+      else if (w < 768) setVexW(w - 48);
+      else setVexW(480);
+    }
+    updateVexW();
+    window.addEventListener("resize", updateVexW);
+    return () => window.removeEventListener("resize", updateVexW);
+  }, []);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const tapRafRef = useRef<number | null>(null);
@@ -749,7 +762,7 @@ export default function RhythmGame() {
       </AnimatePresence>
 
       {/* ── Main layout ── */}
-      <main className="flex-1 overflow-hidden w-full px-3 pt-3 pb-2 grid grid-cols-[1fr_2fr_1fr] gap-3 items-start">
+      <main className="flex-1 w-full px-3 pt-3 pb-4 overflow-y-auto flex flex-col gap-3 md:grid md:grid-cols-[220px_1fr_160px] md:items-start md:overflow-hidden">
 
         {/* ── LEFT column ── */}
         <div className="flex flex-col gap-3">
@@ -937,7 +950,7 @@ export default function RhythmGame() {
             <div className="flex justify-center overflow-x-auto">
               <VexFlowRenderer
                 notes={currentPattern}
-                width={580} height={200}
+                width={vexW} height={180}
                 showClef showTimeSignature
                 highlightIndex={highlightIdx}
                 hitIndices={hitNoteIndices}
