@@ -496,7 +496,7 @@ export default function DrumKit() {
 
       {/* ── Header ── */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-white/10 flex-shrink-0"
-        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(12px)" }}>
+        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}>
         <Button variant="ghost" size="sm"
           onClick={() => navigate("/student/home")}
           className="gap-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-xl"

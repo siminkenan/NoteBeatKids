@@ -140,6 +140,7 @@ export default function Home() {
             color: "white",
             border: "1.5px solid rgba(255,255,255,0.45)",
             backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
           }}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}

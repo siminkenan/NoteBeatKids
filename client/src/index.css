@@ -407,6 +407,7 @@
 
 /* ========== SAFE AREA / FULL SCREEN ========== */
 html, body, #root {
+  min-height: 100vh;
   min-height: 100dvh;
   background: #0f0c29;
 }

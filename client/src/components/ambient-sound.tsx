@@ -87,6 +87,7 @@ export default function AmbientSound({ active }: Props) {
       style={{
         background: "rgba(15, 15, 30, 0.78)",
         backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
         border: "1px solid rgba(255,255,255,0.15)",
         color: muted ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.85)",
       }}
