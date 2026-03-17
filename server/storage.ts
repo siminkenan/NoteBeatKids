@@ -449,6 +449,18 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInstitution(institutionId: string): Promise<void> {
     await this.resetInstitutionQuota(institutionId);
+    // Delete maestro view progress & resources for each teacher before deleting teachers
+    const institutionTeachers = await this.getTeachersByInstitution(institutionId);
+    for (const teacher of institutionTeachers) {
+      const teacherResources = await db
+        .select({ id: maestroResources.id })
+        .from(maestroResources)
+        .where(eq(maestroResources.teacherId, teacher.id));
+      for (const res of teacherResources) {
+        await db.delete(maestroViewProgress).where(eq(maestroViewProgress.resourceId, res.id));
+      }
+      await db.delete(maestroResources).where(eq(maestroResources.teacherId, teacher.id));
+    }
     await db.delete(teacherCodes).where(eq(teacherCodes.institutionId, institutionId));
     await db.delete(teachers).where(eq(teachers.institutionId, institutionId));
     await db.delete(institutions).where(eq(institutions.id, institutionId));
