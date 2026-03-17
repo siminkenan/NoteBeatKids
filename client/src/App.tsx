@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./lib/auth";
 import AmbientSound from "@/components/ambient-sound";
-import Mascot from "@/components/mascot";
 
 // Eagerly loaded — shown immediately on first visit
 import Home from "@/pages/home";
@@ -31,17 +30,11 @@ const DrumKit           = lazy(() => import("@/pages/drum-kit"));
 const MelodyEcho        = lazy(() => import("@/pages/melody-echo"));
 
 const INTRO_KEY = "notebeat_intro_v3";
-const MASCOT_PATHS = ["/"];
 const AMBIENT_PATHS = ["/", "/teacher"];
 
 function useAmbientActive() {
   const [location] = useLocation();
   return AMBIENT_PATHS.some(p => location === p || location.startsWith(p + "/"));
-}
-
-function useMascotActive() {
-  const [location] = useLocation();
-  return MASCOT_PATHS.includes(location);
 }
 
 function PageLoader() {
@@ -57,7 +50,6 @@ function PageLoader() {
 
 function Router() {
   const ambientActive = useAmbientActive();
-  const mascotActive = useMascotActive();
   return (
     <>
       <Suspense fallback={<PageLoader />}>
@@ -82,7 +74,6 @@ function Router() {
         </Switch>
       </Suspense>
       <AmbientSound active={ambientActive} />
-      {mascotActive && <Mascot storeKey="mascot_pos_home" />}
     </>
   );
 }
