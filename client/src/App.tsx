@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useState, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -29,6 +29,31 @@ const TeacherOrchestra  = lazy(() => import("@/pages/teacher-orchestra"));
 const DrumKit           = lazy(() => import("@/pages/drum-kit"));
 const MelodyEcho        = lazy(() => import("@/pages/melody-echo"));
 
+// Arka planda tüm sayfa parçalarını önceden yükler — kullanıcı bir butona
+// tıkladığında sayfa anında açılır, "Yükleniyor" gösterilmez
+function usePrefetchRoutes() {
+  useEffect(() => {
+    const t = setTimeout(() => {
+      import("@/pages/teacher-login");
+      import("@/pages/teacher-dashboard");
+      import("@/pages/class-detail");
+      import("@/pages/student-login");
+      import("@/pages/student-home");
+      import("@/pages/rhythm-game");
+      import("@/pages/note-detective");
+      import("@/pages/level-map");
+      import("@/pages/admin-login");
+      import("@/pages/admin-dashboard");
+      import("@/pages/metronome");
+      import("@/pages/rhythm-orchestra");
+      import("@/pages/teacher-orchestra");
+      import("@/pages/drum-kit");
+      import("@/pages/melody-echo");
+    }, 500);
+    return () => clearTimeout(t);
+  }, []);
+}
+
 const AMBIENT_PATHS = ["/", "/teacher"];
 
 function useAmbientActive() {
@@ -36,13 +61,11 @@ function useAmbientActive() {
   return AMBIENT_PATHS.some(p => location === p || location.startsWith(p + "/"));
 }
 
+// Sayfa parçası yüklenirken gösterilir — sadece çok yavaş bağlantılarda görünür
 function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-950 via-indigo-950 to-blue-950">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-4 border-purple-400 border-t-transparent animate-spin" />
-        <p className="text-purple-300 text-sm font-medium animate-pulse">Yükleniyor…</p>
-      </div>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0f0c29" }}>
+      <div className="w-8 h-8 rounded-full border-4 border-purple-400 border-t-transparent animate-spin" />
     </div>
   );
 }
@@ -79,6 +102,7 @@ function Router() {
 
 function App() {
   const [showIntro, setShowIntro] = useState(true);
+  usePrefetchRoutes();
 
   const handleIntroDone = () => {
     setShowIntro(false);
