@@ -380,12 +380,22 @@ export default function DrumKit() {
   const [lastHit, setLastHit] = useState<{ id: DrumId; ts: number } | null>(null);
   const hitTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  /* ── orientation (portrait = dik konum) ── */
+  /* ── orientation + ekran boyutu (her ikisi birlikte takip edilir) ── */
   const [isPortrait, setIsPortrait] = useState(() => window.innerHeight > window.innerWidth);
+  const [viewSize, setViewSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+
   useEffect(() => {
-    const fn = () => setIsPortrait(window.innerHeight > window.innerWidth);
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
+    const update = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+      setViewSize({ w: window.innerWidth, h: window.innerHeight });
+    };
+    window.addEventListener("resize", update);
+    // orientationchange bazı Android'lerde resize'dan önce gelir
+    window.addEventListener("orientationchange", () => setTimeout(update, 120));
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
   }, []);
 
   /* ── sequencer ── */
@@ -498,11 +508,20 @@ export default function DrumKit() {
 
   const lastZone = lastHit ? ZONES.find(z => z.id === lastHit.id) : null;
 
-  /* portrait: ekran genişliğinin %82'si, max 290px (2 satır kontrol için alan bırak)
-     landscape: yükseklik tabanlı clamp */
-  const drumContainerSize = isPortrait
-    ? `${Math.min(Math.round(window.innerWidth * 0.82), 290)}px`
-    : "clamp(130px, 34vh, 300px)";
+  /* Cihaza tam uyumlu drum boyutu:
+     portrait  → genişliğin %80'i, max = kalan yüksekliğin %45'i
+     landscape → yüksekliğin %32'si, min 110px */
+  const drumContainerSize = (() => {
+    const HEADER = 50, CONTROLS = 84, GRID_MIN = 150;
+    if (isPortrait) {
+      const byWidth = Math.round(viewSize.w * 0.80);
+      const byHeight = Math.round((viewSize.h - HEADER - CONTROLS - GRID_MIN) * 0.92);
+      return `${Math.min(byWidth, byHeight, 310)}px`;
+    } else {
+      const byHeight = Math.round(viewSize.h * 0.32);
+      return `${Math.max(110, Math.min(byHeight, 280))}px`;
+    }
+  })();
 
   return (
     <div className="h-[100dvh] flex flex-col select-none overflow-hidden"

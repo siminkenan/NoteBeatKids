@@ -135,10 +135,15 @@ export default function NoteDetective() {
     if (notesProgress || progress !== undefined) {
       progressLoadedRef.current = true;
       if (notesProgress) {
-        setLevel(notesProgress.level);
+        // URL'den seviye parametresi varsa onu kullan (ilerleme haritasından gelen)
+        const urlLevel = parseInt(new URLSearchParams(window.location.search).get("level") ?? "0", 10);
+        setLevel(urlLevel > 0 ? Math.min(Math.max(urlLevel, 1), 6) : notesProgress.level);
         setScore({ correct: notesProgress.correctAnswers, wrong: notesProgress.wrongAnswers });
         setTotalStars(notesProgress.starsEarned);
         setNotesBadge(notesProgress.notesBadge as "bronze" | "silver" | "gold" | null);
+      } else {
+        const urlLevel = parseInt(new URLSearchParams(window.location.search).get("level") ?? "0", 10);
+        if (urlLevel > 0) setLevel(Math.min(Math.max(urlLevel, 1), 6));
       }
       setConsecutiveCorrect(0);
     }

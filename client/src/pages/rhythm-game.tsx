@@ -217,7 +217,7 @@ export default function RhythmGame() {
   const [level, setLevel] = useState(1);
   const [exerciseIdx, setExerciseIdx] = useState(0);
   const [exerciseResults, setExerciseResults] = useState<boolean[]>([]);
-  const [bpm, setBpm] = useState(40);
+  const [bpm, setBpm] = useState(50);
   const [phase, setPhase] = useState<Phase>("idle");
   const [countdown, setCountdown] = useState(3);
   const [highlightIdx, setHighlightIdx] = useState(-1);
@@ -301,11 +301,18 @@ export default function RhythmGame() {
   useEffect(() => {
     const p = savedProgress?.find(p => p.appType === "rhythm");
     if (p) {
-      setLevel(Math.min(Math.max(p.level, 1), MAX_LEVEL));
+      // URL'den seviye parametresi varsa onu kullan (ilerleme haritasından gelen)
+      const urlLevel = parseInt(new URLSearchParams(window.location.search).get("level") ?? "0", 10);
+      const startLevel = urlLevel > 0 ? Math.min(Math.max(urlLevel, 1), MAX_LEVEL) : Math.min(Math.max(p.level, 1), MAX_LEVEL);
+      setLevel(startLevel);
       setTotalStars(p.starsEarned);
       setCorrectCount(p.correctAnswers);
       setWrongCount(p.wrongAnswers);
       setBadge((p.notesBadge as Badge) ?? null);
+    } else {
+      // Hiç kayıt yoksa URL'deki seviyeye bak
+      const urlLevel = parseInt(new URLSearchParams(window.location.search).get("level") ?? "0", 10);
+      if (urlLevel > 0) setLevel(Math.min(Math.max(urlLevel, 1), MAX_LEVEL));
     }
   }, [savedProgress]);
 
@@ -845,11 +852,11 @@ export default function RhythmGame() {
               <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
               <span className="bg-purple-600 text-white text-sm font-extrabold px-3 py-1 rounded-full" data-testid="text-bpm">{bpm} BPM</span>
             </div>
-            <input type="range" min={40} max={140} step={1} value={bpm}
+            <input type="range" min={50} max={140} step={1} value={bpm}
               onChange={e => setBpm(Number(e.target.value))} disabled={phase !== "idle"}
               className="w-full accent-purple-600 cursor-pointer" data-testid="slider-bpm" />
             <div className="flex justify-between text-xs text-muted-foreground font-semibold mt-1">
-              <span>40</span><span>90</span><span>140</span>
+              <span>50</span><span>95</span><span>140</span>
             </div>
           </div>
 

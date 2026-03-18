@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
+import type { StudentProgress } from "@shared/schema";
 
 // ── WebAudio Piano ────────────────────────────────────────────────────────────
 let _ctx: AudioContext | null = null;
@@ -112,6 +114,7 @@ export default function MelodyEcho() {
   const { student } = useAuth();
   const [phase, setPhase] = useState<Phase>("idle");
   const [melodyIdx, setMelodyIdx] = useState(0);
+  const [progressLoaded, setProgressLoaded] = useState(false);
   const [playerSeq, setPlayerSeq] = useState<string[]>([]);
   const [litKey, setLitKey] = useState<string | null>(null);
   const [litPos, setLitPos] = useState<number>(-1);
@@ -122,9 +125,31 @@ export default function MelodyEcho() {
   const [showTeacher, setShowTeacher] = useState(false);
   const [wrongPulse, setWrongPulse] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const celebTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null); // clearTimers'dan bağımsız
   const wrongCountRef = useRef(0);
   const startTimeRef = useRef(Date.now());
   const [pianoScale, setPianoScale] = useState(1);
+
+  // ── Kayıtlı ilerlemeyi yükle ─────────────────────────────────────────────
+  const { data: savedProgress } = useQuery<StudentProgress[]>({
+    queryKey: ["/api/student", student?.student.id, "progress"],
+    queryFn: async () => {
+      const res = await fetch(`/api/student/${student!.student.id}/progress`);
+      return res.json();
+    },
+    enabled: !!student,
+    staleTime: Infinity,
+  });
+
+  useEffect(() => {
+    if (!savedProgress || progressLoaded) return;
+    const p = savedProgress.find(p => p.appType === "melody");
+    if (p && p.correctAnswers > 0) {
+      setMelodyIdx(p.correctAnswers);
+      setScore(p.starsEarned ?? 0);
+    }
+    setProgressLoaded(true);
+  }, [savedProgress, progressLoaded]);
 
   useEffect(() => {
     function updateScale() {
@@ -136,7 +161,7 @@ export default function MelodyEcho() {
     return () => window.removeEventListener("resize", updateScale);
   }, []);
 
-  function saveProgress(newScore: number, newStage: number) {
+  function saveProgress(currentMelodyIdx: number, newScore: number, newStage: number) {
     const sid = student?.student.id;
     if (!sid) return;
     const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
@@ -144,7 +169,7 @@ export default function MelodyEcho() {
       appType: "melody",
       level: newStage,
       starsEarned: newScore,
-      correctAnswers: newScore,
+      correctAnswers: currentMelodyIdx, // kaldığı yeri kaydet (resume için)
       wrongAnswers: wrongCountRef.current,
       timeSpentSeconds: elapsed,
     }).catch(() => {});
@@ -194,16 +219,19 @@ export default function MelodyEcho() {
       playSuccess();
       const newScore = score + 1;
       const newStreak = streak + 1;
+      const nextIdx = melodyIdx + 1;
       setScore(newScore);
       setStreak(newStreak);
       setPhase("correct");
-      saveProgress(newScore, getStageNum(melodyIdx));
+      saveProgress(nextIdx, newScore, getStageNum(melodyIdx));
       if (newStreak % 5 === 0) {
         setShowCelebration(true);
-        timers.current.push(setTimeout(() => setShowCelebration(false), 3000));
+        // clearTimers() etkilenmesin diye ayrı bir ref kullan
+        if (celebTimerRef.current) clearTimeout(celebTimerRef.current);
+        celebTimerRef.current = setTimeout(() => setShowCelebration(false), 3000);
       }
       timers.current.push(setTimeout(() => {
-        setMelodyIdx(p => p + 1);
+        setMelodyIdx(nextIdx);
         setPlayerSeq([]);
         setPhase("idle");
       }, 2000));
@@ -211,7 +239,13 @@ export default function MelodyEcho() {
   }
 
   function handleRetry() { setPlayerSeq([]); setStreak(0); startMelody(); }
-  function handleSkip() { setMelodyIdx(p => p + 1); setPlayerSeq([]); setPhase("idle"); }
+  function handleSkip() {
+    const nextIdx = melodyIdx + 1;
+    saveProgress(nextIdx, score, getStageNum(nextIdx));
+    setMelodyIdx(nextIdx);
+    setPlayerSeq([]);
+    setPhase("idle");
+  }
 
   useEffect(() => () => clearTimers(), []);
 

@@ -63,8 +63,8 @@ export default function Metronome() {
   const tapTimesRef    = useRef<number[]>([]);
   const pendulumControls = useAnimation();
 
-  // Beat timestamps (real wall-clock ms) — populated as beats are scheduled
-  const beatTimestampsRef = useRef<{ wallMs: number; beat: number }[]>([]);
+  // Beat timestamps (AudioContext seconds) — daha hassas, jitter yok
+  const beatTimestampsRef = useRef<{ acxTime: number; beat: number }[]>([]);
   const tapIdRef = useRef(0);
   const phaseRafRef = useRef<number | null>(null);
 
@@ -105,15 +105,14 @@ export default function Metronome() {
       const when = nextNoteRef.current;
       createClick(ctx, beat === 0, when);
 
-      const delay = Math.max(0, (when - ctx.currentTime) * 1000);
-      const wallMs = Date.now() + delay;
-
-      // Record wall-clock timestamp for this beat
-      beatTimestampsRef.current.push({ wallMs, beat });
-      // Keep only last 16 beats
-      if (beatTimestampsRef.current.length > 16) {
-        beatTimestampsRef.current = beatTimestampsRef.current.slice(-16);
+      // AudioContext zamanını kaydet — Date.now() yerine çok daha hassas
+      beatTimestampsRef.current.push({ acxTime: when, beat });
+      // Son 32 vuruşu tut
+      if (beatTimestampsRef.current.length > 32) {
+        beatTimestampsRef.current = beatTimestampsRef.current.slice(-32);
       }
+
+      const delay = Math.max(0, (when - ctx.currentTime) * 1000);
 
       setTimeout(() => {
         if (!isPlayingRef.current) return;
@@ -184,26 +183,28 @@ export default function Metronome() {
     }
   }, []);
 
-  // ── Rhythm pad tap ────────────────────────────────────────────────────────────
+  // ── Rhythm pad tap — AudioContext.currentTime kullanır, jitter yok ───────────
   const handleRhythmTap = useCallback(() => {
-    if (!isPlaying) return;
-    const now = Date.now();
+    if (!audioCtxRef.current || !isPlayingRef.current) return;
+    const ctx = audioCtxRef.current;
+    const nowAcx = ctx.currentTime; // AudioContext saati — çok hassas
+
     setTapFlash(true);
     setTimeout(() => setTapFlash(false), 100);
 
-    const spbMs = 60000 / bpmRef.current;
+    const spbAcx = 60 / bpmRef.current;      // saniye / vuruş
     const sig = timeSigRef.current;
-    const measureMs = spbMs * sig;
 
-    // Find nearest beat timestamp
     const beats = beatTimestampsRef.current;
     if (beats.length === 0) return;
 
+    // En yakın vuruşu bul (geçmiş veya gelecek)
     let nearest = beats[0];
     for (const b of beats) {
-      if (Math.abs(b.wallMs - now) < Math.abs(nearest.wallMs - now)) nearest = b;
+      if (Math.abs(b.acxTime - nowAcx) < Math.abs(nearest.acxTime - nowAcx)) nearest = b;
     }
-    const diffMs = now - nearest.wallMs;  // + = late, - = early
+
+    const diffMs = (nowAcx - nearest.acxTime) * 1000; // + geç, − erken
     const absDiff = Math.abs(diffMs);
 
     let result: "perfect" | "good" | "early" | "late";
@@ -214,12 +215,8 @@ export default function Metronome() {
 
     const meta = RESULT_META[result];
 
-    // Calculate position on the rhythm strip
-    // The strip shows `sig` beats of the current measure
-    // tapBeat = which beat the tap aligns to
     const tapBeat = nearest.beat;
-    // offsetRatio = where within that beat (0=start, 0.5=middle, 1=end)
-    const rawOffset = diffMs / spbMs; // −0.5..+0.5 relative to beat center
+    const rawOffset = diffMs / (spbAcx * 1000); // −0.5..+0.5
     const offsetRatio = Math.max(0, Math.min(1, 0.5 + rawOffset * 0.5));
 
     const mark: TapMark = {
@@ -234,7 +231,7 @@ export default function Metronome() {
     setTapMarks(prev => [...prev.slice(-sig * 4), mark]);
     setLastResult(mark);
     setTimeout(() => setLastResult(null), 700);
-  }, [isPlaying]);
+  }, []);
 
   // Keyboard
   useEffect(() => {

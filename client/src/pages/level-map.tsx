@@ -33,10 +33,12 @@ interface LevelNodeProps {
   stars: number;
   index: number;
   color: string;
+  onClick?: () => void;
 }
 
-function LevelNode({ level, unlocked, completed, current, stars, index, color }: LevelNodeProps) {
+function LevelNode({ level, unlocked, completed, current, stars, index, color, onClick }: LevelNodeProps) {
   const offset = index % 2 === 0 ? 0 : 60;
+  const isClickable = unlocked && onClick;
 
   return (
     <motion.div
@@ -56,8 +58,9 @@ function LevelNode({ level, unlocked, completed, current, stars, index, color }:
           />
         )}
         <div
+          onClick={isClickable ? onClick : undefined}
           className={`relative w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-lg border-4 transition-all ${
-            !unlocked ? "opacity-40 grayscale" : current ? "scale-110" : ""
+            !unlocked ? "opacity-40 grayscale" : current ? "scale-110" : isClickable ? "cursor-pointer hover:scale-105 active:scale-95" : ""
           }`}
           style={{
             background: unlocked
@@ -69,6 +72,7 @@ function LevelNode({ level, unlocked, completed, current, stars, index, color }:
               : "#e5e7eb",
             borderColor: unlocked ? (completed ? "#f59e0b" : color) : "#9ca3af",
           }}
+          data-testid={unlocked ? `level-node-${level.id}` : undefined}
         >
           {!unlocked ? (
             <Lock className="w-8 h-8 text-gray-400" />
@@ -78,6 +82,9 @@ function LevelNode({ level, unlocked, completed, current, stars, index, color }:
               <span className="text-xs font-extrabold text-center leading-tight px-1" style={{ color: completed ? "#92400e" : current ? "white" : "#374151" }}>
                 Seviye {level.id}
               </span>
+              {completed && (
+                <Play className="w-3 h-3 mt-0.5" style={{ color: "#92400e" }} />
+              )}
             </>
           )}
         </div>
@@ -205,6 +212,7 @@ export default function LevelMap() {
                   stars={lvl.id < rhythmLevel ? 3 : lvl.id === rhythmLevel ? Math.min(rhythmProgress?.starsEarned ?? 0, 3) : 0}
                   index={i}
                   color="#f97316"
+                  onClick={lvl.id <= rhythmLevel ? () => navigate(`/student/rhythm?level=${lvl.id}`) : undefined}
                 />
               ))}
             </div>
@@ -248,6 +256,7 @@ export default function LevelMap() {
                   stars={lvl.id < notesLevel ? 3 : lvl.id === notesLevel ? Math.min(notesProgress?.starsEarned ?? 0, 3) : 0}
                   index={i}
                   color="#8b5cf6"
+                  onClick={lvl.id <= notesLevel ? () => navigate(`/student/notes?level=${lvl.id}`) : undefined}
                 />
               ))}
             </div>
