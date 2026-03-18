@@ -330,6 +330,11 @@ export default function Home() {
         </div>
 
       </motion.div>
+
+      {/* Copyright */}
+      <p className="fixed bottom-3 left-0 right-0 text-center text-[11px] font-medium text-white/40 pointer-events-none select-none">
+        Bütün Hakları Kenan OVALI'ya aittir.
+      </p>
     </div>
   );
 }
