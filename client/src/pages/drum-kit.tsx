@@ -385,20 +385,29 @@ export default function DrumKit() {
   const [viewSize, setViewSize] = useState({ w: window.innerWidth, h: window.innerHeight });
 
   useEffect(() => {
-    const update = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
-      setViewSize({ w: window.innerWidth, h: window.innerHeight });
+    const measure = () => {
+      // visualViewport, mobil adres çubuğunu hesaba katan gerçek viewport boyutunu verir
+      const vv = window.visualViewport;
+      const w = vv ? Math.round(vv.width) : window.innerWidth;
+      const h = vv ? Math.round(vv.height) : window.innerHeight;
+      setIsPortrait(h > w);
+      setViewSize({ w, h });
     };
-    // Bazı mobil tarayıcılarda mount anında viewport boyutu henüz stabil değildir;
-    // requestAnimationFrame + 150ms gecikme ile kesin değeri yakalamak için yeniden ölç
-    const rafId = requestAnimationFrame(() => setTimeout(update, 150));
-    const onOrient = () => setTimeout(update, 150);
-    window.addEventListener("resize", update);
+    // mount anında, RAF + gecikme ile stabil değeri al
+    const rafId = requestAnimationFrame(() => setTimeout(measure, 100));
+    const onOrient = () => setTimeout(measure, 180);
+
+    window.addEventListener("resize", measure);
     window.addEventListener("orientationchange", onOrient);
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
+
     return () => {
       cancelAnimationFrame(rafId);
-      window.removeEventListener("resize", update);
+      window.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", onOrient);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
     };
   }, []);
 
@@ -528,8 +537,8 @@ export default function DrumKit() {
   })();
 
   return (
-    <div className="h-[100dvh] flex flex-col select-none overflow-hidden"
-      style={{ background: "linear-gradient(160deg, #0e0920 0%, #0d1a3a 60%, #080d1a 100%)", touchAction: "none" }}>
+    <div className="flex flex-col select-none overflow-hidden"
+      style={{ height: `${viewSize.h}px`, background: "linear-gradient(160deg, #0e0920 0%, #0d1a3a 60%, #080d1a 100%)", touchAction: "none" }}>
 
       {/* ── Header ── */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-white/10 flex-shrink-0"

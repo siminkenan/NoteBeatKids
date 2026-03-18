@@ -769,52 +769,45 @@ export default function RhythmGame() {
       </AnimatePresence>
 
       {/* ── Main layout ── */}
+      {/* Mobil/dikey: her panel tek sütun, order ile sıralanır.
+          Masaüstü (md+): 3 sütunlu grid, col-start ile yerleşir. */}
       <main className="flex-1 w-full px-3 pt-3 pb-4 overflow-y-auto flex flex-col gap-3 md:grid md:grid-cols-[220px_1fr_160px] md:items-start md:overflow-hidden">
 
-        {/* ── LEFT column ── */}
-        <div className="flex flex-col gap-3">
-
-          {/* Level info + exercise dots */}
-          <div className="bg-white/80 rounded-2xl px-4 py-3 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Seviye</p>
-                <p className="text-3xl font-extrabold text-purple-700">{level}</p>
-                <p className="text-[11px] font-semibold text-muted-foreground leading-tight">{meta.emoji} {meta.nameTr}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">Soru</p>
-                <p className="text-sm font-bold text-muted-foreground">{exerciseIdx + 1}/{PATTERNS_PER_LEVEL}</p>
-                <p className="text-[10px] text-green-600 font-bold mt-0.5">{exerciseResults.filter(Boolean).length}/{exerciseResults.length} ✓</p>
-              </div>
+        {/* ── Seviye Bilgisi — mobil: 7., masaüstü: col-1 ── */}
+        <div className="order-7 md:order-none md:col-start-1 bg-white/80 rounded-2xl px-4 py-3 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Seviye</p>
+              <p className="text-3xl font-extrabold text-purple-700">{level}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground leading-tight">{meta.emoji} {meta.nameTr}</p>
             </div>
-            {/* Exercise dots */}
-            <div className="flex gap-1 flex-wrap">
-              {Array.from({ length: PATTERNS_PER_LEVEL }).map((_, i) => {
-                const done = i < exerciseResults.length;
-                const current = i === exerciseIdx;
-                const result = exerciseResults[i];
-                return (
-                  <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-extrabold transition-all ${
-                    current ? "bg-purple-600 text-white scale-110 shadow-md" :
-                    done && result ? "bg-green-400 text-white" :
-                    done ? "bg-red-300 text-white" :
-                    "bg-purple-100 text-purple-300"
-                  }`}>
-                    {done ? (result ? "✓" : "✗") : i + 1}
-                  </div>
-                );
-              })}
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">Soru</p>
+              <p className="text-sm font-bold text-muted-foreground">{exerciseIdx + 1}/{PATTERNS_PER_LEVEL}</p>
+              <p className="text-[10px] text-green-600 font-bold mt-0.5">{exerciseResults.filter(Boolean).length}/{exerciseResults.length} ✓</p>
             </div>
           </div>
-
+          <div className="flex gap-1 flex-wrap">
+            {Array.from({ length: PATTERNS_PER_LEVEL }).map((_, i) => {
+              const done = i < exerciseResults.length;
+              const current = i === exerciseIdx;
+              const result = exerciseResults[i];
+              return (
+                <div key={i} className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-extrabold transition-all ${
+                  current ? "bg-purple-600 text-white scale-110 shadow-md" :
+                  done && result ? "bg-green-400 text-white" :
+                  done ? "bg-red-300 text-white" :
+                  "bg-purple-100 text-purple-300"
+                }`}>
+                  {done ? (result ? "✓" : "✗") : i + 1}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* ── CENTER column ── */}
-        <div className="flex flex-col gap-3">
-
-          {/* Score bar */}
-          <div className="grid grid-cols-3 gap-2">
+        {/* ── Doğru / Yanlış / Doğruluk — mobil: 8., masaüstü: col-2 ── */}
+        <div className="order-8 md:order-none md:col-start-2 grid grid-cols-3 gap-2">
             <div className="bg-white/80 rounded-xl py-2 text-center shadow-sm">
               <p className="text-lg font-extrabold text-green-500">{correctCount}</p>
               <p className="text-[10px] text-muted-foreground font-bold">Doğru</p>
@@ -831,8 +824,8 @@ export default function RhythmGame() {
             </div>
           </div>
 
-          {/* Pass requirement bar */}
-          <div className="bg-white/70 rounded-xl px-3 py-2 flex items-center gap-2">
+        {/* ── Geçme Çubuğu — mobil: 9., masaüstü: col-2 ── */}
+          <div className="order-9 md:order-none md:col-start-2 bg-white/70 rounded-xl px-3 py-2 flex items-center gap-2">
             <span className="text-xs font-bold text-muted-foreground flex-shrink-0">Geçmek için:</span>
             <div className="flex gap-1 flex-1">
               {Array.from({ length: PATTERNS_PER_LEVEL }).map((_, i) => (
@@ -846,8 +839,8 @@ export default function RhythmGame() {
             <span className="text-xs font-bold text-amber-600 flex-shrink-0">{PASS_THRESHOLD}/10</span>
           </div>
 
-          {/* BPM Slider — above the notation */}
-          <div className="bg-white/70 rounded-2xl p-3 shadow-sm">
+        {/* ── Tempo (BPM) — mobil: 6., masaüstü: col-2 ── */}
+          <div className="order-6 md:order-none md:col-start-2 bg-white/70 rounded-2xl p-3 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <p className="font-extrabold text-sm text-purple-700">🎵 Tempo</p>
               <span className="bg-purple-600 text-white text-sm font-extrabold px-3 py-1 rounded-full" data-testid="text-bpm">{bpm} BPM</span>
@@ -860,8 +853,8 @@ export default function RhythmGame() {
             </div>
           </div>
 
-          {/* Panel 1: Hazırlan */}
-          <div className={`rounded-2xl border-2 transition-colors duration-300 overflow-hidden ${
+        {/* ── Hazırlan — mobil: 1., masaüstü: col-2 ── */}
+          <div className={`order-1 md:order-none md:col-start-2 rounded-2xl border-2 transition-colors duration-300 overflow-hidden ${
             phase === "listening" || phase === "listen_countdown" ? "border-indigo-300 bg-indigo-50"
             : phase === "tap_ready" ? "border-amber-300 bg-amber-50"
             : phase === "idle" ? "border-indigo-200 bg-indigo-50/60"
@@ -919,8 +912,8 @@ export default function RhythmGame() {
             </div>
           </div>
 
-          {/* Panel 2: Beat counter — direct DOM refs, zero-lag sync */}
-          <div className={`rounded-2xl border-2 transition-colors duration-300 ${
+        {/* ── 4/4 Sayma — mobil: 2., masaüstü: col-2 ── */}
+          <div className={`order-2 md:order-none md:col-start-2 rounded-2xl border-2 transition-colors duration-300 ${
             phase === "listening" || phase === "tap_ready" || phase === "tapping" ? "border-purple-300 bg-purple-50" : "border-gray-200 bg-gray-50/40 opacity-50"
           }`}>
             <div className="flex items-center gap-2 px-4 pt-3 pb-3">
@@ -948,8 +941,8 @@ export default function RhythmGame() {
             </div>
           </div>
 
-          {/* VexFlow notation */}
-          <div className="bg-white rounded-3xl p-6 shadow-lg">
+        {/* ── Ritim Kalıbı — mobil: 3., masaüstü: col-2 ── */}
+          <div className="order-3 md:order-none md:col-start-2 bg-white rounded-3xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-extrabold text-purple-500 uppercase tracking-widest">🎼 Ritim Kalıbı</p>
               <p className="text-sm font-semibold text-muted-foreground">{meta.desc}</p>
@@ -1003,8 +996,8 @@ export default function RhythmGame() {
             })()}
           </div>
 
-          {/* Panel 3: Vurma / Sonraki — below the rhythm pattern */}
-          <div className={`rounded-2xl border-2 transition-colors duration-300 ${
+        {/* ── Vurma — mobil: 4., masaüstü: col-2 ── */}
+          <div className={`order-4 md:order-none md:col-start-2 rounded-2xl border-2 transition-colors duration-300 ${
             phase === "tapping" ? "border-green-300 bg-green-50"
             : phase === "result" && !retryPending && feedback?.correct ? "border-green-300 bg-green-50"
             : phase === "result" && !retryPending ? "border-orange-300 bg-orange-50"
@@ -1051,7 +1044,8 @@ export default function RhythmGame() {
             </div>
           </div>
 
-          {/* Feedback */}
+        {/* ── Geri Bildirim — mobil: 5., masaüstü: col-2 ── */}
+        <div className="order-5 md:order-none md:col-start-2">
           <AnimatePresence>
             {feedback && phase === "result" && (
               <motion.div
@@ -1071,14 +1065,10 @@ export default function RhythmGame() {
               </motion.div>
             )}
           </AnimatePresence>
-
         </div>
 
-        {/* ── RIGHT column ── */}
-        <div className="flex flex-col gap-3">
-
-          {/* Star progress to next badge */}
-          <div className="bg-white/60 rounded-2xl p-3 shadow-sm">
+        {/* ── Rozet Yolu — mobil: 10., masaüstü: col-3 ── */}
+          <div className="order-[10] md:order-none md:col-start-3 bg-white/60 rounded-2xl p-3 shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-extrabold text-purple-500 uppercase tracking-widest">Rozet Yolu</p>
               <div className="flex gap-1">
@@ -1102,7 +1092,6 @@ export default function RhythmGame() {
             </p>
           </div>
 
-        </div>
       </main>
     </div>
   );
