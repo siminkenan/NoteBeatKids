@@ -498,13 +498,14 @@ export default function DrumKit() {
 
   const lastZone = lastHit ? ZONES.find(z => z.id === lastHit.id) : null;
 
-  /* portrait modda daha büyük davul: ekran genişliğinin %88'i, max 320px */
+  /* portrait: ekran genişliğinin %82'si, max 290px (2 satır kontrol için alan bırak)
+     landscape: yükseklik tabanlı clamp */
   const drumContainerSize = isPortrait
-    ? `${Math.min(Math.round(window.innerWidth * 0.88), 320)}px`
-    : "clamp(140px, 36vh, 320px)";
+    ? `${Math.min(Math.round(window.innerWidth * 0.82), 290)}px`
+    : "clamp(130px, 34vh, 300px)";
 
   return (
-    <div className="h-screen flex flex-col select-none overflow-hidden"
+    <div className="h-[100dvh] flex flex-col select-none overflow-hidden"
       style={{ background: "linear-gradient(160deg, #0e0920 0%, #0d1a3a 60%, #080d1a 100%)", touchAction: "none" }}>
 
       {/* ── Header ── */}
@@ -608,44 +609,55 @@ export default function DrumKit() {
         </div>
       </div>
 
-      {/* ── Sequencer Controls ── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 flex-shrink-0 border-t border-white/8">
-        {/* Play / Stop */}
-        <button
-          data-testid="btn-seq-play"
-          onClick={() => setIsPlaying(p => !p)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold text-sm text-black transition-all"
-          style={{ background: isPlaying ? "#f87171" : "#4ade80", boxShadow: `0 0 12px ${isPlaying ? "#f87171" : "#4ade80"}66` }}>
-          {isPlaying ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-          {isPlaying ? "Dur" : "Çal"}
-        </button>
+      {/* ── Sequencer Controls ── portrait: 2 satır, landscape: 1 satır ── */}
+      <div className="flex-shrink-0 border-t border-white/8 px-3"
+        style={{ background: "rgba(0,0,0,0.35)" }}>
 
-        {/* REC indicator — shown when playing */}
-        {isPlaying && (
-          <motion.div
-            animate={{ opacity: [1, 0.3, 1] }}
-            transition={{ duration: 0.9, repeat: Infinity }}
-            className="flex items-center gap-1 px-2 py-1 rounded-md"
-            style={{ background: "rgba(239,68,68,0.2)", border: "1.5px solid #ef4444" }}>
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span className="text-red-400 text-[10px] font-extrabold">REC</span>
-          </motion.div>
-        )}
+        {/* Satır 1: Çal/Dur + BPM + Temizle */}
+        <div className="flex items-center gap-2 py-1.5">
+          {/* Play / Stop */}
+          <button
+            data-testid="btn-seq-play"
+            onClick={() => setIsPlaying(p => !p)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold text-sm text-black transition-all flex-shrink-0"
+            style={{ background: isPlaying ? "#f87171" : "#4ade80", boxShadow: `0 0 12px ${isPlaying ? "#f87171" : "#4ade80"}66` }}>
+            {isPlaying ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            {isPlaying ? "Dur" : "Çal"}
+          </button>
 
-        {/* BPM */}
-        <div className="flex items-center gap-1.5" style={{ flex: "1.2" }}>
+          {/* REC indicator */}
+          {isPlaying && (
+            <motion.div
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 0.9, repeat: Infinity }}
+              className="flex items-center gap-1 px-2 py-1 rounded-md flex-shrink-0"
+              style={{ background: "rgba(239,68,68,0.2)", border: "1.5px solid #ef4444" }}>
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-red-400 text-[10px] font-extrabold">REC</span>
+            </motion.div>
+          )}
+
+          {/* BPM */}
           <span className="text-white/60 text-xs font-bold flex-shrink-0">BPM</span>
           <input type="range" min={50} max={160} value={bpm}
             onChange={e => setBpm(Number(e.target.value))}
-            className="flex-1 h-1.5 rounded accent-yellow-400" />
-          <span className="text-yellow-400 font-extrabold text-sm w-7 text-right">{bpm}</span>
+            className="flex-1 h-2 rounded accent-yellow-400"
+            style={{ minWidth: 0 }} />
+          <span className="text-yellow-400 font-extrabold text-sm w-7 text-right flex-shrink-0">{bpm}</span>
+
+          <div className="w-px h-5 bg-white/15 flex-shrink-0" />
+
+          {/* Clear */}
+          <button
+            data-testid="btn-seq-clear"
+            onClick={() => setPattern(emptyPattern())}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/20 text-white/60 hover:text-white hover:border-white/40 text-xs font-bold transition-all flex-shrink-0">
+            <Trash2 className="w-3.5 h-3.5" /> Temizle
+          </button>
         </div>
 
-        {/* Divider */}
-        <div className="w-px h-5 bg-white/15 flex-shrink-0" />
-
-        {/* Metronome mute + volume */}
-        <div className="flex items-center gap-1.5" style={{ flex: "1" }}>
+        {/* Satır 2: Metronom ses kontrolü */}
+        <div className="flex items-center gap-2 pb-1.5">
           <button
             data-testid="btn-metro-mute"
             onClick={() => setMetroMuted(m => !m)}
@@ -656,36 +668,24 @@ export default function DrumKit() {
               border: `1.5px solid ${metroMuted ? "#ef4444" : "rgba(255,255,255,0.18)"}`,
               color: metroMuted ? "#f87171" : "rgba(255,255,255,0.7)",
             }}>
-            {metroMuted
-              ? <VolumeX className="w-3.5 h-3.5" />
-              : <Volume2 className="w-3.5 h-3.5" />}
+            {metroMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
           </button>
-          <span className="text-white/50 text-[10px] font-bold flex-shrink-0">Metro</span>
+          <span className="text-white/50 text-xs font-bold flex-shrink-0">Metronom</span>
           <input type="range" min={0} max={100} value={Math.round(metroVolume * 100)}
             onChange={e => setMetroVolume(Number(e.target.value) / 100)}
             disabled={metroMuted}
-            className="flex-1 h-1.5 rounded accent-cyan-400"
-            style={{ opacity: metroMuted ? 0.35 : 1 }} />
-          <span className="text-cyan-400 font-extrabold text-[11px] w-6 text-right"
+            className="flex-1 h-2 rounded accent-cyan-400"
+            style={{ opacity: metroMuted ? 0.35 : 1, minWidth: 0 }} />
+          <span className="text-cyan-400 font-extrabold text-xs w-8 text-right flex-shrink-0"
             style={{ opacity: metroMuted ? 0.35 : 1 }}>
-            {Math.round(metroVolume * 100)}
+            %{Math.round(metroVolume * 100)}
           </span>
         </div>
-
-        {/* Divider */}
-        <div className="w-px h-5 bg-white/15 flex-shrink-0" />
-
-        {/* Clear */}
-        <button
-          data-testid="btn-seq-clear"
-          onClick={() => setPattern(emptyPattern())}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/20 text-white/60 hover:text-white hover:border-white/40 text-xs font-bold transition-all flex-shrink-0">
-          <Trash2 className="w-3.5 h-3.5" /> Temizle
-        </button>
       </div>
 
       {/* ── Sequencer Grid ── */}
-      <div className="flex-1 px-2 pb-2 overflow-hidden flex flex-col gap-0.5" style={{ minHeight: 0 }}>
+      <div className="flex-1 px-2 overflow-hidden flex flex-col gap-0.5"
+        style={{ minHeight: 0, paddingBottom: "max(8px, env(safe-area-inset-bottom, 8px))" }}>
 
         {/* Beat header: measure numbers */}
         <div className="flex items-center mb-0.5">
