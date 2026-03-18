@@ -389,12 +389,16 @@ export default function DrumKit() {
       setIsPortrait(window.innerHeight > window.innerWidth);
       setViewSize({ w: window.innerWidth, h: window.innerHeight });
     };
+    // Bazı mobil tarayıcılarda mount anında viewport boyutu henüz stabil değildir;
+    // requestAnimationFrame + 150ms gecikme ile kesin değeri yakalamak için yeniden ölç
+    const rafId = requestAnimationFrame(() => setTimeout(update, 150));
+    const onOrient = () => setTimeout(update, 150);
     window.addEventListener("resize", update);
-    // orientationchange bazı Android'lerde resize'dan önce gelir
-    window.addEventListener("orientationchange", () => setTimeout(update, 120));
+    window.addEventListener("orientationchange", onOrient);
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
+      window.removeEventListener("orientationchange", onOrient);
     };
   }, []);
 
@@ -536,7 +540,7 @@ export default function DrumKit() {
           data-testid="btn-back-drum">
           <ArrowLeft className="w-4 h-4" /> Geri
         </Button>
-        <h1 className="font-extrabold text-base text-white tracking-tight">🥁 Online Davul Seti</h1>
+        <h1 className="font-extrabold text-base text-white tracking-tight">🥁 Davul Seti</h1>
         <div className="flex items-center gap-1.5">
           {/* WAV download */}
           <button

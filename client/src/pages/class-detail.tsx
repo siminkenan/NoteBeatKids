@@ -524,12 +524,20 @@ export default function ClassDetail() {
                                   <>
                                     <p className="font-extrabold text-pink-600 text-xs">Bölüm {student.melodyProgress.level}</p>
                                     <p className="text-xs text-muted-foreground font-semibold">{student.melodyProgress.starsEarned} ⭐</p>
-                                    <div className="flex items-center justify-center gap-1 mt-0.5">
-                                      <CheckCircle className="w-3 h-3 text-green-500" />
-                                      <span className="text-xs font-bold text-green-600">{student.melodyProgress.correctAnswers}</span>
-                                      <XCircle className="w-3 h-3 text-red-500" />
-                                      <span className="text-xs font-bold text-red-500">{student.melodyProgress.wrongAnswers}</span>
-                                    </div>
+                                    {student.melodyProgress.notesBadge ? (
+                                      <p className="text-sm mt-0.5">
+                                        {student.melodyProgress.notesBadge === "bronze" && "🥉"}
+                                        {student.melodyProgress.notesBadge === "silver" && "🥈"}
+                                        {student.melodyProgress.notesBadge === "gold" && "🥇"}
+                                      </p>
+                                    ) : (
+                                      <div className="flex items-center justify-center gap-1 mt-0.5">
+                                        <CheckCircle className="w-3 h-3 text-green-500" />
+                                        <span className="text-xs font-bold text-green-600">{student.melodyProgress.correctAnswers}</span>
+                                        <XCircle className="w-3 h-3 text-red-500" />
+                                        <span className="text-xs font-bold text-red-500">{student.melodyProgress.wrongAnswers}</span>
+                                      </div>
+                                    )}
                                   </>
                                 ) : (
                                   <p className="text-[10px] text-muted-foreground font-semibold mt-1">—</p>
