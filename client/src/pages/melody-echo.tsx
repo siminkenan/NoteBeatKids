@@ -361,8 +361,8 @@ export default function MelodyEcho() {
 
       {/* ── Piano keyboard ── */}
       {/* White key: 62px, gap: 6px → keyboard total = 8×62 + 7×6 = 538px */}
-      <div className="relative w-full max-w-2xl px-2 mb-6 select-none flex flex-col items-center">
-        <div style={{ transform: `scale(${pianoScale})`, transformOrigin: "top center", width: 540, height: (230) * pianoScale }}>
+      <div className="relative w-full max-w-2xl px-2 mb-6 select-none flex flex-col items-center overflow-x-hidden">
+        <div style={{ transform: `scale(${pianoScale})`, transformOrigin: "top center", width: 540, height: 230 * pianoScale }}>
         <motion.div
           className="relative"
           style={{ width: 538 }}
@@ -419,7 +419,7 @@ export default function MelodyEcho() {
         </motion.div>
 
         {/* Dot indicators below keys */}
-        <div className="flex gap-1.5 mt-2" style={{ width: 538 }}>
+        <div className="flex gap-1.5 mt-2" style={{ width: 538 * pianoScale }}>
           {WHITE_KEYS.map((note) => {
             const active = melody.includes(note);
             return (

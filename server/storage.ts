@@ -344,10 +344,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClass(id: string): Promise<void> {
-    // 1. Delete progress for each student
+    // 1. Delete all per-student data before deleting students (FK constraints)
     const studentList = await this.getStudentsByClass(id);
     for (const student of studentList) {
       await db.delete(studentProgress).where(eq(studentProgress.studentId, student.id));
+      await db.delete(orchestraProgress).where(eq(orchestraProgress.studentId, student.id));
+      await db.delete(maestroViewProgress).where(eq(maestroViewProgress.studentId, student.id));
     }
     // 2. Nullify studentId refs in student_codes BEFORE deleting students (FK: student_codes.studentId → students.id)
     await db.update(studentCodes).set({ studentId: null }).where(eq(studentCodes.classId, id));

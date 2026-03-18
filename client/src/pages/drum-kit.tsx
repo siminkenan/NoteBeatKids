@@ -380,6 +380,14 @@ export default function DrumKit() {
   const [lastHit, setLastHit] = useState<{ id: DrumId; ts: number } | null>(null);
   const hitTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  /* ── orientation (portrait = dik konum) ── */
+  const [isPortrait, setIsPortrait] = useState(() => window.innerHeight > window.innerWidth);
+  useEffect(() => {
+    const fn = () => setIsPortrait(window.innerHeight > window.innerWidth);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+
   /* ── sequencer ── */
   const [pattern, setPattern] = useState<Pattern>(emptyPattern);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -490,9 +498,14 @@ export default function DrumKit() {
 
   const lastZone = lastHit ? ZONES.find(z => z.id === lastHit.id) : null;
 
+  /* portrait modda daha büyük davul: ekran genişliğinin %88'i, max 320px */
+  const drumContainerSize = isPortrait
+    ? `${Math.min(Math.round(window.innerWidth * 0.88), 320)}px`
+    : "clamp(140px, 36vh, 320px)";
+
   return (
     <div className="h-screen flex flex-col select-none overflow-hidden"
-      style={{ background: "linear-gradient(160deg, #0e0920 0%, #0d1a3a 60%, #080d1a 100%)" }}>
+      style={{ background: "linear-gradient(160deg, #0e0920 0%, #0d1a3a 60%, #080d1a 100%)", touchAction: "none" }}>
 
       {/* ── Header ── */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-white/10 flex-shrink-0"
@@ -555,7 +568,7 @@ export default function DrumKit() {
 
       {/* ── Drum Kit Image (top half) ── */}
       <div className="flex-shrink-0 flex justify-center px-2 pt-1"
-        style={{ height: "clamp(140px, 36vh, 320px)" }}>
+        style={{ height: drumContainerSize }}>
         <div className="relative h-full" style={{ aspectRatio: "1/1" }}>
           <img src={drumImg} alt="Davul Seti"
             className="w-full h-full object-contain pointer-events-none" draggable={false} />
@@ -569,10 +582,11 @@ export default function DrumKit() {
                   position: "absolute", left: `${zone.left}%`, top: `${zone.top}%`,
                   width: `${zone.width}%`, height: `${zone.height}%`,
                   borderRadius: "50%", cursor: "pointer", touchAction: "none",
+                  willChange: "background, box-shadow",
                   background: active ? `radial-gradient(ellipse, ${zone.color}55 0%, transparent 80%)` : "transparent",
                   boxShadow: active ? `0 0 18px 6px ${zone.color}60` : "none",
                   border: active ? `2px solid ${zone.color}bb` : "1.5px solid rgba(255,255,255,0.05)",
-                  zIndex: 10, transition: "all 0.05s",
+                  zIndex: 10, transition: "background 0.04s, box-shadow 0.04s, border 0.04s",
                 }}>
                 <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
                   <div style={{

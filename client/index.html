@@ -16,14 +16,58 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Nunito+Sans:wght@400;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
   <style>
     html, body { margin: 0; padding: 0; background: #0f0c29; }
     #root { min-height: 100vh; min-height: 100dvh; background: #0f0c29; }
+    #nb-loader {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; background: #0f0c29; z-index: 9999;
+      transition: opacity 0.3s ease;
+    }
+    #nb-loader .notes {
+      display: flex; gap: 10px; margin-bottom: 20px;
+    }
+    #nb-loader .note {
+      width: 14px; height: 14px; border-radius: 50%; background: #764ba2;
+      animation: nb-bounce 1s ease-in-out infinite;
+    }
+    #nb-loader .note:nth-child(2) { animation-delay: 0.15s; background: #a855f7; }
+    #nb-loader .note:nth-child(3) { animation-delay: 0.3s; background: #c084fc; }
+    #nb-loader .note:nth-child(4) { animation-delay: 0.45s; background: #818cf8; }
+    @keyframes nb-bounce {
+      0%, 100% { transform: translateY(0); opacity: 0.5; }
+      50% { transform: translateY(-12px); opacity: 1; }
+    }
+    #nb-loader p {
+      color: rgba(255,255,255,0.4); font-size: 13px; font-family: sans-serif;
+      letter-spacing: 2px; text-transform: uppercase;
+    }
   </style>
   </head>
   <body>
+    <div id="nb-loader">
+      <div class="notes">
+        <div class="note"></div>
+        <div class="note"></div>
+        <div class="note"></div>
+        <div class="note"></div>
+      </div>
+      <p>NoteBeat Kids</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var loader = document.getElementById('nb-loader');
+        if (loader) {
+          setTimeout(function() {
+            loader.style.opacity = '0';
+            setTimeout(function() { loader.style.display = 'none'; }, 300);
+          }, 800);
+        }
+      });
+    </script>
   </body>
 </html>
