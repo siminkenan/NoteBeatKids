@@ -10,7 +10,7 @@ function getAudio(): HTMLAudioElement {
   if (!_audio) {
     _audio = new Audio("/sounds/ambient.mp3");
     _audio.loop   = true;
-    _audio.volume = 1.0;
+    _audio.volume = 0.5;
     _audio.muted  = localStorage.getItem("ambientMuted") === "true";
   }
   return _audio;
