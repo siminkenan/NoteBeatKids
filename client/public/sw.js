@@ -1,5 +1,5 @@
-const CACHE = 'notebeat-kids-v1';
-const PRECACHE = ['/', '/manifest.json', '/favicon.png', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'notebeat-kids-v3';
+const PRECACHE = ['/', '/manifest.json', '/favicon.png', '/icon-192.png', '/icon-512.png', '/sounds/ambient.mp3'];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -20,6 +20,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   if (url.pathname.startsWith('/api/')) return;
+
   e.respondWith(
     fetch(e.request)
       .then(resp => {
@@ -29,6 +30,6 @@ self.addEventListener('fetch', (e) => {
         }
         return resp;
       })
-      .catch(() => caches.match(e.request).then(r => r || fetch(e.request)))
+      .catch(() => caches.match(e.request).then(r => r || new Response('Offline', { status: 503 })))
   );
 });
