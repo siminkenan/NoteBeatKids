@@ -605,14 +605,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ── Maestro Routes ───────────────────────────────────────────────────────────
 
-  // Serve Maestro files (video/photo)
+  // Serve Maestro files (video/photo) — with Range support for video streaming
   app.get("/api/maestro/file/:filename", async (req: Request, res: Response) => {
     const resource = await storage.getMaestroResourceByStoredFilename(req.params.filename);
     if (!resource || !resource.fileData) return res.status(404).json({ message: "File not found" });
     const buf = Buffer.from(resource.fileData, "base64");
-    res.set("Content-Type", getContentType(resource.originalFilename));
-    res.set("Content-Length", String(buf.length));
-    res.send(buf);
+    const contentType = getContentType(resource.originalFilename);
+    const total = buf.length;
+
+    const rangeHeader = req.headers.range;
+    if (rangeHeader) {
+      const parts = rangeHeader.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+      const chunkSize = end - start + 1;
+      res.status(206);
+      res.set("Content-Range", `bytes ${start}-${end}/${total}`);
+      res.set("Accept-Ranges", "bytes");
+      res.set("Content-Length", String(chunkSize));
+      res.set("Content-Type", contentType);
+      res.send(buf.subarray(start, end + 1));
+    } else {
+      res.set("Content-Type", contentType);
+      res.set("Content-Length", String(total));
+      res.set("Accept-Ranges", "bytes");
+      res.send(buf);
+    }
   });
 
   // Teacher: upload video (max 3, max 197s = 3m17s — duration validated client-side)

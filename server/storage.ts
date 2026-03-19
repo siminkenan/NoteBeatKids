@@ -741,9 +741,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMaestroResourcesByTeacher(teacherId: string): Promise<MaestroResource[]> {
-    return db.select().from(maestroResources)
+    const rows = await db.select({
+      id: maestroResources.id,
+      teacherId: maestroResources.teacherId,
+      type: maestroResources.type,
+      title: maestroResources.title,
+      originalFilename: maestroResources.originalFilename,
+      storedFilename: maestroResources.storedFilename,
+      durationSeconds: maestroResources.durationSeconds,
+      fileSize: maestroResources.fileSize,
+      fileData: sql<null>`null`,
+      createdAt: maestroResources.createdAt,
+    }).from(maestroResources)
       .where(eq(maestroResources.teacherId, teacherId))
       .orderBy(maestroResources.createdAt);
+    return rows as MaestroResource[];
   }
 
   async getMaestroResourcesByClass(classId: string): Promise<MaestroResource[]> {
