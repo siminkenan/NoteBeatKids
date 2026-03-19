@@ -54,7 +54,7 @@ function usePrefetchRoutes() {
   }, []);
 }
 
-const AMBIENT_PATHS = ["/", "/teacher"];
+const AMBIENT_PATHS = ["/", "/teacher", "/admin"];
 
 function useAmbientActive() {
   const [location] = useLocation();

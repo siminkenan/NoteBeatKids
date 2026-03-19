@@ -4,24 +4,25 @@ import { Volume2, VolumeX } from "lucide-react";
 // ── Module-level singleton ────────────────────────────────────────────────────
 let _audio: HTMLAudioElement | null = null;
 let _interactionHooked = false;
+let _shouldBePlaying = false;   // tracks whether current page wants audio
 
 function getAudio(): HTMLAudioElement {
   if (!_audio) {
     _audio = new Audio("/sounds/ambient.mp3");
     _audio.loop   = true;
-    _audio.volume = 1.0; // Full software volume — device hardware buttons control level
+    _audio.volume = 1.0;
     _audio.muted  = localStorage.getItem("ambientMuted") === "true";
   }
   return _audio;
 }
 
 function tryPlay() {
+  if (!_shouldBePlaying) return;          // don't play on non-ambient pages
   const a = getAudio();
   if (!a.paused) return;
   a.play().catch(() => {/* autoplay blocked — retried on first interaction */});
 }
 
-// Register with device media session so hardware volume buttons control this audio
 function registerMediaSession() {
   if (!("mediaSession" in navigator)) return;
   navigator.mediaSession.metadata = new MediaMetadata({
@@ -31,7 +32,6 @@ function registerMediaSession() {
   });
 }
 
-// Hook first user gesture globally — called immediately at module load
 function hookFirstInteraction() {
   if (_interactionHooked) return;
   _interactionHooked = true;
@@ -41,14 +41,12 @@ function hookFirstInteraction() {
     registerMediaSession();
   };
 
-  // Listen for ANY gesture anywhere on the page
   document.addEventListener("pointerdown", resume, { once: true });
   document.addEventListener("click",       resume, { once: true });
   document.addEventListener("keydown",     resume, { once: true });
   document.addEventListener("touchstart",  resume, { once: true, passive: true });
 }
 
-// Start hooking immediately when this module is first imported
 hookFirstInteraction();
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -58,8 +56,8 @@ export default function AmbientSound({ active }: Props) {
   const audio = getAudio();
   const [muted, setMuted] = useState(audio.muted);
 
-  // Play or pause based on which page we're on
   useEffect(() => {
+    _shouldBePlaying = active;
     if (active) {
       tryPlay();
       registerMediaSession();
