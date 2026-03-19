@@ -1,5 +1,5 @@
 [build]
-  command = "vite build"
+  command = "npm run build"
   publish = "dist/public"
   functions = "netlify/functions"
 
@@ -20,7 +20,4 @@
   from = "/*"
   to = "/index.html"
   status = 200
-[build]
-  command = "npm run build"
-  publish = "dist/public"
   
