@@ -127,7 +127,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!admin) {
-      fetch(`${import.meta.env.VITE_API_URL}/api/auth/admin/me")
+      fetch(`${import.meta.env.VITE_API_URL}/api/auth/admin/me`)
         .then(r => r.ok ? r.json() : null)
         .then(a => { if (a) setAdmin(a); else navigate("/admin/login"); });
     }

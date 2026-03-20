@@ -1,18 +1,28 @@
-import express from "express";
+import { createApp, log } from "./app";
+import { serveStatic } from "./static";
+import { storage } from "./storage";
 
-const app = express();
+(async () => {
+  const { app, httpServer } = await createApp();
 
-// basit test endpoint
-app.get("/", (req, res) => {
-  res.send("Server çalışıyor 🚀");
-});
+  if (process.env.NODE_ENV === "production") {
+    serveStatic(app);
+  } else {
+    const { setupVite } = await import("./vite");
+    await setupVite(httpServer, app);
+  }
 
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("Server running on port " + PORT);
-});
+  const port = parseInt(process.env.PORT || "5000", 10);
+  httpServer.listen(
+    { port, host: "0.0.0.0", reusePort: true },
+    async () => {
+      log(`serving on port ${port}`);
+      try {
+        await storage.seedData();
+        log("Database seeded successfully");
+      } catch (e: any) {
+        log(`Seed error: ${e.message}`);
+      }
+    },
+  );
+})();
