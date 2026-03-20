@@ -1,36 +1,18 @@
-import path from "path";
-import { fileURLToPath } from "url";
-import { createApp, log } from "./app";
-import { serveStatic } from "./static";
-import { storage } from "./storage";
+import express from "express";
 
-// ES Module uyumlu __dirname tanımı
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const app = express();
 
-(async () => {
-  const { app, httpServer } = await createApp();
+// basit test endpoint
+app.get("/", (req, res) => {
+  res.send("Server çalışıyor 🚀");
+});
 
-  if (process.env.NODE_ENV === "production") {
-    // public dizini ES Module uyumlu path ile
-    const publicPath = path.join(__dirname, "../dist/public");
-    serveStatic(app, publicPath);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
-  }
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    { port, host: "0.0.0.0", reusePort: true },
-    async () => {
-      log(`serving on port ${port}`);
-      try {
-        await storage.seedData();
-        log("Database seeded successfully");
-      } catch (e: any) {
-        log(`Seed error: ${e.message}`);
-      }
-    },
-  );
-})();
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Server running on port " + PORT);
+});
