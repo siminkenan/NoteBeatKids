@@ -110,7 +110,7 @@ export default function ClassDetail() {
 
   useEffect(() => {
     if (!teacher) {
-      fetch("/api/auth/teacher/me")
+      fetch(`${import.meta.env.VITE_API_URL}/api/auth/teacher/me")
         .then(r => r.ok ? r.json() : null)
         .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
     }
@@ -119,7 +119,7 @@ export default function ClassDetail() {
   const { data, isLoading } = useQuery<ClassDetailData>({
     queryKey: ["/api/teacher/classes", classId, "students"],
     queryFn: async () => {
-      const res = await fetch(`/api/teacher/classes/${classId}/students`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/teacher/classes/${classId}/students`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -134,7 +134,7 @@ export default function ClassDetail() {
   const { data: codesData } = useQuery<{ class: ClassDetailData["class"]; codes: StudentCode[] }>({
     queryKey: ["/api/teacher/classes", classId, "student-codes"],
     queryFn: async () => {
-      const res = await fetch(`/api/teacher/classes/${classId}/student-codes`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/teacher/classes/${classId}/student-codes`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error(await res.text());

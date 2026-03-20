@@ -145,7 +145,7 @@ export default function MelodyEcho() {
   const { data: savedProgress } = useQuery<StudentProgress[]>({
     queryKey: ["/api/student", student?.student.id, "progress"],
     queryFn: async () => {
-      const res = await fetch(`/api/student/${student!.student.id}/progress`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/student/${student!.student.id}/progress`);
       return res.json();
     },
     enabled: !!student,

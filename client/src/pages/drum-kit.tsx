@@ -349,7 +349,7 @@ export default function DrumKit() {
       if (!sid) return;
       const secs = Math.round((Date.now() - sessionStartRef.current) / 1000);
       if (secs < 2) return;
-      fetch(`/api/student/${sid}/progress`, {
+      fetch(`${import.meta.env.VITE_API_URL}/api/student/${sid}/progress`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ appType: "drum_kit", timeSpentSeconds: secs }),

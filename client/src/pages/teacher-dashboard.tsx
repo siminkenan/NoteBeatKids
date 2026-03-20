@@ -36,7 +36,7 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     if (!teacher) {
-      fetch("/api/auth/teacher/me")
+      fetch(`${import.meta.env.VITE_API_URL}/api/auth/teacher/me")
         .then(r => r.ok ? r.json() : null)
         .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
     }
