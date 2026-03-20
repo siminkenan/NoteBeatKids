@@ -19,33 +19,8 @@ function suppressPostcssFromWarning(): Plugin {
   };
 }
 
-const isProduction = process.env.NODE_ENV === "production";
-const isReplit = process.env.REPL_ID !== undefined;
-
 export default defineConfig(async () => {
-  const plugins: Plugin[] = [
-    suppressPostcssFromWarning(),
-    react(),
-  ];
-
-  if (!isProduction && isReplit) {
-    try {
-      const { default: runtimeErrorOverlay } = await import(
-        "@replit/vite-plugin-runtime-error-modal"
-      );
-      plugins.push(runtimeErrorOverlay());
-
-      const { cartographer } = await import(
-        "@replit/vite-plugin-cartographer"
-      );
-      plugins.push(cartographer());
-
-      const { devBanner } = await import("@replit/vite-plugin-dev-banner");
-      plugins.push(devBanner());
-    } catch {
-      // Replit plugins not available — skip silently
-    }
-  }
+  const plugins: Plugin[] = [suppressPostcssFromWarning(), react()];
 
   return {
     plugins,
@@ -62,51 +37,9 @@ export default defineConfig(async () => {
       },
     },
     root: path.resolve(import.meta.dirname, "client"),
-    esbuild: {
-      target: ["es2019", "safari11"],
-    },
     build: {
-      target: ["es2019", "safari11"],
       outDir: path.resolve(import.meta.dirname, "dist/public"),
       emptyOutDir: true,
-      chunkSizeWarningLimit: 1600,
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes("vexflow")) return "vendor-vexflow";
-            if (id.includes("framer-motion")) return "vendor-motion";
-            if (id.includes("@radix-ui")) return "vendor-radix";
-            if (id.includes("@tanstack")) return "vendor-query";
-            if (id.includes("lucide-react")) return "vendor-icons";
-            if (
-              id.includes("node_modules/react/") ||
-              id.includes("node_modules/react-dom/") ||
-              id.includes("node_modules/react-hook-form/") ||
-              id.includes("node_modules/wouter/")
-            ) {
-              return "vendor-react";
-            }
-            if (
-              id.includes("node_modules/zod") ||
-              id.includes("node_modules/@hookform")
-            ) {
-              return "vendor-forms";
-            }
-            if (
-              id.includes("node_modules/drizzle-zod") ||
-              id.includes("node_modules/drizzle-orm")
-            ) {
-              return "vendor-drizzle";
-            }
-          },
-        },
-      },
-    },
-    server: {
-      fs: {
-        strict: true,
-        deny: ["**/.*"],
-      },
     },
   };
 });

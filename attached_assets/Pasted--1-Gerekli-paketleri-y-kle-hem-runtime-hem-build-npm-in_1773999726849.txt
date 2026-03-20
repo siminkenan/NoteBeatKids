@@ -1,0 +1,68 @@
+# 1. Gerekli paketleri yükle (hem runtime hem build)
+npm install vite @vitejs/plugin-react recharts tailwindcss autoprefixer postcss express express-session connect-pg-simple drizzle-orm multer cors dotenv bcryptjs tsx typescript --save
+
+# 2. package.json'u güncelle
+npx json -I -f package.json -e 'this.scripts={dev:"NODE_ENV=development tsx server/index.ts",build:"vite build",start:"node server/index.js"}'
+
+# 3. Vite config dosyasını async-safe hâle getir
+cat > vite.config.ts << 'EOF'
+import { defineConfig, type Plugin } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+import tailwindcss from "tailwindcss";
+import autoprefixer from "autoprefixer";
+
+function suppressPostcssFromWarning(): Plugin {
+  return {
+    name: "suppress-postcss-from-warning",
+    enforce: "pre",
+    configResolved() {
+      const _warn = console.warn.bind(console);
+      console.warn = (...args: unknown[]) => {
+        const msg = typeof args[0] === "string" ? args[0] : "";
+        if (msg.includes("PostCSS") && msg.includes("`from`")) return;
+        _warn(...args);
+      };
+    },
+  };
+}
+
+export default defineConfig(async () => {
+  const plugins: Plugin[] = [suppressPostcssFromWarning(), react()];
+
+  return {
+    plugins,
+    css: { postcss: { plugins: [tailwindcss(), autoprefixer()] } },
+    resolve: { alias: { "@": path.resolve(import.meta.dirname, "client/src") } },
+    root: path.resolve(import.meta.dirname, "client"),
+    build: { outDir: path.resolve(import.meta.dirname, "dist/public"), emptyOutDir: true },
+  };
+});
+EOF
+
+# 4. Netlify yapılandırması
+cat > netlify.toml << 'EOF'
+[build]
+command = "npm run build"
+publish = "dist/public"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+EOF
+
+# 5. Vercel SPA fallback ayarı
+cat > vercel.json << 'EOF'
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "builds": [
+    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist/public" } }
+  ]
+}
+EOF
+
+# 6. Build ve test
+npm run build
