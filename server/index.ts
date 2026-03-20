@@ -4,7 +4,7 @@ import { createApp, log } from "./app";
 import { serveStatic } from "./static";
 import { storage } from "./storage";
 
-// ES module'de __dirname tanımı
+// ES Module uyumlu __dirname tanımı
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -12,10 +12,10 @@ const __dirname = path.dirname(__filename);
   const { app, httpServer } = await createApp();
 
   if (process.env.NODE_ENV === "production") {
-    // Production’da static dosyaları servis et
-    serveStatic(app, path.join(__dirname, "../dist/public"));
+    // public dizini ES Module uyumlu path ile
+    const publicPath = path.join(__dirname, "../dist/public");
+    serveStatic(app, publicPath);
   } else {
-    // Development’da Vite üzerinden live reload
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
@@ -24,7 +24,7 @@ const __dirname = path.dirname(__filename);
   httpServer.listen(
     { port, host: "0.0.0.0", reusePort: true },
     async () => {
-      log(`Server is running on port ${port}`);
+      log(`serving on port ${port}`);
       try {
         await storage.seedData();
         log("Database seeded successfully");
