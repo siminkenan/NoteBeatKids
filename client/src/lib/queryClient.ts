@@ -1,7 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Environment variable tanımı
-const API_URL = import.meta.env.VITE_API_URL; // Vercel ve lokal .env için
+// Use VITE_API_URL in production (Vercel → Render). Empty string = same-origin (dev).
+const API_URL: string = import.meta.env.VITE_API_URL || "";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -32,8 +32,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // queryKey bir array, bunu URL hâline getiriyoruz
-    const url = `${API_URL}/${queryKey.join("/")}`; 
+    const path = queryKey.join("/"); // e.g. "/api/teacher/classes/123"
+    const url = API_URL ? `${API_URL}${path}` : path;
     const res = await fetch(url, {
       credentials: "include",
     });
