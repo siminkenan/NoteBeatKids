@@ -1,16 +1,19 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
-echo "[1/2] Frontend derleniyor..."
-./node_modules/.bin/vite build
+echo "==> Building frontend (Vite)..."
+npx vite build
 
-echo "[2/2] Sunucu derleniyor..."
-./node_modules/.bin/esbuild server/index.ts \
-  --platform=node \
-  --packages=external \
+echo "==> Compiling backend (esbuild)..."
+npx esbuild server/index.ts \
   --bundle \
+  --platform=node \
   --format=esm \
-  "--define:process.env.NODE_ENV=\"production\"" \
-  --outfile=dist/index.js
+  --outfile=dist/server/index.js \
+  --define:process.env.NODE_ENV=\"production\" \
+  --packages=external \
+  --tsconfig=tsconfig.json
 
-echo "Derleme tamamlandi."
+echo "==> Build complete."
+echo "    Frontend: dist/public/"
+echo "    Backend:  dist/server/index.js"

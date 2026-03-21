@@ -73,6 +73,11 @@ function generateClassCode(): string {
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+  // Health check (used by Render and load balancers)
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // Admin auth
   app.post("/api/auth/admin/login", async (req: Request, res: Response) => {
     try {

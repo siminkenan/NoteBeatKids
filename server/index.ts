@@ -1,30 +1,48 @@
-import express from "express";
-import path from "path";
+import "dotenv/config";
+import { createApp } from "./app";
+import { serveStatic } from "./static";
+import { log } from "./app";
+import { db } from "./db";
+import * as schema from "@shared/schema";
+import { sql } from "drizzle-orm";
 
-const app = express();
+const PORT = parseInt(process.env.PORT || "5000", 10);
 
-// JSON middleware
-app.use(express.json());
+async function seedDatabase() {
+  try {
+    const existing = await db.select().from(schema.admins).limit(1);
+    if (existing.length === 0) {
+      const bcrypt = await import("bcryptjs");
+      const hash = await bcrypt.default.hash("admin123", 10);
+      await db.insert(schema.admins).values({
+        email: "admin@notebeat.com",
+        passwordHash: hash,
+      });
+    }
+    log("Database seeded successfully");
+  } catch (err) {
+    log(`Database seed skipped: ${(err as Error).message}`);
+  }
+}
 
-// TEST API
-app.get("/api/test", (req, res) => {
-  res.json({ message: "API çalışıyor 🚀" });
-});
+async function main() {
+  const { app, httpServer } = await createApp();
 
-// STATIC FILES (Vite build sonrası)
-const __dirname = new URL(".", import.meta.url).pathname;
-const distPath = path.join(__dirname, "../dist/public");
+  if (process.env.NODE_ENV === "production") {
+    serveStatic(app);
+  } else {
+    const { setupVite } = await import("./vite");
+    await setupVite(httpServer, app);
+  }
 
-app.use(express.static(distPath));
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    log(`serving on port ${PORT}`);
+  });
 
-// SPA fallback (React Router için)
-app.get("*", (req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
-});
+  await seedDatabase();
+}
 
-// 🔥 RENDER PORT FIX (EN KRİTİK KISIM)
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+main().catch((err) => {
+  console.error("Fatal server error:", err);
+  process.exit(1);
 });

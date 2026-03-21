@@ -2,11 +2,13 @@ services:
   - type: web
     name: notebeatkids-api
     runtime: node
-    buildCommand: npm install && npm run build
-    startCommand: node dist/server/index.js
+    buildCommand: npm install && sh build.sh
+    startCommand: NODE_ENV=production node dist/server/index.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
