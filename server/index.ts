@@ -1,15 +1,25 @@
-import { createApp, log } from "./app";
-import { serveStatic } from "./static";
-import { storage } from "./storage";
+import express from "express";
 
-(async () => {
-  const { app, httpServer } = await createApp();
+const app = express();
 
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
+// Basit test endpoint
+app.get("/", (req, res) => {
+  res.send("Server çalışıyor 🚀");
+});
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+// Render için port ayarı
+const PORT = process.env.PORT || 3000;
+
+// Her yerden erişim için host 0.0.0.0
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
+});
+app);
   }
 
   const port = parseInt(process.env.PORT || "5000", 10);
