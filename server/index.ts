@@ -4,7 +4,6 @@ import { serveStatic } from "./static";
 import { log } from "./app";
 import { db } from "./db";
 import * as schema from "@shared/schema";
-import { sql } from "drizzle-orm";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
@@ -13,10 +12,13 @@ async function seedDatabase() {
     const existing = await db.select().from(schema.admins).limit(1);
     if (existing.length === 0) {
       const bcrypt = await import("bcryptjs");
-      const hash = await bcrypt.default.hash("admin123", 10);
+      const hash = await bcrypt.default.hash(
+        process.env.ADMIN_PASSWORD || "admin123",
+        10,
+      );
       await db.insert(schema.admins).values({
-        email: "admin@notebeat.com",
-        passwordHash: hash,
+        email: "admin@notebeatkids.com",
+        password: hash,
       });
     }
     log("Database seeded successfully");
