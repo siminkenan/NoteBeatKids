@@ -11,11 +11,11 @@ const __dirname = path.dirname(__filename);
 // build path
 const publicPath = path.join(__dirname, "../dist/public");
 
-// static files
+// static serve
 app.use(express.static(publicPath));
 
-// SPA fallback (FIXED)
-app.get("/*", (req, res) => {
+// ✅ CRITICAL FIX (artık get değil use)
+app.use((req, res) => {
   res.sendFile(path.join(publicPath, "index.html"));
 });
 
