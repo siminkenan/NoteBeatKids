@@ -1,27 +1,27 @@
-const express = require("express");
-const path = require("path");
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 
-app.use(express.json());
+// __dirname fix (ESM için)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// test endpoint
-app.get("/api/test", (req, res) => {
-  res.json({ message: "API çalışıyor 🚀" });
-});
+// PORT (Render için zorunlu)
+const PORT = process.env.PORT || 10000;
 
-// static files
+// static build klasörü
 const distPath = path.join(__dirname, "../dist/public");
+
 app.use(express.static(distPath));
 
-// react fallback
-app.get("*", (req, res) => {
+// React / Vite fallback
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
-// PORT FIX (EN KRİTİK)
-const PORT = process.env.PORT || 10000;
-
+// 🔥 KRİTİK: 0.0.0.0 kullan
 app.listen(PORT, "0.0.0.0", () => {
   console.log("Server running on port " + PORT);
 });
