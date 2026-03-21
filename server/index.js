@@ -1,38 +1,27 @@
-import express from "express";
+const express = require("express");
+const path = require("path");
 
 const app = express();
 
-// Basit test endpoint
-app.get("/", (req, res) => {
-  res.send("Server çalışıyor 🚀");
+app.use(express.json());
+
+// test endpoint
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API çalışıyor 🚀" });
 });
 
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+// static files
+const distPath = path.join(__dirname, "../dist/public");
+app.use(express.static(distPath));
+
+// react fallback
+app.get("*", (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
 });
 
-// Render için port ayarı
-const PORT = process.env.PORT || 3000;
+// PORT FIX (EN KRİTİK)
+const PORT = process.env.PORT || 10000;
 
-// Her yerden erişim için host 0.0.0.0
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("Server running on port " + PORT);
 });
-app);
-  }
-
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    { port, host: "0.0.0.0", reusePort: true },
-    async () => {
-      log(`serving on port ${port}`);
-      try {
-        await storage.seedData();
-        log("Database seeded successfully");
-      } catch (e: any) {
-        log(`Seed error: ${e.message}`);
-      }
-    },
-  );
-})();
