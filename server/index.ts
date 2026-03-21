@@ -1,26 +1,30 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 
 const app = express();
 
-// __dirname fix
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// JSON middleware
+app.use(express.json());
 
-// build path
-const publicPath = path.join(__dirname, "../dist/public");
-
-// static serve
-app.use(express.static(publicPath));
-
-// ✅ CRITICAL FIX (artık get değil use)
-app.use((req, res) => {
-  res.sendFile(path.join(publicPath, "index.html"));
+// TEST API
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API çalışıyor 🚀" });
 });
 
-const PORT = process.env.PORT || 5000;
+// STATIC FILES (Vite build sonrası)
+const __dirname = new URL(".", import.meta.url).pathname;
+const distPath = path.join(__dirname, "../dist/public");
 
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+app.use(express.static(distPath));
+
+// SPA fallback (React Router için)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
+
+// 🔥 RENDER PORT FIX (EN KRİTİK KISIM)
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });
