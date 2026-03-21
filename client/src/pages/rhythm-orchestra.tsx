@@ -101,7 +101,7 @@ export default function RhythmOrchestra() {
 
   async function downloadPhoto(photo: MaestroResource) {
     try {
-      const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/maestro/file/${photo.storedFilename}`);
+      const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/maestro/file/${photo.storedFilename}`, { credentials: "include" });
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

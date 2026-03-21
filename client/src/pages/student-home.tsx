@@ -21,7 +21,7 @@ export default function StudentHome() {
   const { data: progress } = useQuery<StudentProgress[]>({
     queryKey: ["/api/student", student?.student.id, "progress"],
     queryFn: async () => {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/student/${student!.student.id}/progress`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/student/${student!.student.id}/progress`, { credentials: "include" });
       return res.json();
     },
     enabled: !!student,

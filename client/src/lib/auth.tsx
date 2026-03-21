@@ -63,12 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logoutTeacher = async () => {
-    await fetch(`${import.meta.env.VITE_API_URL}/api/auth/teacher/logout`, { method: "POST" });
+    await fetch(`${import.meta.env.VITE_API_URL}/api/auth/teacher/logout`, { method: "POST", credentials: "include" });
     setTeacher(null);
   };
 
   const logoutAdmin = async () => {
-    await fetch(`${import.meta.env.VITE_API_URL}/api/auth/admin/logout`, { method: "POST" });
+    await fetch(`${import.meta.env.VITE_API_URL}/api/auth/admin/logout`, { method: "POST", credentials: "include" });
     setAdmin(null);
   };
 

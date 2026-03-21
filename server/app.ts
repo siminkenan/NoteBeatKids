@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
@@ -24,8 +25,34 @@ export async function createApp() {
   const app = express();
   const httpServer = createServer(app);
 
-  // Trust Replit's reverse proxy so secure cookies work over HTTPS
+  // Trust proxy (Render, Replit, Vercel)
   app.set("trust proxy", 1);
+
+  // CORS — allow the frontend origin (Vercel or any configured domain) with cookies
+  const allowedOrigins = (process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, same-origin)
+        if (!origin) return callback(null, true);
+        if (
+          allowedOrigins.length === 0 ||
+          allowedOrigins.includes(origin) ||
+          origin.endsWith(".vercel.app") ||
+          origin.endsWith(".onrender.com") ||
+          origin.includes("localhost")
+        ) {
+          return callback(null, true);
+        }
+        return callback(new Error(`CORS blocked: ${origin}`));
+      },
+      credentials: true,
+    }),
+  );
 
   app.use(
     express.json({
