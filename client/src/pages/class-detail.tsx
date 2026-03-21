@@ -119,13 +119,20 @@ export default function ClassDetail() {
   const { data, isLoading } = useQuery<ClassDetailData>({
     queryKey: ["/api/teacher/classes", classId, "students"],
     queryFn: async () => {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/teacher/classes/${classId}/students`, {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const API_URL = import.meta.env.VITE_API_URL as string;
+
+      const res = await fetch(
+        API_URL + "/api/teacher/classes/" + classId + "/students",
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
+  });
     enabled: !!classId && !!teacher,
     staleTime: 0,
     refetchOnMount: true,
