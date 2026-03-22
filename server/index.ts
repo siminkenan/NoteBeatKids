@@ -11,33 +11,34 @@ async function seedDatabase() {
   try {
     const bcrypt = await import("bcryptjs");
 
+    // 🔑 Şifre seçimi
     const adminPassword =
-      process.env.ADMIN_PASSWORD || "114344_Kenan"; // Replit şifren
+      process.env.ADMIN_PASSWORD || "114344_Kenan";
 
     const hash = await bcrypt.default.hash(adminPassword, 10);
 
     const existing = await db.select().from(schema.admins).limit(1);
 
     if (existing.length === 0) {
-      // İlk kez oluştur
+      // ➜ Hiç admin yoksa oluştur
       await db.insert(schema.admins).values({
         email: "admin@notebeatkids.com",
         password: hash,
       });
-      log("Admin created");
-    } else if (process.env.ADMIN_PASSWORD) {
-      // SADECE Render'da override et
+
+      log("✅ Admin created");
+    } else {
+      // ➜ Admin varsa her zaman güncelle (Render fix)
       await db
         .update(schema.admins)
         .set({ password: hash })
         .where(schema.admins.email.eq("admin@notebeatkids.com"));
 
-      log("Admin password updated from ENV");
+      log("✅ Admin password synced");
     }
 
-    log("Database seeded successfully");
   } catch (err) {
-    log(`Database seed skipped: ${(err as Error).message}`);
+    log(`❌ Database seed error: ${(err as Error).message}`);
   }
 }
 
@@ -52,7 +53,7 @@ async function main() {
   }
 
   httpServer.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
+    log(`🚀 Server running on port ${PORT}`);
   });
 
   await seedDatabase();
