@@ -1,7 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 // Use VITE_API_URL in production (Vercel → Render). Empty string = same-origin (dev).
-const API_URL: string = import.meta.env.VITE_API_URL || "";
+export const API_URL: string = import.meta.env.VITE_API_URL || "";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {

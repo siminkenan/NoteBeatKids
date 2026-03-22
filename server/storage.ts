@@ -451,9 +451,24 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInstitution(institutionId: string): Promise<void> {
     await this.resetInstitutionQuota(institutionId);
-    // Delete maestro view progress & resources for each teacher before deleting teachers
     const institutionTeachers = await this.getTeachersByInstitution(institutionId);
     for (const teacher of institutionTeachers) {
+      // 1. Delete all classes (cascades: student progress, student codes, students)
+      const teacherClasses = await this.getClassesByTeacher(teacher.id);
+      for (const cls of teacherClasses) {
+        await this.deleteClass(cls.id);
+      }
+      // 2. Delete orchestra progress for this teacher's songs
+      const teacherSongs = await db
+        .select({ id: orchestraSongs.id })
+        .from(orchestraSongs)
+        .where(eq(orchestraSongs.teacherId, teacher.id));
+      for (const song of teacherSongs) {
+        await db.delete(orchestraProgress).where(eq(orchestraProgress.songId, song.id));
+      }
+      // 3. Delete orchestra songs (FK: orchestra_songs.teacher_id → teachers.id)
+      await db.delete(orchestraSongs).where(eq(orchestraSongs.teacherId, teacher.id));
+      // 4. Delete maestro view progress & resources
       const teacherResources = await db
         .select({ id: maestroResources.id })
         .from(maestroResources)
@@ -463,7 +478,9 @@ export class DatabaseStorage implements IStorage {
       }
       await db.delete(maestroResources).where(eq(maestroResources.teacherId, teacher.id));
     }
+    // 5. Delete teacher invite codes
     await db.delete(teacherCodes).where(eq(teacherCodes.institutionId, institutionId));
+    // 6. Delete teachers, then institution
     await db.delete(teachers).where(eq(teachers.institutionId, institutionId));
     await db.delete(institutions).where(eq(institutions.id, institutionId));
   }

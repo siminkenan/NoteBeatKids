@@ -29,14 +29,14 @@ export default function RhythmOrchestra() {
 
   const { data: resources = [] } = useQuery<MaestroResource[]>({
     queryKey: ["/api/student", studentId, "maestro/resources"],
-    queryFn: () => fetch(`${import.meta.env.VITE_API_URL}/api/student/${studentId}/maestro/resources`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${(import.meta.env.VITE_API_URL || "")}/api/student/${studentId}/maestro/resources`, { credentials: "include" }).then(r => r.json()),
     enabled: !!studentId,
     staleTime: 0,
   });
 
   const { data: myProgress = [], refetch: refetchProgress } = useQuery<MaestroViewProgress[]>({
     queryKey: ["/api/student", studentId, "maestro/progress"],
-    queryFn: () => fetch(`${import.meta.env.VITE_API_URL}/api/student/${studentId}/maestro/progress`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${(import.meta.env.VITE_API_URL || "")}/api/student/${studentId}/maestro/progress`, { credentials: "include" }).then(r => r.json()),
     enabled: !!studentId,
     staleTime: 0,
   });
@@ -51,7 +51,7 @@ export default function RhythmOrchestra() {
     async (resourceId: string, watchedSeconds: number, completed: boolean) => {
       if (!studentId) return;
       try {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/student/${studentId}/maestro/progress`, {
+        await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/student/${studentId}/maestro/progress`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -101,7 +101,7 @@ export default function RhythmOrchestra() {
 
   async function downloadPhoto(photo: MaestroResource) {
     try {
-      const resp = await fetch(`${import.meta.env.VITE_API_URL}/api/maestro/file/${photo.storedFilename}`, { credentials: "include" });
+      const resp = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/maestro/file/${photo.storedFilename}`, { credentials: "include" });
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
