@@ -9,18 +9,32 @@ const PORT = parseInt(process.env.PORT || "5000", 10);
 
 async function seedDatabase() {
   try {
+    const bcrypt = await import("bcryptjs");
+
+    const adminPassword =
+      process.env.ADMIN_PASSWORD || "114344_Kenan"; // Replit şifren
+
+    const hash = await bcrypt.default.hash(adminPassword, 10);
+
     const existing = await db.select().from(schema.admins).limit(1);
+
     if (existing.length === 0) {
-      const bcrypt = await import("bcryptjs");
-      const hash = await bcrypt.default.hash(
-        process.env.ADMIN_PASSWORD || "admin123",
-        10,
-      );
+      // İlk kez oluştur
       await db.insert(schema.admins).values({
         email: "admin@notebeatkids.com",
         password: hash,
       });
+      log("Admin created");
+    } else if (process.env.ADMIN_PASSWORD) {
+      // SADECE Render'da override et
+      await db
+        .update(schema.admins)
+        .set({ password: hash })
+        .where(schema.admins.email.eq("admin@notebeatkids.com"));
+
+      log("Admin password updated from ENV");
     }
+
     log("Database seeded successfully");
   } catch (err) {
     log(`Database seed skipped: ${(err as Error).message}`);
