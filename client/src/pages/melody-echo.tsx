@@ -6,7 +6,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import type { StudentProgress } from "@shared/schema";
 
-// ── WebAudio Piano ────────────────────────────────────────────────────────────
 let _ctx: AudioContext | null = null;
 function getCtx() {
   if (!_ctx) _ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -53,7 +52,6 @@ function playError() {
   osc.start(t); osc.stop(t + 0.4);
 }
 
-// ── Melody database ───────────────────────────────────────────────────────────
 const STAGE1: string[][] = [
   ["C","D","E"],["E","D","C"],["C","E","D"],["D","C","E"],["E","C","D"],
   ["C","C","D"],["D","D","C"],["E","E","D"],["C","D","D"],["D","E","E"],
@@ -61,7 +59,6 @@ const STAGE1: string[][] = [
   ["E","E","C"],["D","D","E"],["C","C","E"],["E","D","E"],["C","E","C"],
   ["D","C","D"],["E","C","E"],["C","D","C"],["D","E","D"],["E","E","E"],
 ];
-// Bölüm 2: C D E F G (5 nota)
 const STAGE2: string[][] = [
   ["C","D","E","G"],["G","E","D","C"],["C","F","G","E"],["D","G","F","C"],["E","C","G","D"],
   ["G","D","C","F"],["C","E","G","F"],["F","G","D","C"],["G","C","F","E"],["D","E","G","C"],
@@ -69,7 +66,6 @@ const STAGE2: string[][] = [
   ["E","E","G","C"],["C","G","G","D"],["D","C","E","G"],["G","E","C","D"],["E","G","C","D"],
   ["C","D","C","G"],["G","D","G","C"],["D","G","D","E"],["E","C","E","G"],["C","G","C","D"],
 ];
-// Bölüm 3: C D E F G A B (7 nota)
 const STAGE3: string[][] = [
   ["C","D","E","G","A"],["A","G","E","D","C"],["C","E","G","A","E"],["G","E","C","A","G"],["C","D","E","D","C"],
   ["B","A","G","E","D"],["C","B","E","C","G"],["D","E","F","G","A"],["G","E","C","D","A"],["C","D","F","G","B"],
@@ -77,7 +73,6 @@ const STAGE3: string[][] = [
   ["C","E","D","F","G"],["G","A","D","C","D"],["E","G","A","E","D"],["C","F","G","A","C"],["D","F","E","G","B"],
   ["B","C","D","E","F"],["C","G","F","A","D"],["E","D","C","D","E"],["G","F","E","A","E"],["C","D","G","B","C"],
 ];
-// Bölüm 4: C D E F G A B C5 (tam oktav, 6 nota)
 const STAGE4: string[][] = [
   ["C","E","G","A","C5","G"],["C5","G","E","C","D","E"],["C","D","E","G","A","C5"],["G","A","C5","A","G","E"],["E","G","A","B","C5","A"],
   ["C","G","E","G","C5","E"],["D","F","A","G","E","D"],["G","E","D","C","B","A"],["C","E","D","E","G","C5"],["E","C","E","G","B","C5"],
@@ -85,27 +80,37 @@ const STAGE4: string[][] = [
   ["D","E","F","G","A","B"],["E","F","G","A","B","C5"],["G","F","E","F","G","A"],["C","E","F","G","A","C5"],["E","G","F","A","E","C"],
   ["C","D","E","F","G","A"],["G","F","E","D","C","B"],["C","E","G","A","B","C5"],["D","E","G","B","C5","G"],["C","G","A","B","C5","A"],
 ];
-const ALL_MELODIES = [...STAGE1, ...STAGE2, ...STAGE3, ...STAGE4];
 
-const STAGE_POOLS = [
-  ["C","D","E"],
-  ["C","D","E","F","G"],
-  ["C","D","E","F","G","A","B"],
-  ["C","D","E","F","G","A","B","C5"],
-];
-function getMelody(idx: number): string[] {
-  const base = idx % 100;
-  const m = ALL_MELODIES[base];
-  if (idx < 100) return m;
-  const shift = Math.floor(idx / 100);
-  const stageIdx = Math.floor(base / 25);
-  const pool = STAGE_POOLS[stageIdx];
-  return m.map(n => { const i = pool.indexOf(n); return i >= 0 ? pool[(i + shift) % pool.length] : n; });
+function strHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h) || 1;
 }
-function getStageNum(idx: number): number { return Math.floor((idx % 100) / 25) + 1; }
-function getMelodyInStage(idx: number): number { return (idx % 25) + 1; }
 
-// ── Piano layout ─────────────────────────────────────────────────────────────
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr];
+  let s = seed >>> 0;
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function getMelodyForStudent(studentId: string, idx: number): string[] {
+  const turn = Math.floor(idx / 100) + 1;
+  const section = Math.floor((idx % 100) / 25) + 1;
+  const qInSection = idx % 25;
+  const pool = [STAGE1, STAGE2, STAGE3, STAGE4][section - 1];
+  const seed = strHash(`${studentId}-t${turn}-s${section}`);
+  return seededShuffle(pool, seed)[qInSection];
+}
+
+function getTurn(idx: number): number { return Math.floor(idx / 100) + 1; }
+function getSection(idx: number): number { return Math.floor((idx % 100) / 25) + 1; }
+function getQInSection(idx: number): number { return (idx % 25) + 1; }
+
 const WHITE_KEYS = ["C","D","E","F","G","A","B","C5"] as const;
 const KEY_COLOR: Record<string, string> = {
   C:"#FF6B6B", D:"#FF9F43", E:"#FFC312", F:"#2ECC71", G:"#45AAF2", A:"#9B59B6", B:"#E17055", C5:"#FF6B6B",
@@ -113,10 +118,22 @@ const KEY_COLOR: Record<string, string> = {
 const KEY_GLOW: Record<string, string> = {
   C:"#FF0000", D:"#FF5500", E:"#FFB000", F:"#00A050", G:"#0070CC", A:"#6C3483", B:"#C0392B", C5:"#FF0000",
 };
-// White key index where a black key appears to the RIGHT: C D F G A (not E, B)
-const HAS_BLACK_RIGHT = new Set(["C","D","F","G","A"]);
 
 type Phase = "idle" | "playing" | "listening" | "correct" | "wrong";
+type Badge = "bronze" | "silver" | "gold";
+
+const SECTION_NOTES = [
+  "Do · Re · Mi",
+  "Do · Re · Mi · Fa · Sol",
+  "Do · Re · Mi · Fa · Sol · La · Si",
+  "Do · Re · Mi · Fa · Sol · La · Si · Do",
+];
+const SECTION_EXPAND = [
+  "",
+  "Yeni: Fa (F) ve Sol (G) eklendi!",
+  "Yeni: La (A) ve Si (B) eklendi!",
+  "Yeni: Tüm oktav — Do (C5) eklendi!",
+];
 
 export default function MelodyEcho() {
   const [, navigate] = useLocation();
@@ -132,23 +149,30 @@ export default function MelodyEcho() {
   const [streak, setStreak] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [wrongPulse, setWrongPulse] = useState(false);
-  const [melodyBadge, setMelodyBadge] = useState<"bronze" | "silver" | "gold" | null>(null);
-  const [showAllComplete, setShowAllComplete] = useState(false);
-  const [newBadge, setNewBadge] = useState<"bronze" | "silver" | "gold" | null>(null);
+  const [melodyBadge, setMelodyBadge] = useState<Badge | null>(null);
+  const [showSectionComplete, setShowSectionComplete] = useState(false);
+  const [completedSection, setCompletedSection] = useState(1);
+  const [showTurnComplete, setShowTurnComplete] = useState<Badge | null>(null);
+  const [nextMelodyIdx, setNextMelodyIdx] = useState(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const celebTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null); // clearTimers'dan bağımsız
+  const celebTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrongCountRef = useRef(0);
   const startTimeRef = useRef(Date.now());
   const [pianoScale, setPianoScale] = useState(1);
 
-  // ── Kayıtlı ilerlemeyi yükle ─────────────────────────────────────────────
+  const sid = student?.student.id ?? "";
+  const melody = sid ? getMelodyForStudent(sid, melodyIdx) : STAGE1[0];
+  const turn = getTurn(melodyIdx);
+  const section = getSection(melodyIdx);
+  const qInSection = getQInSection(melodyIdx);
+
   const { data: savedProgress } = useQuery<StudentProgress[]>({
-    queryKey: ["/api/student", student?.student.id, "progress"],
+    queryKey: ["/api/student", sid, "progress"],
     queryFn: async () => {
-      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/student/${student!.student.id}/progress`, { credentials: "include" });
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/student/${sid}/progress`, { credentials: "include" });
       return res.json();
     },
-    enabled: !!student,
+    enabled: !!sid,
     staleTime: Infinity,
   });
 
@@ -158,7 +182,7 @@ export default function MelodyEcho() {
     if (p) {
       if (p.correctAnswers > 0) setMelodyIdx(p.correctAnswers);
       if (p.starsEarned > 0) setScore(p.starsEarned);
-      if (p.notesBadge) setMelodyBadge(p.notesBadge as "bronze" | "silver" | "gold");
+      if (p.notesBadge) setMelodyBadge(p.notesBadge as Badge);
     }
     setProgressLoaded(true);
   }, [savedProgress, progressLoaded]);
@@ -173,35 +197,19 @@ export default function MelodyEcho() {
     return () => window.removeEventListener("resize", updateScale);
   }, []);
 
-  function nextBadge(current: "bronze" | "silver" | "gold" | null): "bronze" | "silver" | "gold" {
-    if (!current) return "bronze";
-    if (current === "bronze") return "silver";
-    return "gold";
-  }
-
-  function saveProgress(
-    currentMelodyIdx: number,
-    newScore: number,
-    newStage: number,
-    badge?: "bronze" | "silver" | "gold" | null,
-  ) {
-    const sid = student?.student.id;
+  function saveProgress(idx: number, newScore: number, badge?: Badge | null) {
     if (!sid) return;
     const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
     apiRequest("POST", `/api/student/${sid}/progress`, {
       appType: "melody",
-      level: newStage,
+      level: getSection(idx),
       starsEarned: newScore,
-      correctAnswers: currentMelodyIdx,
+      correctAnswers: idx,
       wrongAnswers: wrongCountRef.current,
       timeSpentSeconds: elapsed,
       ...(badge !== undefined ? { notesBadge: badge } : {}),
     }).catch(() => {});
   }
-
-  const melody = getMelody(melodyIdx);
-  const stage = getStageNum(melodyIdx);
-  const numInStage = getMelodyInStage(melodyIdx);
 
   function clearTimers() { timers.current.forEach(clearTimeout); timers.current = []; }
 
@@ -239,27 +247,41 @@ export default function MelodyEcho() {
       setPhase("wrong");
       return;
     }
+
     if (newSeq.length === melody.length) {
-      playSuccess();
       const newScore = score + 1;
       const newStreak = streak + 1;
       const nextIdx = melodyIdx + 1;
       setScore(newScore);
       setStreak(newStreak);
       setPhase("correct");
+      playSuccess();
 
-      if (nextIdx >= 100) {
-        // Tüm 100 melodi tamamlandı → rozet ver
-        const earned = nextBadge(melodyBadge);
-        setNewBadge(earned);
-        setMelodyBadge(earned);
-        saveProgress(0, newScore, 1, earned); // sıfırla + rozeti kaydet
+      const isTurnEnd = nextIdx % 100 === 0;
+      const isSectionEnd = !isTurnEnd && nextIdx % 25 === 0;
+      const isFullComplete = nextIdx >= 300;
+
+      if (isFullComplete || isTurnEnd) {
+        const turnNum = Math.ceil(nextIdx / 100);
+        const badge: Badge = turnNum >= 3 ? "gold" : turnNum === 2 ? "silver" : "bronze";
+        const savedIdx = isFullComplete ? 0 : nextIdx;
+        setMelodyBadge(badge);
+        setNextMelodyIdx(savedIdx);
+        saveProgress(savedIdx, newScore, badge);
         timers.current.push(setTimeout(() => {
-          setShowAllComplete(true);
+          setShowTurnComplete(badge);
           setPhase("idle");
-        }, 1800));
+        }, 1500));
+      } else if (isSectionEnd) {
+        setCompletedSection(getSection(melodyIdx));
+        saveProgress(nextIdx, newScore);
+        timers.current.push(setTimeout(() => {
+          setMelodyIdx(nextIdx);
+          setShowSectionComplete(true);
+          setPhase("idle");
+        }, 1500));
       } else {
-        saveProgress(nextIdx, newScore, getStageNum(melodyIdx));
+        saveProgress(nextIdx, newScore);
         if (newStreak % 5 === 0) {
           setShowCelebration(true);
           if (celebTimerRef.current) clearTimeout(celebTimerRef.current);
@@ -269,7 +291,7 @@ export default function MelodyEcho() {
           setMelodyIdx(nextIdx);
           setPlayerSeq([]);
           setPhase("idle");
-        }, 2000));
+        }, 1800));
       }
     }
   }
@@ -277,8 +299,13 @@ export default function MelodyEcho() {
   function handleRetry() { setPlayerSeq([]); setStreak(0); startMelody(); }
   function handleSkip() {
     const nextIdx = melodyIdx + 1;
-    saveProgress(nextIdx, score, getStageNum(nextIdx));
-    setMelodyIdx(nextIdx);
+    if (nextIdx >= 300) {
+      setMelodyIdx(0);
+      saveProgress(0, score);
+    } else {
+      setMelodyIdx(nextIdx);
+      saveProgress(nextIdx, score);
+    }
     setPlayerSeq([]);
     setPhase("idle");
   }
@@ -292,7 +319,6 @@ export default function MelodyEcho() {
     <div className="min-h-screen flex flex-col items-center"
       style={{ background: "linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" }}
     >
-      {/* ── Header ── */}
       <div className="w-full max-w-2xl flex items-center justify-between px-4 pt-4 pb-2">
         <button
           onClick={() => { clearTimers(); navigate("/student/home"); }}
@@ -310,29 +336,27 @@ export default function MelodyEcho() {
         </div>
       </div>
 
-      {/* ── Stage + score bar ── */}
       <div className="w-full max-w-2xl px-4 mb-3">
         <div className="flex items-center justify-between mb-1.5">
-          <div className={`px-3 py-1 rounded-full text-xs font-extrabold text-white bg-gradient-to-r ${stageColors[stage]}`}
+          <div className={`px-3 py-1 rounded-full text-xs font-extrabold text-white bg-gradient-to-r ${stageColors[section]}`}
             data-testid="text-stage">
-            Bölüm {stage} · Melodi {numInStage}/25
+            Tur {turn} · Bölüm {section} · {qInSection}/25
           </div>
           <div className="flex items-center gap-3">
             <span className="text-yellow-400 font-extrabold text-sm" data-testid="text-score">⭐ {score}</span>
             <span className="text-white/40 text-xs">🔥 {streak}</span>
           </div>
         </div>
-        {/* Progress bar */}
         <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
           <motion.div
-            className={`h-full rounded-full bg-gradient-to-r ${stageColors[stage]}`}
-            animate={{ width: `${(numInStage / 25) * 100}%` }}
+            className={`h-full rounded-full bg-gradient-to-r ${stageColors[section]}`}
+            animate={{ width: `${(qInSection / 25) * 100}%` }}
             transition={{ duration: 0.5 }}
           />
         </div>
+        <p className="text-white/30 text-[10px] font-bold mt-1 text-center">{SECTION_NOTES[section - 1]}</p>
       </div>
 
-      {/* ── Status display ── */}
       <div className="w-full max-w-2xl px-4 mb-4 min-h-[72px] flex items-center justify-center">
         <AnimatePresence mode="wait">
           {phase === "idle" && (
@@ -413,8 +437,7 @@ export default function MelodyEcho() {
         </AnimatePresence>
       </div>
 
-      {/* ── LISTEN button ── */}
-      {phase === "idle" && (
+      {phase === "idle" && !showSectionComplete && !showTurnComplete && (
         <motion.button
           onClick={startMelody}
           data-testid="button-listen"
@@ -429,8 +452,6 @@ export default function MelodyEcho() {
         </motion.button>
       )}
 
-      {/* ── Piano keyboard ── */}
-      {/* White key: 62px, gap: 6px → keyboard total = 8×62 + 7×6 = 538px */}
       <div className="relative w-full max-w-2xl px-2 mb-6 select-none flex flex-col items-center overflow-x-hidden">
         <div style={{ transform: `scale(${pianoScale})`, transformOrigin: "top center", width: 540, height: 230 * pianoScale }}>
         <motion.div
@@ -439,7 +460,6 @@ export default function MelodyEcho() {
           animate={wrongPulse ? { x: [-8, 8, -6, 6, 0] } : {}}
           transition={{ duration: 0.4 }}
         >
-          {/* White keys */}
           <div className="flex gap-1.5 touch-none">
             {WHITE_KEYS.map((note) => {
               const isLit = litKey === note;
@@ -472,8 +492,6 @@ export default function MelodyEcho() {
             })}
           </div>
 
-          {/* Black keys — absolutely positioned relative to fixed 538px container */}
-          {/* Black key between wi and wi+1: left = wi*68 + 62 - 20 = wi*68 + 42 */}
           {([0,1,3,4,5] as const).map((wi) => (
             <div key={`bk-${wi}`}
               className="absolute top-0 rounded-b-xl pointer-events-none z-10"
@@ -488,7 +506,6 @@ export default function MelodyEcho() {
           ))}
         </motion.div>
 
-        {/* Dot indicators below keys */}
         <div className="flex gap-1.5 mt-2" style={{ width: 538 * pianoScale }}>
           {WHITE_KEYS.map((note) => {
             const active = melody.includes(note);
@@ -504,10 +521,9 @@ export default function MelodyEcho() {
         <p className="text-white/25 text-xs mt-1 font-bold">
           Bu melodide kullanılan notalar ● ile işaretli
         </p>
-        </div>{/* end scale wrapper */}
+        </div>
       </div>
 
-      {/* ── Celebration overlay ── */}
       <AnimatePresence>
         {showCelebration && (
           <motion.div
@@ -532,11 +548,10 @@ export default function MelodyEcho() {
         )}
       </AnimatePresence>
 
-      {/* ── Tüm Bölümler Tamamlandı Ekranı ── */}
       <AnimatePresence>
-        {showAllComplete && (
+        {showSectionComplete && (
           <motion.div
-            key="allcomplete"
+            key="sectioncomplete"
             className="fixed inset-0 z-50 flex items-center justify-center"
             style={{ background: "linear-gradient(160deg, #0f0c29ee 0%, #302b63ee 50%, #24243eee 100%)" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -548,26 +563,83 @@ export default function MelodyEcho() {
             >
               <motion.p className="text-7xl mb-4"
                 animate={{ rotate: [0, -10, 10, -8, 8, 0] }}
-                transition={{ duration: 0.8, delay: 0.3 }}
+                transition={{ duration: 0.8, delay: 0.3 }}>
+                🎊
+              </motion.p>
+              <p className="text-3xl font-extrabold text-yellow-300 mb-2">
+                Bölüm {completedSection} Tamamlandı!
+              </p>
+              <p className="text-white font-bold text-base mb-1">
+                Harika iş çıkardın! 25 melodi bitti!
+              </p>
+              {SECTION_EXPAND[completedSection] && (
+                <p className="text-green-300 text-sm font-bold mb-6">
+                  ✨ {SECTION_EXPAND[completedSection]}
+                </p>
+              )}
+              <motion.button
+                data-testid="button-next-section"
+                onClick={() => {
+                  setShowSectionComplete(false);
+                  setStreak(0);
+                  setPlayerSeq([]);
+                }}
+                className="w-full py-4 rounded-3xl text-white font-extrabold text-xl cursor-pointer shadow-2xl"
+                style={{ background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.97 }}
               >
-                {newBadge === "bronze" ? "🥉" : newBadge === "silver" ? "🥈" : "🥇"}
+                Sonraki Bölüme Geç →
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showTurnComplete && (
+          <motion.div
+            key="turncomplete"
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ background: "linear-gradient(160deg, #0f0c29ee 0%, #302b63ee 50%, #24243eee 100%)" }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="text-center px-8 max-w-sm"
+              initial={{ scale: 0.5, y: 60 }} animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", damping: 18 }}
+            >
+              <motion.p className="text-8xl mb-4"
+                animate={{ rotate: [0, -12, 12, -8, 8, 0], scale: [1, 1.2, 1] }}
+                transition={{ duration: 1, delay: 0.2 }}>
+                {showTurnComplete === "bronze" ? "🥉" : showTurnComplete === "silver" ? "🥈" : "🥇"}
               </motion.p>
               <p className="text-4xl font-extrabold text-yellow-300 mb-2">
-                {newBadge === "bronze" && "Bronz Rozet!"}
-                {newBadge === "silver" && "Gümüş Rozet!"}
-                {newBadge === "gold" && "Altın Rozet!"}
+                {showTurnComplete === "bronze" && "Bronz Rozet! 🥉"}
+                {showTurnComplete === "silver" && "Gümüş Rozet! 🥈"}
+                {showTurnComplete === "gold" && "Altın Rozet! 🥇"}
               </p>
-              <p className="text-white font-bold text-lg mb-1">Tüm bölümleri tamamladın! 🎉</p>
+              <p className="text-white font-bold text-lg mb-1">
+                Tüm 4 bölümü tamamladın! 🎉
+              </p>
               <p className="text-white/60 text-sm mb-8">
-                {newBadge === "bronze" && "Harika bir başlangıç! Şimdi Bölüm 1'den tekrar başlayalım."}
-                {newBadge === "silver" && "Muhteşem ilerleme! Bir tur daha yapıp altın rozeti kazanalım."}
-                {newBadge === "gold" && "Tebrikler Usta Müzisyen! En yüksek rozeti kazandın! 🌟"}
+                {showTurnComplete === "bronze" && "Mükemmel başlangıç! Gümüş rozet için tekrar başlayalım."}
+                {showTurnComplete === "silver" && "İnanılmaz ilerleme! Altın rozet için bir tur daha!"}
+                {showTurnComplete === "gold" && "Tebrikler Usta Müzisyen! Tüm rozetleri kazandın! 🌟"}
               </p>
+              {["⭐","🎵","🌟","✨","🎶","💫","🎊"].map((e, i) => (
+                <motion.span key={i} className="absolute text-4xl pointer-events-none"
+                  style={{ left: "50%", top: "40%" }}
+                  initial={{ x: 0, y: 0, opacity: 1 }}
+                  animate={{ x: (i - 3) * 100, y: -250, opacity: 0 }}
+                  transition={{ duration: 2, delay: i * 0.15 }}
+                >{e}</motion.span>
+              ))}
               <motion.button
                 data-testid="button-restart-all"
                 onClick={() => {
-                  setShowAllComplete(false);
-                  setMelodyIdx(0);
+                  setShowTurnComplete(null);
+                  setMelodyIdx(nextMelodyIdx);
                   setStreak(0);
                   setPlayerSeq([]);
                   setPhase("idle");
@@ -577,7 +649,7 @@ export default function MelodyEcho() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.97 }}
               >
-                🎵 Hadi Baştan Başlayalım!
+                {showTurnComplete === "gold" ? "🎵 Hadi Baştan Başlayalım!" : "🔁 Bölüm 1'den Başla!"}
               </motion.button>
             </motion.div>
           </motion.div>

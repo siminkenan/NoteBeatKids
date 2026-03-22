@@ -91,7 +91,11 @@ function buildShareText(
     lines.push(`🥁 Davul   →  ${formatTime(student.drumProgress.timeSpentSeconds)} süre  |  ${dAcc}% doğruluk  |  ✅${student.drumProgress.correctAnswers} ❌${student.drumProgress.wrongAnswers}`);
   }
   if (student.melodyProgress) {
-    lines.push(`🎹 Melodi  →  Bölüm ${student.melodyProgress.level}  |  ${mAcc}% doğruluk  |  ✅${student.melodyProgress.correctAnswers} ❌${student.melodyProgress.wrongAnswers}`);
+    const midx = student.melodyProgress.correctAnswers ?? 0;
+    const mTurn = Math.floor(midx / 100) + 1;
+    const mSection = Math.floor((midx % 100) / 25) + 1;
+    const badge = student.melodyProgress.notesBadge === "gold" ? " 🥇" : student.melodyProgress.notesBadge === "silver" ? " 🥈" : student.melodyProgress.notesBadge === "bronze" ? " 🥉" : "";
+    lines.push(`🎹 Melodi  →  Tur ${mTurn} · Bölüm ${mSection}${badge}  |  ✅${midx} ❌${student.melodyProgress.wrongAnswers}`);
   }
   lines.push(``, `${starsRow || "—"}  (${totalStars} yıldız)`, `⏱ Toplam süre: ${totalTime}`);
   return lines.join("\n");
@@ -528,8 +532,18 @@ export default function ClassDetail() {
                                 <p className="text-xs font-bold text-pink-500 mb-0.5">🎹 Melodi</p>
                                 {student.melodyProgress ? (
                                   <>
-                                    <p className="font-extrabold text-pink-600 text-xs">Bölüm {student.melodyProgress.level}</p>
-                                    <p className="text-xs text-muted-foreground font-semibold">{student.melodyProgress.starsEarned} ⭐</p>
+                                    {(() => {
+                                      const midx = student.melodyProgress.correctAnswers ?? 0;
+                                      const mTurn = Math.floor(midx / 100) + 1;
+                                      const mSection = Math.floor((midx % 100) / 25) + 1;
+                                      const mQ = midx % 25;
+                                      return (
+                                        <>
+                                          <p className="font-extrabold text-pink-600 text-xs">Tur {mTurn} · Böl.{mSection}</p>
+                                          <p className="text-[10px] text-muted-foreground font-semibold">{mQ}/25 soru</p>
+                                        </>
+                                      );
+                                    })()}
                                     {student.melodyProgress.notesBadge ? (
                                       <p className="text-sm mt-0.5">
                                         {student.melodyProgress.notesBadge === "bronze" && "🥉"}
@@ -537,12 +551,7 @@ export default function ClassDetail() {
                                         {student.melodyProgress.notesBadge === "gold" && "🥇"}
                                       </p>
                                     ) : (
-                                      <div className="flex items-center justify-center gap-1 mt-0.5">
-                                        <CheckCircle className="w-3 h-3 text-green-500" />
-                                        <span className="text-xs font-bold text-green-600">{student.melodyProgress.correctAnswers}</span>
-                                        <XCircle className="w-3 h-3 text-red-500" />
-                                        <span className="text-xs font-bold text-red-500">{student.melodyProgress.wrongAnswers}</span>
-                                      </div>
+                                      <p className="text-xs text-muted-foreground font-semibold">{student.melodyProgress.starsEarned} ⭐</p>
                                     )}
                                   </>
                                 ) : (
@@ -574,6 +583,78 @@ export default function ClassDetail() {
                   );
                 })}
               </div>
+            )}
+
+            {data && data.students.some(s => s.melodyProgress) && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-8">
+                <Card className="rounded-2xl overflow-hidden">
+                  <CardHeader className="pb-3" style={{ background: "linear-gradient(135deg, #f093fb22 0%, #f5576c22 100%)" }}>
+                    <CardTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
+                      🎹 Melodi Taklit Raporu
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground font-semibold">
+                      Öğrencilerin melodi oyunundaki tur, bölüm ve rozet durumu
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/30">
+                            <th className="text-left px-4 py-2 text-xs font-extrabold text-muted-foreground">Öğrenci</th>
+                            <th className="text-center px-3 py-2 text-xs font-extrabold text-muted-foreground">Tur</th>
+                            <th className="text-center px-3 py-2 text-xs font-extrabold text-muted-foreground">Bölüm</th>
+                            <th className="text-center px-3 py-2 text-xs font-extrabold text-muted-foreground">Soru</th>
+                            <th className="text-center px-3 py-2 text-xs font-extrabold text-muted-foreground">Toplam ✅</th>
+                            <th className="text-center px-3 py-2 text-xs font-extrabold text-muted-foreground">Hata ❌</th>
+                            <th className="text-center px-3 py-2 text-xs font-extrabold text-muted-foreground">Rozet</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.students.filter(s => s.melodyProgress).map((student, i) => {
+                            const mp = student.melodyProgress!;
+                            const midx = mp.correctAnswers ?? 0;
+                            const mTurn = Math.floor(midx / 100) + 1;
+                            const mSection = Math.floor((midx % 100) / 25) + 1;
+                            const mQ = midx % 25;
+                            return (
+                              <tr key={student.id} className={`border-b last:border-0 ${i % 2 === 0 ? "bg-white" : "bg-pink-50/30"}`}>
+                                <td className="px-4 py-3 font-bold text-foreground">
+                                  {student.firstName} {student.lastName}
+                                </td>
+                                <td className="px-3 py-3 text-center">
+                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-pink-100 text-pink-700 font-extrabold text-xs">
+                                    {mTurn}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-center">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-white text-xs font-extrabold ${
+                                    mSection === 1 ? "bg-orange-400" : mSection === 2 ? "bg-green-500" : mSection === 3 ? "bg-blue-500" : "bg-purple-500"
+                                  }`}>
+                                    Böl.{mSection}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-center font-bold text-xs text-muted-foreground">
+                                  {mQ}/25
+                                </td>
+                                <td className="px-3 py-3 text-center font-extrabold text-green-600 text-xs">
+                                  {mp.correctAnswers ?? 0}
+                                </td>
+                                <td className="px-3 py-3 text-center font-extrabold text-red-500 text-xs">
+                                  {mp.wrongAnswers ?? 0}
+                                </td>
+                                <td className="px-3 py-3 text-center text-lg">
+                                  {mp.notesBadge === "gold" ? "🥇" : mp.notesBadge === "silver" ? "🥈" : mp.notesBadge === "bronze" ? "🥉" : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             )}
           </>
         )}
