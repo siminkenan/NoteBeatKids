@@ -338,7 +338,7 @@ function emptyPattern(): Pattern {
 /* ═══════════════════════════════════════════════════════
    COMPONENT
 ═══════════════════════════════════════════════════════ */
-const SECS_PER_STAR = 180; // 3 minutes per star
+const SECS_PER_STAR = 420; // 7 minutes per star
 
 export default function DrumKit() {
   const [, navigate] = useLocation();
@@ -358,38 +358,9 @@ export default function DrumKit() {
     enabled: !!student,
   });
 
-  /* ── live session elapsed time (ticks every second) ── */
+  /* ── session playing time — populated after isPlaying is declared below ── */
   const [sessionSecs, setSessionSecs] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setSessionSecs(s => s + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  /* ── star calculation (prev saved + current session) ── */
-  const prevTotalSecs = drumProgress?.timeSpentSeconds ?? 0;
-  const liveTotalSecs = prevTotalSecs + sessionSecs;
-  const earnedStars = Math.floor(liveTotalSecs / SECS_PER_STAR);
-  const secsToNextStar = SECS_PER_STAR - (liveTotalSecs % SECS_PER_STAR);
-  const minsLeft = Math.ceil(secsToNextStar / 60);
-
-  /* ── session time tracking ── */
-  const sessionStartRef = useRef<number>(Date.now());
-  useEffect(() => {
-    sessionStartRef.current = Date.now();
-    return () => {
-      const sid = student?.student?.id;
-      if (!sid) return;
-      const secs = Math.round((Date.now() - sessionStartRef.current) / 1000);
-      if (secs < 2) return;
-      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/student/${sid}/progress`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appType: "drum_kit", timeSpentSeconds: secs }),
-        credentials: "include",
-        keepalive: true,
-      });
-    };
-  }, [student?.student?.id]);
+  const sessionSecsRef = useRef(0); // mirror for cleanup callback
 
   /* ── export state ── */
   const [exporting, setExporting] = useState<"wav" | "midi" | null>(null);
@@ -468,6 +439,42 @@ export default function DrumKit() {
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { metroVolumeRef.current = metroVolume; }, [metroVolume]);
   useEffect(() => { metroMutedRef.current = metroMuted; }, [metroMuted]);
+
+  /* ── play-aware session timer: only ticks while sequencer is running ── */
+  useEffect(() => {
+    if (!isPlaying) return;
+    const t = setInterval(() => {
+      setSessionSecs(s => {
+        const next = s + 1;
+        sessionSecsRef.current = next;
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [isPlaying]);
+
+  /* ── save playing time to backend on unmount ── */
+  useEffect(() => {
+    return () => {
+      const sid = student?.student?.id;
+      const secs = sessionSecsRef.current;
+      if (!sid || secs < 2) return;
+      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/student/${sid}/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appType: "drum_kit", timeSpentSeconds: secs }),
+        credentials: "include",
+        keepalive: true,
+      });
+    };
+  }, [student?.student?.id]);
+
+  /* ── star calculation (prev saved + current session playing time) ── */
+  const prevTotalSecs = drumProgress?.timeSpentSeconds ?? 0;
+  const liveTotalSecs = prevTotalSecs + sessionSecs;
+  const earnedStars = Math.floor(liveTotalSecs / SECS_PER_STAR);
+  const secsToNextStar = SECS_PER_STAR - (liveTotalSecs % SECS_PER_STAR);
+  const minsLeft = Math.ceil(secsToNextStar / 60);
 
   /* ── live hit (+ live record when playing) ── */
   const hit = useCallback((id: DrumId) => {
@@ -588,7 +595,9 @@ export default function DrumKit() {
               <span className="text-yellow-400 text-xs font-extrabold">⭐ {earnedStars}</span>
               <span className="text-white/40 text-[10px]">·</span>
               <span className="text-white/50 text-[10px] font-semibold">
-                {minsLeft} dk → +1⭐
+                {isPlaying
+                  ? `${minsLeft} dk → +1⭐`
+                  : `Çalmaya başla → ⭐ kazan`}
               </span>
             </div>
           )}

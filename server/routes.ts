@@ -238,7 +238,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         const prevTime = existing?.timeSpentSeconds ?? 0;
         const sessionTime = Number(data.timeSpentSeconds ?? 0);
         const totalTime = prevTime + sessionTime;
-        const newStars = Math.floor(totalTime / 180); // 180s = 3 min per star
+        const newStars = Math.floor(totalTime / 420); // 420s = 7 min per star
         finalData = { ...data, timeSpentSeconds: totalTime, starsEarned: newStars };
       }
 
