@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { log } from "./app";
 import { db } from "./db";
 import * as schema from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
@@ -32,7 +33,7 @@ async function seedDatabase() {
       await db
         .update(schema.admins)
         .set({ password: hash })
-        .where(schema.admins.email.eq("admin@notebeatkids.com"));
+        .where(eq(schema.admins.email, "admin@notebeatkids.com"));
 
       log("✅ Admin password synced");
     }

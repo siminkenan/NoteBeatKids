@@ -626,24 +626,19 @@ export class DatabaseStorage implements IStorage {
   async incrementMonthlyStats(studentId: string, deltaStars: number, deltaBadges: number): Promise<void> {
     if (deltaStars === 0 && deltaBadges === 0) return;
     const currentMonth = getCurrentMonth();
-    const existing = await db.select().from(monthlyStats).where(eq(monthlyStats.studentId, studentId)).limit(1);
-    if (existing.length === 0) {
-      await db.insert(monthlyStats).values({
-        studentId,
-        monthlyStars: deltaStars,
-        monthlyBadgesCount: deltaBadges,
-        lastResetMonth: currentMonth,
-      });
-    } else {
-      const row = existing[0];
-      const isSameMonth = row.lastResetMonth === currentMonth;
-      await db.update(monthlyStats).set({
-        monthlyStars: isSameMonth ? row.monthlyStars + deltaStars : deltaStars,
-        monthlyBadgesCount: isSameMonth ? row.monthlyBadgesCount + deltaBadges : deltaBadges,
-        lastResetMonth: currentMonth,
-        updatedAt: new Date(),
-      }).where(eq(monthlyStats.studentId, studentId));
-    }
+    await db.execute(sql`
+      INSERT INTO monthly_stats (id, student_id, monthly_stars, monthly_badges_count, last_reset_month, updated_at)
+      VALUES (gen_random_uuid(), ${studentId}, ${deltaStars}, ${deltaBadges}, ${currentMonth}, now())
+      ON CONFLICT (student_id) DO UPDATE SET
+        monthly_stars = CASE WHEN monthly_stats.last_reset_month = ${currentMonth}
+                             THEN monthly_stats.monthly_stars + ${deltaStars}
+                             ELSE ${deltaStars} END,
+        monthly_badges_count = CASE WHEN monthly_stats.last_reset_month = ${currentMonth}
+                                    THEN monthly_stats.monthly_badges_count + ${deltaBadges}
+                                    ELSE ${deltaBadges} END,
+        last_reset_month = ${currentMonth},
+        updated_at = now()
+    `);
   }
 
   async getLeaderboard(institutionId: string, type: "class" | "school" | "monthly", classId?: string): Promise<LeaderboardEntry[]> {
