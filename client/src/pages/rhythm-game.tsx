@@ -942,10 +942,14 @@ export default function RhythmGame() {
           </div>
 
         {/* ── Ritim Kalıbı — mobil: 3., masaüstü: col-2 ── */}
-          <div className="order-3 md:order-none md:col-start-2 bg-white rounded-3xl p-3 shadow-lg">
-            <p className="text-xs font-extrabold text-purple-500 uppercase tracking-widest mb-1">🎼 Ritim Kalıbı</p>
-            {/* VexFlow with note-name badge overlaid in top-right */}
-            <div className="relative flex justify-center overflow-x-auto">
+          <div className="order-3 md:order-none md:col-start-2 bg-white rounded-3xl shadow-lg overflow-hidden">
+            {/*
+              The title and note-name badges are both overlaid as absolute elements
+              so nothing above the VexFlow shifts the staff downward.
+              The staff sits at height/2 = dead-centre of the card.
+            */}
+            <div className="relative flex justify-center" style={{ height: 120 }}>
+              {/* Staff (full-width, vertically centered by staveY = height/2 − 20) */}
               <VexFlowRenderer
                 notes={currentPattern}
                 width={vexW} height={120}
@@ -953,6 +957,11 @@ export default function RhythmGame() {
                 highlightIndex={highlightIdx}
                 hitIndices={hitNoteIndices}
               />
+              {/* Title — top-left overlay */}
+              <div className="absolute top-1.5 left-2 pointer-events-none">
+                <p className="text-[10px] font-extrabold text-purple-500 uppercase tracking-widest leading-none">🎼 Ritim Kalıbı</p>
+              </div>
+              {/* Note-name badges — top-right overlay */}
               <div className="absolute top-1 right-1 pointer-events-none text-right">
                 {[...new Set(currentPattern.map(n => ({
                   w:"Tam", wr:"Tam Sus", h:"Yarım", hr:"Yarım Sus",
@@ -979,7 +988,7 @@ export default function RhythmGame() {
                 return res;
               })();
               return (
-                <div className="mt-3">
+                <div className="px-3 pb-3 mt-2">
                   <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-1.5">Vuruş Çizelgesi</p>
                   <div className="relative h-9 bg-purple-50 rounded-xl border border-purple-100">
                     {expectedBeatNotes.map(({ pct, hit }, i) => (
