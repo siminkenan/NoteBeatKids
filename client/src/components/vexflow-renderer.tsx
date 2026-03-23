@@ -63,14 +63,14 @@ export function VexFlowRenderer({
       context.setFont("Arial", 10);
 
       /*
-       * staveY = 18% of internal height so the stave sits in the upper portion.
-       * Middle staff line (B4) = staveY + 20 (default 10px × 2 lines from top).
-       * After SCALE zoom the middle line appears at staveY × SCALE from top of
-       * the displayHeight container → visually in the upper-centre of the card.
+       * staveY = 15: positions the purple middle line (staveY+20=35) so that
+       * after SCALE×1.6 zoom it lands at display-y=56, which sits visually in
+       * the centre of the card when the ~26px header above is accounted for.
+       * staveX=5 / staveWidth=innerWidth-10 makes the staff span edge-to-edge.
        */
-      const staveX      = 10;
-      const staveY      = Math.round(height / 2 - 20);
-      const staveWidth  = innerWidth - 20;
+      const staveX      = 5;
+      const staveY      = 15;
+      const staveWidth  = innerWidth - 10;
       const middleLineY = staveY + 20;   // B4 = 3rd line = staveY + 2 × 10
 
       const stave = new Stave(staveX, staveY, staveWidth);
