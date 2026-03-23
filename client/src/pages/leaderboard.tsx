@@ -60,10 +60,15 @@ export default function Leaderboard() {
 
   const apiBase = import.meta.env.VITE_API_URL || "";
 
+  // Pass studentId as query param so localStorage-based sessions work even without a server session cookie
+  const sid = student?.student?.id ?? null;
+
   const { data, isLoading } = useQuery<{ entries: LeaderboardEntry[]; currentStudentId: string | null }>({
-    queryKey: ["/api/leaderboard", tab],
+    queryKey: ["/api/leaderboard", tab, sid],
     queryFn: async () => {
-      const res = await fetch(`${apiBase}/api/leaderboard?type=${tab}`, { credentials: "include" });
+      const params = new URLSearchParams({ type: tab });
+      if (sid) params.set("studentId", sid);
+      const res = await fetch(`${apiBase}/api/leaderboard?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Yüklenemedi");
       return res.json();
     },
@@ -72,9 +77,11 @@ export default function Leaderboard() {
   });
 
   const { data: winners } = useQuery<Winner[]>({
-    queryKey: ["/api/leaderboard/winners"],
+    queryKey: ["/api/leaderboard/winners", sid],
     queryFn: async () => {
-      const res = await fetch(`${apiBase}/api/leaderboard/winners`, { credentials: "include" });
+      const params = new URLSearchParams();
+      if (sid) params.set("studentId", sid);
+      const res = await fetch(`${apiBase}/api/leaderboard/winners?${params}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },

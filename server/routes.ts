@@ -212,7 +212,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (resolvedStudentCode) {
         await storage.linkStudentToStudentCode(resolvedStudentCode, student.id);
       }
-      res.json({ student, class: { id: cls.id, name: cls.name, classCode: cls.classCode } });
+      (req.session as any).studentId = student.id;
+      req.session.save(() => {
+        res.json({ student, class: { id: cls.id, name: cls.name, classCode: cls.classCode } });
+      });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
     }
@@ -770,7 +773,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/leaderboard", async (req: Request, res: Response) => {
     const type = (req.query.type as string) ?? "school";
-    const studentId = (req.session as any).studentId;
+    // Session-based auth (new logins) OR query param fallback (localStorage-based student sessions)
+    const sessionStudentId = (req.session as any).studentId;
+    const qStudentId = req.query.studentId as string | undefined;
+    const studentId = sessionStudentId || qStudentId;
     const teacherId = (req.session as any).teacherId;
 
     try {
@@ -805,7 +811,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/leaderboard/winners", async (req: Request, res: Response) => {
-    const studentId = (req.session as any).studentId;
+    const sessionStudentId = (req.session as any).studentId;
+    const qStudentId = req.query.studentId as string | undefined;
+    const studentId = sessionStudentId || qStudentId;
     const teacherId = (req.session as any).teacherId;
 
     try {
