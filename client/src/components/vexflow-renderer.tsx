@@ -59,7 +59,11 @@ export function VexFlowRenderer({
        */
       const SPACING      = 14;
       const staveX       = 10;
-      const staveY       = Math.round(height * 0.32);   // headroom for stems above stave
+      /*
+       * Visual centering: treble clef extends ~40px above stave top; stave height = 4*14 = 56px.
+       * Total visual block ≈ 96px → top margin = (height - 96) / 2, so staveY ≈ (height-16)/2.
+       */
+      const staveY       = Math.round((height - 16) / 2);
       const staveWidth   = width - 20;
       const middleLineY  = staveY + 2 * SPACING;         // 3rd line = B4
 
