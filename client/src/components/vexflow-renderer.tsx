@@ -60,7 +60,7 @@ export function VexFlowRenderer({
        * Edge-to-edge width: staveX=5, staveWidth=width−10.
        */
       const staveX      = 5;
-      const staveY      = Math.round(height / 2 - 30);
+      const staveY      = Math.round(height / 2 - 40);
       const staveWidth  = width - 10;
       const middleLineY = staveY + 20;   // B4 = 3rd line = staveY + 2 × 10
 
