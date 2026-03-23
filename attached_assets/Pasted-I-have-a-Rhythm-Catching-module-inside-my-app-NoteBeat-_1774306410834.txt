@@ -1,0 +1,80 @@
+I have a "Rhythm Catching" module inside my app "NoteBeat Kids".
+
+There is a "Rhythm Pattern Area" that currently includes:
+- A white background
+- A musical staff (porte)
+- Rhythm notes and rests
+- A time signature (4/4)
+
+IMPORTANT:
+Do NOT rebuild or replace the system.
+Do NOT change rhythm logic, timing, sound system, or sequencing.
+Do NOT affect any other part of the application.
+
+CRITICAL REQUIREMENT:
+Musical notation must remain 100% authentic and unchanged.
+
+Your task is ONLY a visual layout refinement.
+
+GOALS:
+
+1. REMOVE FULL STAFF (PORTE)
+- Remove all staff lines (5-line system)
+- Keep note positions and timing exactly the same
+
+2. CREATE SINGLE RHYTHM LINE
+- Add ONE horizontal line to represent rhythm timeline
+- Keep it clear and slightly bold
+- Center it visually
+
+3. PRESERVE ORIGINAL MUSICAL NOTATION (VERY IMPORTANT)
+- Do NOT change note designs
+- Do NOT replace with icons, emojis, or simplified graphics
+- Keep original:
+  - Quarter notes
+  - Eighth notes
+  - All rest symbols
+- Maintain authentic music notation visuals exactly as before
+
+4. LOCK THE RENDERING SYSTEM (CRITICAL)
+- Use the existing musical notation rendering system (SVG, font, or canvas)
+- Do NOT create a new rendering method
+- Do NOT redraw notes manually with CSS or basic shapes
+- Only scale existing visuals (e.g., font-size, transform: scale, or SVG scaling)
+
+5. ENLARGE VISUALS SAFELY
+- Increase size of notes WITHOUT distortion
+- Preserve proportions and clarity
+- Avoid stretching or redesign
+
+6. KEEP STRUCTURE INTACT
+- Keep time signature (4/4) unchanged
+- Keep horizontal alignment and timing identical
+
+7. REDUCE WHITE SPACE
+- Make layout more compact
+- Remove unnecessary vertical gaps
+
+8. RESPONSIVE & DEVICE SAFE
+- Ensure proper scaling across:
+  - Mobile (iOS & Android)
+  - Tablets
+  - Desktop
+  - Smart boards
+- Use flexible layout (flexbox, %, vh/vw)
+
+9. NON-DESTRUCTIVE IMPLEMENTATION
+- Only adjust CSS and layout
+- Do NOT rewrite component structure
+- Do NOT break existing interactions
+
+10. VISUAL FEEDBACK (SUBTLE)
+- When a note becomes active:
+  - Add a soft glow or pulse animation
+- Keep animation lightweight
+- Do NOT alter note design or timing
+
+FINAL GOAL:
+Transform the current interface into a simplified single-line rhythm system
+with larger, clearer, and 100% authentic musical notes and rests,
+while preserving all existing functionality and rendering behavior.

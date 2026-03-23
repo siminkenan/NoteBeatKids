@@ -950,8 +950,8 @@ export default function RhythmGame() {
             <div className="flex justify-center overflow-x-auto">
               <VexFlowRenderer
                 notes={currentPattern}
-                width={vexW} height={110}
-                showTimeSignature
+                width={vexW} height={150}
+                showClef showTimeSignature
                 highlightIndex={highlightIdx}
                 hitIndices={hitNoteIndices}
               />
