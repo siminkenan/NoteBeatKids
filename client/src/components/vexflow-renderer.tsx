@@ -47,9 +47,9 @@ export function VexFlowRenderer({
    * the SVG viewBox zooms it to full display width the notes appear SCALE× larger.
    * Display height = height × SCALE so the taller content is not clipped.
    */
-  const SCALE        = 1.8;
-  const innerWidth   = Math.round(width / SCALE);   // e.g. 267 for width=480
-  const displayHeight = Math.round(height * SCALE); // e.g. 270 for height=150
+  const SCALE        = 1.6;
+  const innerWidth   = Math.round(width / SCALE);   // e.g. 300 for width=480
+  const displayHeight = Math.round(height * SCALE); // e.g. 144 for height=90
 
   useEffect(() => {
     if (!containerRef.current || notes.length === 0) return;
@@ -69,7 +69,7 @@ export function VexFlowRenderer({
        * the displayHeight container → visually in the upper-centre of the card.
        */
       const staveX      = 10;
-      const staveY      = Math.round(height * 0.25);
+      const staveY      = Math.round(height / 2 - 20);
       const staveWidth  = innerWidth - 20;
       const middleLineY = staveY + 20;   // B4 = 3rd line = staveY + 2 × 10
 
@@ -160,7 +160,7 @@ export function VexFlowRenderer({
           if (el === middleLine) {
             /* Bold purple rhythm line */
             el.setAttribute("stroke", "#7c3aed");
-            el.setAttribute("stroke-width", "3");
+            el.setAttribute("stroke-width", "6");
             el.removeAttribute("stroke-dasharray");
           } else {
             el.style.display = "none";
