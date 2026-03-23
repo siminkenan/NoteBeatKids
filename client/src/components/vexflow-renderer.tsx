@@ -28,7 +28,7 @@ interface VexFlowRendererProps {
  *   2. The middle staff line (where B4 sits) is kept and styled purple+bold.
  *   3. A subtle glow circle is overlaid behind the active (highlighted) note,
  *      positioned using VexFlow's own getAbsoluteX() after formatting.
- *   4. Notes are enlarged via spacingBetweenLinesPx option (authentic scale-up).
+ *   4. staveY is computed so the B4 middle line sits at height/2 (vertical centre).
  */
 export function VexFlowRenderer({
   notes,
@@ -54,22 +54,17 @@ export function VexFlowRenderer({
       context.setFont("Arial", 11);
 
       /*
-       * spacingBetweenLinesPx: 14 (default ~10) → notes appear ~40% larger.
-       * The middle staff line (B4) is at staveY + 2 * spacing = staveY + 28.
+       * Default VexFlow spacing = 10px per line (STAVE_LINE_DISTANCE).
+       * Middle staff line (B4) = staveY + 2 * 10 = staveY + 20.
+       * We set staveY so that the middle line lands exactly at height/2 (vertical centre).
+       *   staveY = height/2 - 20
        */
-      const SPACING      = 14;
-      const staveX       = 10;
-      /*
-       * Visual centering: treble clef extends ~40px above stave top; stave height = 4*14 = 56px.
-       * Total visual block ≈ 96px → top margin = (height - 96) / 2, so staveY ≈ (height-16)/2.
-       */
-      const staveY       = Math.round((height - 16) / 2);
-      const staveWidth   = width - 20;
-      const middleLineY  = staveY + 2 * SPACING;         // 3rd line = B4
+      const staveX      = 10;
+      const staveY      = Math.round(height / 2 - 20);
+      const staveWidth  = width - 20;
+      const middleLineY = staveY + 20;   // B4 = 3rd line = staveY + 2 × 10
 
-      const stave = new Stave(staveX, staveY, staveWidth, {
-        spacingBetweenLinesPx: SPACING,
-      } as Parameters<typeof Stave>[3]);
+      const stave = new Stave(staveX, staveY, staveWidth);
       if (showClef)          stave.addClef("treble");
       if (showTimeSignature) stave.addTimeSignature("4/4");
       stave.setContext(context).draw();
