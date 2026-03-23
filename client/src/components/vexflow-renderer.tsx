@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Renderer, Stave, StaveNote, Voice, Formatter, Beam, type StemmableNote } from "vexflow";
+import { Renderer, Stave, StaveNote, Voice, Formatter } from "vexflow";
 
 export interface NoteData {
   keys: string[];
@@ -7,100 +7,194 @@ export interface NoteData {
   clef?: string;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   BEAT VALUES & REST FLAGS (same definitions used in rhythm-game)
+───────────────────────────────────────────────────────────── */
+const BEAT_VALS: Record<string, number> = {
+  w: 4, h: 2, q: 1, "8": 0.5,
+  wr: 4, hr: 2, qr: 1, "8r": 0.5,
+};
+const IS_REST_DUR: Record<string, boolean> = {
+  wr: true, hr: true, qr: true, "8r": true,
+};
+const IS_HOLLOW: Record<string, boolean> = { h: true, w: true };
+
+/* radius of the note circle per duration */
+function noteRadius(duration: string): number {
+  switch (duration) {
+    case "8":  case "8r": return 11;
+    case "q":  case "qr": return 14;
+    case "h":  case "hr": return 16;
+    case "w":  case "wr": return 19;
+    default: return 14;
+  }
+}
+
 interface VexFlowRendererProps {
   notes: NoteData[];
   width?: number;
   height?: number;
-  showClef?: boolean;
+  showClef?: boolean;        // kept for API compat — clef not shown on rhythm line
   showTimeSignature?: boolean;
   highlightIndex?: number;
-  hitIndices?: Set<number>; // green = correctly tapped
+  hitIndices?: Set<number>;  // green = correctly tapped
 }
 
+/* ─────────────────────────────────────────────────────────────
+   RHYTHM LINE RENDERER
+   Replaces the 5-line musical staff with a single bold timeline.
+   All note timing / logic is unchanged — only visual layer.
+───────────────────────────────────────────────────────────── */
 export function VexFlowRenderer({
   notes,
   width = 400,
   height = 140,
-  showClef = true,
   showTimeSignature = true,
   highlightIndex = -1,
   hitIndices,
 }: VexFlowRendererProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  // Stable string key so Set changes trigger re-render
-  const hitKey = hitIndices ? [...hitIndices].sort((a, b) => a - b).join(",") : "";
+  if (notes.length === 0) return <div style={{ width, height }} />;
 
-  useEffect(() => {
-    if (!containerRef.current || notes.length === 0) return;
+  const totalBeats = notes.reduce((s, n) => s + (BEAT_VALS[n.duration] ?? 1), 0);
 
-    containerRef.current.innerHTML = "";
+  /* horizontal layout */
+  const SIG_W   = showTimeSignature ? 54 : 18;  // space for "4/4" label
+  const PAD_R   = 20;
+  const lineX1  = SIG_W - 6;
+  const lineX2  = width - PAD_R;
+  const usable  = lineX2 - lineX1;
+  const lineY   = height / 2;
+  const stemLen = Math.min(34, height * 0.28);   // stem length scales with height
 
-    try {
-      const renderer = new Renderer(containerRef.current, Renderer.Backends.SVG);
-      renderer.resize(width, height);
-      const context = renderer.getContext();
-      context.setFont("Arial", 10);
-
-      const staveX = 10;
-      const staveY = Math.round(height * 0.18); // proportional top margin (≈18% of height)
-      const staveWidth = width - 20;
-
-      const stave = new Stave(staveX, staveY, staveWidth);
-      if (showClef) stave.addClef("treble");
-      if (showTimeSignature) stave.addTimeSignature("4/4");
-      stave.setContext(context).draw();
-
-      const vexNotes: StemmableNote[] = notes.map((n, i) => {
-        const staveNote = new StaveNote({
-          keys: n.keys,
-          duration: n.duration,
-          clef: "treble",
-        });
-        if (hitIndices?.has(i)) {
-          staveNote.setStyle({ fillStyle: "#16a34a", strokeStyle: "#16a34a" }); // green hit
-        } else if (i === highlightIndex) {
-          staveNote.setStyle({ fillStyle: "#f97316", strokeStyle: "#f97316" }); // orange listen
-        }
-        return staveNote;
-      });
-
-      // Create beams for eighth notes
-      const beamGroups: StemmableNote[][] = [];
-      let currentBeam: StemmableNote[] = [];
-      for (let i = 0; i < vexNotes.length; i++) {
-        if (notes[i].duration === "8" || notes[i].duration === "8r") {
-          currentBeam.push(vexNotes[i]);
-        } else {
-          if (currentBeam.length >= 2) beamGroups.push([...currentBeam]);
-          currentBeam = [];
-        }
-      }
-      if (currentBeam.length >= 2) beamGroups.push(currentBeam);
-
-      const voice = new Voice({ numBeats: 4, beatValue: 4 });
-      voice.setStrict(false);
-      voice.addTickables(vexNotes);
-
-      new Formatter().joinVoices([voice]).format([voice], staveWidth - (showClef ? 80 : 20));
-      voice.draw(context, stave);
-
-      beamGroups.forEach(group => {
-        const beam = new Beam(group);
-        beam.setContext(context).draw();
-      });
-
-    } catch (e) {
-      console.error("VexFlow rendering error:", e);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, width, height, showClef, showTimeSignature, highlightIndex, hitKey]);
+  /* compute each note's centre-x */
+  let beat = 0;
+  const entries = notes.map((note, i) => {
+    const beats = BEAT_VALS[note.duration] ?? 1;
+    const cx = lineX1 + (beat / totalBeats) * usable;
+    beat += beats;
+    return { note, i, cx, beats };
+  });
 
   return (
-    <div
-      ref={containerRef}
-      className="vexflow-container"
-      style={{ width, height, overflow: "visible", flexShrink: 0 }}
-    />
+    <div style={{ width, height: Math.max(height, 80), position: "relative", userSelect: "none" }}>
+
+      {/* ── CSS keyframes injected once ── */}
+      <style>{`
+        @keyframes rhythmPulse {
+          0%   { opacity: 0.85; r: 6px; }
+          50%  { opacity: 0.25; r: 14px; }
+          100% { opacity: 0.85; r: 6px; }
+        }
+        .rhythm-glow { animation: rhythmPulse 0.55s ease-in-out infinite; }
+      `}</style>
+
+      <svg
+        width={width}
+        height={Math.max(height, 80)}
+        style={{ display: "block", overflow: "visible" }}
+        aria-label="Ritim kalıbı"
+      >
+        {/* ── Single bold rhythm line ── */}
+        <line
+          x1={lineX1} y1={lineY}
+          x2={lineX2} y2={lineY}
+          stroke="#7c3aed" strokeWidth={3.5} strokeLinecap="round"
+        />
+
+        {/* ── 4/4 time signature ── */}
+        {showTimeSignature && (
+          <g fontFamily="'Arial Black', Arial, sans-serif" fontWeight="900" fill="#4f46e5">
+            <text x={SIG_W - 20} y={lineY - 4}  fontSize={20} textAnchor="middle">4</text>
+            <text x={SIG_W - 20} y={lineY + 20} fontSize={20} textAnchor="middle">4</text>
+          </g>
+        )}
+
+        {/* ── Notes ── */}
+        {entries.map(({ note, i, cx }) => {
+          const r        = noteRadius(note.duration);
+          const isActive = i === highlightIndex;
+          const isHit    = hitIndices?.has(i) ?? false;
+          const isRest   = IS_REST_DUR[note.duration];
+          const hollow   = IS_HOLLOW[note.duration];
+
+          const color = isHit    ? "#16a34a"
+                      : isActive ? "#f97316"
+                      : isRest   ? "#9ca3af"
+                      : "#4f46e5";
+
+          /* ── Rest: short vertical dash on the line ── */
+          if (isRest) {
+            return (
+              <g key={i}>
+                <line
+                  x1={cx} y1={lineY - r * 0.9}
+                  x2={cx} y2={lineY + r * 0.9}
+                  stroke={color} strokeWidth={3} strokeLinecap="round"
+                  strokeDasharray="3,3"
+                />
+              </g>
+            );
+          }
+
+          /* ── Note ── */
+          return (
+            <g key={i}>
+              {/* Glow ring — only when active */}
+              {isActive && (
+                <circle
+                  cx={cx} cy={lineY} r={r + 10}
+                  fill={color} opacity={0.22}
+                  className="rhythm-glow"
+                />
+              )}
+
+              {/* Note head */}
+              <circle
+                cx={cx} cy={lineY} r={r}
+                fill={hollow ? "white" : color}
+                stroke={color} strokeWidth={hollow ? 3.5 : 0}
+              />
+
+              {/* Stem (quarter & eighth notes) */}
+              {(note.duration === "q" || note.duration === "8") && (
+                <line
+                  x1={cx + r - 1.5} y1={lineY - 1}
+                  x2={cx + r - 1.5} y2={lineY - stemLen}
+                  stroke={color} strokeWidth={2.5} strokeLinecap="round"
+                />
+              )}
+
+              {/* Flag on eighth note stem */}
+              {note.duration === "8" && (
+                <path
+                  d={`M${cx + r - 1.5},${lineY - stemLen}
+                      C${cx + r + 14},${lineY - stemLen + 10}
+                       ${cx + r + 14},${lineY - stemLen + 18}
+                       ${cx + r - 1.5},${lineY - stemLen + 24}`}
+                  stroke={color} strokeWidth={2.5} fill="none" strokeLinecap="round"
+                />
+              )}
+
+              {/* Half-note inner dot (distinguishes from quarter) */}
+              {hollow && (
+                <circle cx={cx} cy={lineY} r={r * 0.36} fill={color} />
+              )}
+            </g>
+          );
+        })}
+
+        {/* ── Beat tick marks (4 major beats on the line) ── */}
+        {Array.from({ length: 4 }, (_, b) => {
+          const tx = lineX1 + (b / totalBeats) * usable;
+          return (
+            <line key={b}
+              x1={tx} y1={lineY - 6} x2={tx} y2={lineY + 6}
+              stroke="#c4b5fd" strokeWidth={1.5} strokeLinecap="round"
+            />
+          );
+        })}
+      </svg>
+    </div>
   );
 }
 

@@ -1,0 +1,70 @@
+I have a "Rhythm Catching" module inside my app "NoteBeat Kids".
+
+There is a "Rhythm Pattern Area" that currently includes:
+- A large white background
+- A multi-line musical staff (porte)
+- Rhythm notes
+- A time signature (4/4)
+
+IMPORTANT:
+Do NOT rebuild or replace the system.
+Do NOT change rhythm logic, timing, sound system, or note sequencing.
+Do NOT affect any other part of the application.
+
+Your task is ONLY to visually simplify and improve focus in this specific area.
+
+GOALS:
+
+1. REMOVE FULL STAFF (PORTE)
+- Remove all multiple staff lines (5-line musical staff)
+- Keep rhythm notes exactly as they are in timing and sequence
+
+2. CREATE SINGLE RHYTHM LINE
+- Add ONE horizontal line to represent the rhythm timeline
+- Make this line slightly bold and clearly visible
+- Center it vertically in the available space
+
+3. ENLARGE RHYTHM ELEMENTS
+- Increase the size of:
+  - Rhythm notes
+  - Beat indicators
+- Improve clarity and visibility for children
+
+4. KEEP STRUCTURE INTACT
+- Keep the time signature (4/4) at the beginning
+- Do NOT change horizontal alignment of notes
+- Do NOT modify timing logic
+
+5. REDUCE WHITE SPACE
+- Decrease unnecessary vertical space
+- Make the layout more compact
+- Keep everything visually centered and balanced
+
+6. RESPONSIVE & DEVICE SAFE
+- Ensure perfect scaling across:
+  - Mobile (iOS & Android)
+  - Tablets
+  - Desktop
+  - Smart boards
+- Use flexible layout techniques (flexbox, %, vh/vw)
+
+7. NON-DESTRUCTIVE IMPLEMENTATION
+- Only modify UI layer (CSS + minimal layout adjustments)
+- Do NOT rewrite components
+- Do NOT break existing interactions
+
+8. VISUAL PRIORITY
+- Make the rhythm line and notes the main focus
+- Keep a clean, minimal, child-friendly interface
+
+9. VISUAL FEEDBACK (IMPORTANT)
+- When a note becomes active:
+  - Add a subtle glow or pulse animation
+  - Highlight the note briefly
+- Keep animation smooth and lightweight (no performance drop)
+- Do NOT affect timing or gameplay logic
+
+FINAL GOAL:
+Convert the current multi-line staff into a single, bold rhythm line
+with larger, clearer notes and subtle visual feedback,
+while preserving all existing functionality and ensuring full device compatibility.
