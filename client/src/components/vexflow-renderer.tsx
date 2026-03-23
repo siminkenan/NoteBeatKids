@@ -42,35 +42,26 @@ export function VexFlowRenderer({
   const containerRef = useRef<HTMLDivElement>(null);
   const hitKey = hitIndices ? [...hitIndices].sort((a, b) => a - b).join(",") : "";
 
-  /*
-   * Display scale: VexFlow renders at a narrower internal canvas so that when
-   * the SVG viewBox zooms it to full display width the notes appear SCALE× larger.
-   * Display height = height × SCALE so the taller content is not clipped.
-   */
-  const SCALE        = 1.6;
-  const innerWidth   = Math.round(width / SCALE);   // e.g. 300 for width=480
-  const displayHeight = Math.round(height * SCALE); // e.g. 144 for height=90
-
   useEffect(() => {
     if (!containerRef.current || notes.length === 0) return;
     containerRef.current.innerHTML = "";
 
     try {
-      /* ── VexFlow renderer at smaller internal canvas ── */
+      /* ── VexFlow renderer at full canvas — no viewBox tricks ── */
       const renderer = new Renderer(containerRef.current, Renderer.Backends.SVG);
-      renderer.resize(innerWidth, height);
+      renderer.resize(width, height);
       const context = renderer.getContext();
       context.setFont("Arial", 10);
 
       /*
-       * staveY = 15: positions the purple middle line (staveY+20=35) so that
-       * after SCALE×1.6 zoom it lands at display-y=56, which sits visually in
-       * the centre of the card when the ~26px header above is accounted for.
-       * staveX=5 / staveWidth=innerWidth-10 makes the staff span edge-to-edge.
+       * Place the stave so the purple middle line (B4) sits at exactly height/2.
+       * Middle line = staveY + 20 (3rd of 5 lines at 10px spacing).
+       * → staveY = height/2 − 20
+       * Edge-to-edge width: staveX=5, staveWidth=width−10.
        */
       const staveX      = 5;
-      const staveY      = 15;
-      const staveWidth  = innerWidth - 10;
+      const staveY      = Math.round(height / 2 - 20);
+      const staveWidth  = width - 10;
       const middleLineY = staveY + 20;   // B4 = 3rd line = staveY + 2 × 10
 
       const stave = new Stave(staveX, staveY, staveWidth);
@@ -110,7 +101,7 @@ export function VexFlowRenderer({
       const voice = new Voice({ numBeats: 4, beatValue: 4 });
       voice.setStrict(false);
       voice.addTickables(vexNotes);
-      new Formatter().joinVoices([voice]).format([voice], staveWidth - (showClef ? 90 : 20));
+      new Formatter().joinVoices([voice]).format([voice], staveWidth - (showClef ? 100 : 20));
       voice.draw(context, stave);
       beamGroups.forEach(group => new Beam(group).setContext(context).draw());
 
@@ -160,7 +151,7 @@ export function VexFlowRenderer({
           if (el === middleLine) {
             /* Bold purple rhythm line */
             el.setAttribute("stroke", "#7c3aed");
-            el.setAttribute("stroke-width", "6");
+            el.setAttribute("stroke-width", "4");
             el.removeAttribute("stroke-dasharray");
           } else {
             el.style.display = "none";
@@ -187,23 +178,17 @@ export function VexFlowRenderer({
         } catch (_) { /* getAbsoluteX may throw before layout — silently skip */ }
       }
 
-      /* 4. Apply viewBox zoom: expand SVG display to width × displayHeight while
-            keeping viewBox at innerWidth × height → uniform SCALE× enlargement. */
-      svg.setAttribute("viewBox", `0 0 ${innerWidth} ${height}`);
-      svg.setAttribute("width",   String(width));
-      svg.setAttribute("height",  String(displayHeight));
-
     } catch (e) {
       console.error("VexFlow rendering error:", e);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, width, height, showClef, showTimeSignature, highlightIndex, hitKey, innerWidth, displayHeight]);
+  }, [notes, width, height, showClef, showTimeSignature, highlightIndex, hitKey]);
 
   return (
     <div
       ref={containerRef}
       className="vexflow-container"
-      style={{ width, height: displayHeight, overflow: "visible", flexShrink: 0 }}
+      style={{ width, height, overflow: "visible", flexShrink: 0 }}
     />
   );
 }

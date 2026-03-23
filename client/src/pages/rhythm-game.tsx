@@ -943,18 +943,26 @@ export default function RhythmGame() {
 
         {/* ── Ritim Kalıbı — mobil: 3., masaüstü: col-2 ── */}
           <div className="order-3 md:order-none md:col-start-2 bg-white rounded-3xl p-3 shadow-lg">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-sm font-extrabold text-purple-500 uppercase tracking-widest">🎼 Ritim Kalıbı</p>
-              <p className="text-xs font-semibold text-muted-foreground">{meta.desc}</p>
-            </div>
-            <div className="flex justify-center overflow-x-auto overflow-y-visible">
+            <p className="text-xs font-extrabold text-purple-500 uppercase tracking-widest mb-1">🎼 Ritim Kalıbı</p>
+            {/* VexFlow with note-name badge overlaid in top-right */}
+            <div className="relative flex justify-center overflow-x-auto">
               <VexFlowRenderer
                 notes={currentPattern}
-                width={vexW} height={90}
+                width={vexW} height={120}
                 showClef showTimeSignature
                 highlightIndex={highlightIdx}
                 hitIndices={hitNoteIndices}
               />
+              <div className="absolute top-1 right-1 pointer-events-none text-right">
+                {[...new Set(currentPattern.map(n => ({
+                  w:"Tam", wr:"Tam Sus", h:"Yarım", hr:"Yarım Sus",
+                  q:"Dörtlük", qr:"Dörtlük Sus", "8":"Sekizlik", "8r":"Sek. Sus",
+                } as Record<string,string>)[n.duration] ?? n.duration))].map((name, i) => (
+                  <span key={i} className="inline-block ml-1 text-[10px] font-bold text-purple-400 bg-purple-50 rounded px-1 py-0.5">
+                    {name}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* Tap timeline */}
