@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import ProtectedLogo from "@/components/protected-logo";
 import metronomeImgPath from "@assets/metronome-logo.png";
 import type { Class } from "@shared/schema";
 
@@ -117,7 +117,7 @@ export default function TeacherDashboard() {
       <header className="bg-white border-b shadow-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoPath} alt="NoteBeat Kids" className="w-10 h-10 object-contain" />
+            <ProtectedLogo className="w-10 h-10 object-contain" />
             <div>
               <h1 className="font-extrabold text-lg text-foreground leading-tight">NoteBeat Kids</h1>
               <p className="text-xs text-muted-foreground font-semibold">Öğretmen Paneli</p>

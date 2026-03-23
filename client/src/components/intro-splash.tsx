@@ -82,11 +82,15 @@ export default function IntroSplash({ onDone }: { onDone: () => void }) {
               width: "100%",
               height: "100%",
               objectFit: "contain",
+              userSelect: "none",
+              WebkitUserSelect: "none",
               animation: phase !== "in"
                 ? "intro-logo-pulse 2s ease-in-out infinite, intro-logo-float 3.8s ease-in-out infinite"
                 : "none",
             }}
             draggable={false}
+            onContextMenu={(e) => e.preventDefault()}
+            onDragStart={(e) => e.preventDefault()}
           />
         </div>
 

@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy, Pencil, CalendarClock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import ProtectedLogo from "@/components/protected-logo";
 import type { Institution, Teacher } from "@shared/schema";
 
 type InstWithExpiry = Institution & { isExpired?: boolean };
@@ -330,7 +330,7 @@ export default function AdminDashboard() {
       <header className="bg-slate-900 text-white shadow-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoPath} alt="NoteBeat Kids" className="w-8 h-8 object-contain" />
+            <ProtectedLogo className="w-8 h-8 object-contain" />
             <div>
               <h1 className="font-extrabold text-base leading-tight">NoteBeat Kids</h1>
               <p className="text-slate-400 text-xs font-semibold flex items-center gap-1">

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Star, Clock, CheckCircle, XCircle, Share2, Key, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { Student, StudentProgress, StudentCode } from "@shared/schema";
-import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import ProtectedLogo from "@/components/protected-logo";
 
 type StudentWithProgress = Student & {
   rhythmProgress?: StudentProgress;
@@ -204,7 +204,7 @@ export default function ClassDetail() {
             Geri
           </Button>
           <div className="flex items-center gap-3">
-            <img src={logoPath} alt="NoteBeat Kids" className="w-8 h-8 object-contain" />
+            <ProtectedLogo className="w-8 h-8 object-contain" />
             <div>
               <h1 className="font-extrabold text-base text-foreground">{data?.class?.name ?? "Yükleniyor..."}</h1>
               <p className="text-xs text-muted-foreground font-semibold">Kod: <span className="font-mono font-extrabold text-primary">{data?.class?.classCode}</span></p>

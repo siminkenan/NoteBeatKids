@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import ProtectedLogo from "@/components/protected-logo";
 
 // ── Language detection ──────────────────────────────────────────────────────
 const deviceLang = navigator.language?.toLowerCase() ?? "tr";
@@ -269,9 +269,7 @@ export default function Home() {
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         >
-          <img
-            src={logoPath}
-            alt="NoteBeat Kids"
+          <ProtectedLogo
             className="w-72 h-72 object-contain drop-shadow-2xl"
             data-testid="img-logo"
           />

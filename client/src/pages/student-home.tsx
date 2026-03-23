@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import ProtectedLogo from "@/components/protected-logo";
 import metronomeImgPath from "@assets/metronome-logo.png";
 import melodyLogoPath from "@assets/ChatGPT_Image_13_Mar_2026_23_21_37_1773433578533.png";
 import type { StudentProgress } from "@shared/schema";
@@ -63,7 +63,7 @@ export default function StudentHome() {
         {/* Üst bar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <img src={logoPath} alt="NoteBeat Kids" className="w-12 h-12 object-contain" />
+            <ProtectedLogo className="w-12 h-12 object-contain" />
             <div>
               <h1 className="font-extrabold text-lg text-gray-800 leading-tight">
                 Merhaba, {student.student.firstName}!

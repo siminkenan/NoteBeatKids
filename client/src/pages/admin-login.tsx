@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Shield, Lock, LogIn } from "lucide-react";
-import logoPath from "@assets/WhatsApp_Image_2026-03-01_at_10.45.20-removebg-preview_(1)_1772727577713.png";
+import ProtectedLogo from "@/components/protected-logo";
 
 export default function AdminLogin() {
   const [, navigate] = useLocation();
@@ -64,11 +64,7 @@ export default function AdminLogin() {
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               >
-                <img
-                  src={logoPath}
-                  alt="NoteBeat Kids"
-                  className="w-24 h-24 object-contain drop-shadow-2xl"
-                />
+                <ProtectedLogo className="w-24 h-24 object-contain drop-shadow-2xl" />
               </motion.div>
             </div>
             <CardTitle className="text-2xl font-extrabold text-white tracking-tight">
