@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import type { StudentProgress } from "@shared/schema";
 
@@ -208,6 +208,8 @@ export default function MelodyEcho() {
       wrongAnswers: wrongCountRef.current,
       timeSpentSeconds: elapsed,
       ...(badge !== undefined ? { notesBadge: badge } : {}),
+    }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["/api/student", sid, "progress"] });
     }).catch(() => {});
   }
 

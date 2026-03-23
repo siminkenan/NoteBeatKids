@@ -25,6 +25,8 @@ export default function StudentHome() {
       return res.json();
     },
     enabled: !!student,
+    staleTime: 0,        // always refetch on mount so star count is always current
+    refetchOnMount: true,
   });
 
   const rhythmProgress = progress?.find(p => p.appType === "rhythm");

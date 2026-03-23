@@ -73,7 +73,9 @@ export default function Leaderboard() {
       return res.json();
     },
     enabled: !!(student || teacher),
-    refetchInterval: 30000,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchInterval: 15000,
   });
 
   const { data: winners } = useQuery<Winner[]>({
@@ -86,6 +88,8 @@ export default function Leaderboard() {
       return res.json();
     },
     enabled: !!(student || teacher),
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const entries = data?.entries ?? [];
