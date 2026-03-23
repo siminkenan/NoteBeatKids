@@ -227,7 +227,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/student/:studentId/progress", async (req: Request, res: Response) => {
     try {
       const { appType, ...data } = req.body;
-      const progress = await storage.upsertProgress(req.params.studentId, appType, data);
+
+      // Drum kit: accumulate time and derive stars (1 star per 3 minutes)
+      let finalData = { ...data };
+      if (appType === "drum_kit") {
+        const existing = await storage.getProgressByStudentAndType(req.params.studentId, "drum_kit");
+        const prevTime = existing?.timeSpentSeconds ?? 0;
+        const sessionTime = Number(data.timeSpentSeconds ?? 0);
+        const totalTime = prevTime + sessionTime;
+        const newStars = Math.floor(totalTime / 180); // 180s = 3 min per star
+        finalData = { ...data, timeSpentSeconds: totalTime, starsEarned: newStars };
+      }
+
+      const progress = await storage.upsertProgress(req.params.studentId, appType, finalData);
       res.json(progress);
     } catch (e) {
       res.status(500).json({ message: "Server error" });

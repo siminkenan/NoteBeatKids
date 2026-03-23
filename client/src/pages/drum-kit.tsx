@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import drumImg from "@assets/drum-Photoroom_1773262756209.png";
 import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import type { StudentProgress } from "@shared/schema";
 
 /* ═══════════════════════════════════════════════════════
    WEB AUDIO CONTEXT
@@ -336,9 +338,39 @@ function emptyPattern(): Pattern {
 /* ═══════════════════════════════════════════════════════
    COMPONENT
 ═══════════════════════════════════════════════════════ */
+const SECS_PER_STAR = 180; // 3 minutes per star
+
 export default function DrumKit() {
   const [, navigate] = useLocation();
   const { student } = useAuth();
+
+  /* ── fetch existing drum_kit progress ── */
+  const { data: drumProgress } = useQuery<StudentProgress | null>({
+    queryKey: ["/api/student", student?.student?.id, "progress", "drum_kit"],
+    queryFn: async () => {
+      const res = await fetch(
+        `${(import.meta.env.VITE_API_URL || "")}/api/student/${student!.student.id}/progress`,
+        { credentials: "include" }
+      );
+      const all: StudentProgress[] = await res.json();
+      return all.find(p => p.appType === "drum_kit") ?? null;
+    },
+    enabled: !!student,
+  });
+
+  /* ── live session elapsed time (ticks every second) ── */
+  const [sessionSecs, setSessionSecs] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSessionSecs(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  /* ── star calculation (prev saved + current session) ── */
+  const prevTotalSecs = drumProgress?.timeSpentSeconds ?? 0;
+  const liveTotalSecs = prevTotalSecs + sessionSecs;
+  const earnedStars = Math.floor(liveTotalSecs / SECS_PER_STAR);
+  const secsToNextStar = SECS_PER_STAR - (liveTotalSecs % SECS_PER_STAR);
+  const minsLeft = Math.ceil(secsToNextStar / 60);
 
   /* ── session time tracking ── */
   const sessionStartRef = useRef<number>(Date.now());
@@ -549,7 +581,18 @@ export default function DrumKit() {
           data-testid="btn-back-drum">
           <ArrowLeft className="w-4 h-4" /> Geri
         </Button>
-        <h1 className="font-extrabold text-base text-white tracking-tight">🥁 Davul Seti</h1>
+        <div className="flex flex-col items-center">
+          <h1 className="font-extrabold text-base text-white tracking-tight leading-tight">🥁 Davul Seti</h1>
+          {student && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="text-yellow-400 text-xs font-extrabold">⭐ {earnedStars}</span>
+              <span className="text-white/40 text-[10px]">·</span>
+              <span className="text-white/50 text-[10px] font-semibold">
+                {minsLeft} dk → +1⭐
+              </span>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
           {/* WAV download */}
           <button
