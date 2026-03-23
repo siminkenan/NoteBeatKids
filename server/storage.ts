@@ -685,8 +685,8 @@ export class DatabaseStorage implements IStorage {
       };
     });
 
-    const sortKey = type === "monthly" ? "monthlyScore" : "totalScore";
-    entries.sort((a, b) => b[sortKey] - a[sortKey] || b.totalStars - a.totalStars);
+    const sortKey = type === "monthly" ? "monthlyStars" : "totalStars";
+    entries.sort((a, b) => b[sortKey] - a[sortKey]);
     entries.forEach((e, i) => { e.rank = i + 1; });
     return entries;
   }
@@ -717,7 +717,7 @@ export class DatabaseStorage implements IStorage {
           firstName: e.firstName,
           lastName: e.lastName,
           classCode: e.classCode,
-          score: e.monthlyScore,
+          score: e.monthlyStars,
           rank: i + 1,
         }).returning();
         savedWinners.push(w);

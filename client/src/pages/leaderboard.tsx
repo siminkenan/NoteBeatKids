@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import { ChevronLeft, Trophy, Star, Award, Crown } from "lucide-react";
+import { ChevronLeft, Trophy, Crown } from "lucide-react";
 
 type LeaderboardEntry = {
   rank: number;
@@ -13,15 +13,12 @@ type LeaderboardEntry = {
   classCode: string;
   totalStars: number;
   totalBadges: number;
-  totalScore: number;
   monthlyStars: number;
   monthlyBadges: number;
-  monthlyScore: number;
 };
 
 type Winner = {
   id: string;
-  studentId: string;
   firstName: string;
   lastName: string;
   classCode: string;
@@ -31,10 +28,10 @@ type Winner = {
 };
 
 const MEDAL = ["🥇", "🥈", "🥉"];
-const RANK_BG = [
-  "from-yellow-400/30 to-yellow-200/10 border-yellow-400",
-  "from-gray-300/30 to-gray-100/10 border-gray-300",
-  "from-orange-400/30 to-orange-200/10 border-orange-400",
+const RANK_STYLE = [
+  "from-yellow-400/25 to-yellow-200/5 border-yellow-400/50",
+  "from-slate-300/20 to-slate-100/5 border-slate-300/40",
+  "from-orange-400/20 to-orange-200/5 border-orange-400/40",
 ];
 
 function formatMonth(m: string) {
@@ -43,6 +40,18 @@ function formatMonth(m: string) {
   const months = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
   return `${months[parseInt(month) - 1]} ${year}`;
 }
+
+const TABS = [
+  { key: "school"  as const, label: "Okul",  icon: "🏫" },
+  { key: "class"   as const, label: "Sınıf", icon: "🎓" },
+  { key: "monthly" as const, label: "Bu Ay", icon: "📅" },
+];
+
+const TAB_DESC: Record<string, string> = {
+  school:  "Okuldaki tüm öğrenciler • Toplam ⭐",
+  class:   "Sınıfındaki öğrenciler • Toplam ⭐",
+  monthly: "Bu ay kazanılan ⭐ sıralaması",
+};
 
 export default function Leaderboard() {
   const [, navigate] = useLocation();
@@ -59,6 +68,7 @@ export default function Leaderboard() {
       return res.json();
     },
     enabled: !!(student || teacher),
+    refetchInterval: 30000,
   });
 
   const { data: winners } = useQuery<Winner[]>({
@@ -73,16 +83,9 @@ export default function Leaderboard() {
 
   const entries = data?.entries ?? [];
   const currentStudentId = data?.currentStudentId ?? student?.student?.id ?? null;
+  const starsKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyStars" : "totalStars";
 
-  const tabs: { key: "school" | "class" | "monthly"; label: string; icon: string }[] = [
-    { key: "school", label: "Okul", icon: "🏫" },
-    { key: "class", label: "Sınıf", icon: "🎓" },
-    { key: "monthly", label: "Bu Ay", icon: "📅" },
-  ];
-
-  const scoreKey = tab === "monthly" ? "monthlyScore" : "totalScore";
-  const starsKey = tab === "monthly" ? "monthlyStars" : "totalStars";
-  const badgesKey = tab === "monthly" ? "monthlyBadges" : "totalBadges";
+  const myEntry = entries.find(e => e.studentId === currentStudentId);
 
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" }}>
@@ -97,11 +100,33 @@ export default function Leaderboard() {
           >
             <ChevronLeft size={20} />
           </button>
-          <div className="flex items-center gap-2">
-            <Trophy size={28} className="text-yellow-400" />
-            <h1 className="text-2xl font-extrabold text-white">Liderlik Tablosu</h1>
+          <div>
+            <div className="flex items-center gap-2">
+              <Trophy size={24} className="text-yellow-400" />
+              <h1 className="text-xl font-extrabold text-white">Liderlik Tablosu</h1>
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5 ml-8">{TAB_DESC[tab]}</p>
           </div>
         </div>
+
+        {/* My rank banner (students only) */}
+        {myEntry && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 rounded-2xl px-4 py-3 border border-purple-400/50 bg-gradient-to-r from-purple-600/25 to-indigo-600/15 flex items-center gap-3"
+          >
+            <span className="text-2xl">{myEntry.rank <= 3 ? MEDAL[myEntry.rank - 1] : `#${myEntry.rank}`}</span>
+            <div className="flex-1">
+              <p className="text-white font-extrabold text-sm">{myEntry.firstName} {myEntry.lastName} <span className="text-purple-300">(Sen)</span></p>
+              <p className="text-xs text-gray-400">{myEntry.classCode}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-yellow-300 font-extrabold text-lg">⭐ {(myEntry as any)[starsKey]}</p>
+              <p className="text-xs text-gray-400">yıldız</p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Geçen Ay Şampiyonları */}
         {winners && winners.length > 0 && (
@@ -109,20 +134,20 @@ export default function Leaderboard() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-5 rounded-2xl p-4 border border-yellow-400/30"
-            style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(251,191,36,0.04) 100%)" }}
+            style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.10) 0%, rgba(251,191,36,0.03) 100%)" }}
           >
-            <p className="text-yellow-300 font-extrabold text-sm mb-3 flex items-center gap-2">
-              <Crown size={16} /> {formatMonth(winners[0]?.month)} Şampiyonları
+            <p className="text-yellow-300 font-extrabold text-xs mb-3 flex items-center gap-1.5 uppercase tracking-widest">
+              <Crown size={13} /> {formatMonth(winners[0]?.month)} Şampiyonları
             </p>
             <div className="flex flex-col gap-2">
               {winners.map((w) => (
                 <div key={w.id} className="flex items-center gap-3">
-                  <span className="text-lg">{MEDAL[w.rank - 1] ?? "🏅"}</span>
+                  <span className="text-base">{MEDAL[w.rank - 1] ?? "🏅"}</span>
                   <div className="flex-1">
                     <span className="text-white font-bold text-sm">{w.firstName} {w.lastName}</span>
-                    <span className="text-xs text-gray-400 ml-2">· {w.classCode}</span>
+                    <span className="text-xs text-gray-500 ml-2">· {w.classCode}</span>
                   </div>
-                  <span className="text-yellow-300 font-extrabold text-sm">{w.score} puan</span>
+                  <span className="text-yellow-300 font-extrabold text-sm">⭐ {w.score}</span>
                 </div>
               ))}
             </div>
@@ -130,8 +155,8 @@ export default function Leaderboard() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-5 bg-white/5 rounded-2xl p-1">
-          {tabs.map(t => (
+        <div className="flex gap-1.5 mb-5 bg-white/5 rounded-2xl p-1">
+          {TABS.map(t => (
             <button
               key={t.key}
               data-testid={`tab-${t.key}`}
@@ -147,12 +172,7 @@ export default function Leaderboard() {
           ))}
         </div>
 
-        {/* Skor açıklaması */}
-        <p className="text-xs text-gray-500 text-center mb-4">
-          Puan = Yıldız × 10 + Rozet × 50
-        </p>
-
-        {/* Entries */}
+        {/* List */}
         {isLoading ? (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 rounded-full border-4 border-purple-400 border-t-transparent animate-spin" />
@@ -160,65 +180,53 @@ export default function Leaderboard() {
         ) : entries.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <Trophy size={48} className="mx-auto mb-3 opacity-30" />
-            <p className="font-bold">Henüz skor yok</p>
-            <p className="text-sm mt-1">Oyunlar oynandıkça sıralaması burada görünür</p>
+            <p className="font-bold">Henüz yıldız kazanılmadı</p>
+            <p className="text-sm mt-1">Oyunlar oynandıkça sıralama burada görünür</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {entries.map((entry, idx) => {
               const isMe = entry.studentId === currentStudentId;
-              const score = (entry as any)[scoreKey] as number;
               const stars = (entry as any)[starsKey] as number;
-              const badges = (entry as any)[badgesKey] as number;
               const isTop3 = entry.rank <= 3;
 
               return (
                 <motion.div
                   key={entry.studentId}
-                  initial={{ opacity: 0, y: 15 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(idx * 0.04, 0.5) }}
+                  transition={{ delay: Math.min(idx * 0.035, 0.4) }}
                   data-testid={`row-student-${entry.studentId}`}
                   className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
                     isMe
-                      ? "border-purple-400 bg-gradient-to-r from-purple-600/30 to-indigo-600/20"
+                      ? "border-purple-400/70 bg-gradient-to-r from-purple-600/30 to-indigo-600/20"
                       : isTop3
-                      ? `bg-gradient-to-r ${RANK_BG[entry.rank - 1]} border-opacity-40`
-                      : "border-white/10 bg-white/5"
+                      ? `bg-gradient-to-r ${RANK_STYLE[entry.rank - 1]}`
+                      : "border-white/8 bg-white/5"
                   }`}
                 >
                   {/* Rank */}
                   <div className="w-8 text-center flex-shrink-0">
                     {isTop3
                       ? <span className="text-xl">{MEDAL[entry.rank - 1]}</span>
-                      : <span className="text-gray-400 font-bold text-sm">{entry.rank}</span>
+                      : <span className="text-gray-500 font-bold text-sm">{entry.rank}</span>
                     }
                   </div>
 
-                  {/* Name */}
+                  {/* Name + class */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-sm truncate ${isMe ? "text-purple-200" : "text-white"}`}>
-                        {entry.firstName} {entry.lastName}
-                        {isMe && <span className="text-purple-300 text-xs ml-1">(Sen)</span>}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-500">{entry.classCode}</span>
+                    <p className={`font-bold text-sm truncate leading-tight ${isMe ? "text-purple-200" : "text-white"}`}>
+                      {entry.firstName} {entry.lastName}
+                      {isMe && <span className="text-purple-400 text-xs ml-1.5 font-semibold">(Sen)</span>}
+                    </p>
+                    <p className="text-xs text-gray-500">{entry.classCode}</p>
                   </div>
 
-                  {/* Stats */}
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <div className="flex items-center gap-1 text-xs text-yellow-300">
-                      <Star size={12} /> <span className="font-bold">{stars}</span>
-                    </div>
-                    {badges > 0 && (
-                      <div className="flex items-center gap-1 text-xs text-amber-400">
-                        <Award size={12} /> <span className="font-bold">{badges}</span>
-                      </div>
-                    )}
-                    <div className={`font-extrabold text-sm ${isTop3 ? "text-yellow-300" : "text-gray-300"}`}>
-                      {score}
-                    </div>
+                  {/* Stars */}
+                  <div className={`flex items-center gap-1 font-extrabold text-base flex-shrink-0 ${
+                    isTop3 ? "text-yellow-300" : isMe ? "text-purple-200" : "text-gray-300"
+                  }`}>
+                    ⭐ <span>{stars}</span>
                   </div>
                 </motion.div>
               );
