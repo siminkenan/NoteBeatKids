@@ -560,187 +560,161 @@ export default function DrumKit() {
 
   const lastZone = lastHit ? ZONES.find(z => z.id === lastHit.id) : null;
 
-  /* Cihaza tam uyumlu drum boyutu:
-     portrait  → genişliğin %80'i, max = kalan yüksekliğin %45'i
-     landscape → yüksekliğin %32'si, min 110px */
-  const drumContainerSize = (() => {
-    const HEADER = 50, CONTROLS = 84, GRID_MIN = 150;
-    if (isPortrait) {
-      const byWidth = Math.round(viewSize.w * 0.80);
-      const byHeight = Math.round((viewSize.h - HEADER - CONTROLS - GRID_MIN) * 0.92);
-      return `${Math.min(byWidth, byHeight, 310)}px`;
-    } else {
-      const byHeight = Math.round(viewSize.h * 0.32);
-      return `${Math.max(110, Math.min(byHeight, 280))}px`;
-    }
+  /* ── Responsive size calculations ── */
+  const HEADER_H = 50;
+
+  // Portrait: drum image fills most of top half, leaving room for controls + scrollable grid
+  const portraitDrumSize = (() => {
+    const CONTROLS = 80, GRID_MIN = 120;
+    const byWidth = Math.round(viewSize.w * 0.82);
+    const byHeight = Math.round((viewSize.h - HEADER_H - CONTROLS - GRID_MIN) * 0.95);
+    return Math.min(byWidth, byHeight, 340);
   })();
 
-  return (
-    <div className="flex flex-col select-none overflow-hidden"
-      style={{ height: `${viewSize.h}px`, background: "linear-gradient(160deg, #0e0920 0%, #0d1a3a 60%, #080d1a 100%)", touchAction: "none" }}>
+  // Landscape: drum sits in left column; constrained by height and max 42% of width
+  const landscapeDrumSize = Math.max(
+    120,
+    Math.min(viewSize.h - HEADER_H - 4, Math.round(viewSize.w * 0.42), 340)
+  );
 
-      {/* ── Header ── */}
-      <header className="flex items-center justify-between px-4 py-2 border-b border-white/10 flex-shrink-0"
-        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}>
-        <Button variant="ghost" size="sm"
-          onClick={() => navigate("/student/home")}
-          className="gap-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
-          data-testid="btn-back-drum">
-          <ArrowLeft className="w-4 h-4" /> Geri
-        </Button>
-        <div className="flex flex-col items-center">
-          <h1 className="font-extrabold text-base text-white tracking-tight leading-tight">🥁 Davul Seti</h1>
-          {student && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <span className="text-yellow-400 text-xs font-extrabold">⭐ {earnedStars}</span>
-              <span className="text-white/40 text-[10px]">·</span>
-              <span className="text-white/50 text-[10px] font-semibold">
-                {isPlaying
-                  ? `${minsLeft} dk → +1⭐`
-                  : `Çalmaya başla → ⭐ kazan`}
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {/* WAV download */}
-          <button
-            data-testid="btn-export-wav"
-            onClick={handleExportWav}
-            disabled={exporting === "wav"}
-            title="Ses dosyası indir (.wav)"
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all"
+  /* ── Render helpers (plain functions, not React components, to avoid remount issues) ── */
+  const renderDrumPad = (size: number) => (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <img src={drumImg} alt="Davul Seti"
+        className="w-full h-full object-contain pointer-events-none select-none"
+        draggable={false} />
+      {ZONES.map(zone => {
+        const active = hits.has(zone.id);
+        return (
+          <div key={zone.id}
+            data-testid={`drum-zone-${zone.id}`}
+            onPointerDown={e => { e.preventDefault(); hit(zone.id); }}
             style={{
-              background: "rgba(74,222,128,0.15)",
-              border: "1.5px solid rgba(74,222,128,0.4)",
-              color: exporting === "wav" ? "#6b7280" : "#4ade80",
-              opacity: exporting === "wav" ? 0.6 : 1,
+              position: "absolute",
+              left: `${zone.left}%`, top: `${zone.top}%`,
+              width: `${zone.width}%`, height: `${zone.height}%`,
+              borderRadius: "50%", cursor: "pointer",
+              touchAction: "none", userSelect: "none",
+              willChange: "background, box-shadow",
+              background: active
+                ? `radial-gradient(ellipse, ${zone.color}55 0%, transparent 80%)`
+                : "transparent",
+              boxShadow: active ? `0 0 18px 6px ${zone.color}60` : "none",
+              border: active
+                ? `2px solid ${zone.color}bb`
+                : "1.5px solid rgba(255,255,255,0.05)",
+              zIndex: 10,
+              transition: "background 0.04s, box-shadow 0.04s, border 0.04s",
             }}>
-            <Download className="w-3 h-3" />
-            {exporting === "wav" ? "..." : "WAV"}
-          </button>
-          {/* MIDI download */}
-          <button
-            data-testid="btn-export-midi"
-            onClick={handleExportMidi}
-            title="MIDI dosyası indir (.mid)"
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all"
-            style={{
-              background: "rgba(168,85,247,0.15)",
-              border: "1.5px solid rgba(168,85,247,0.4)",
-              color: "#a855f7",
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              pointerEvents: "none",
             }}>
-            <Music className="w-3 h-3" />
-            MIDI
-          </button>
-        </div>
-        <div className="w-0 text-right h-6">
-          <AnimatePresence mode="wait">
-            {lastZone && (
-              <motion.span key={lastHit?.ts}
-                initial={{ opacity: 0, y: -6, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.12 }}
-                className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold text-black"
-                style={{ background: lastZone.color }}>
-                {lastZone.label}
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
-      </header>
-
-      {/* ── Drum Kit Image (top half) ── */}
-      <div className="flex-shrink-0 flex justify-center px-2 pt-1"
-        style={{ height: drumContainerSize }}>
-        <div className="relative h-full" style={{ aspectRatio: "1/1" }}>
-          <img src={drumImg} alt="Davul Seti"
-            className="w-full h-full object-contain pointer-events-none" draggable={false} />
-          {ZONES.map(zone => {
-            const active = hits.has(zone.id);
-            return (
-              <div key={zone.id}
-                data-testid={`drum-zone-${zone.id}`}
-                onPointerDown={e => { e.preventDefault(); hit(zone.id); }}
-                style={{
-                  position: "absolute", left: `${zone.left}%`, top: `${zone.top}%`,
-                  width: `${zone.width}%`, height: `${zone.height}%`,
-                  borderRadius: "50%", cursor: "pointer", touchAction: "none",
-                  willChange: "background, box-shadow",
-                  background: active ? `radial-gradient(ellipse, ${zone.color}55 0%, transparent 80%)` : "transparent",
-                  boxShadow: active ? `0 0 18px 6px ${zone.color}60` : "none",
-                  border: active ? `2px solid ${zone.color}bb` : "1.5px solid rgba(255,255,255,0.05)",
-                  zIndex: 10, transition: "background 0.04s, box-shadow 0.04s, border 0.04s",
-                }}>
-                <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-                  <div style={{
-                    background: active ? zone.color : "rgba(0,0,0,0.6)",
-                    color: active ? "#000" : "rgba(255,255,255,0.9)",
-                    border: `1.5px solid ${active ? zone.color : "rgba(255,255,255,0.2)"}`,
-                    borderRadius: "7px", padding: "1px 5px",
-                    fontSize: "10px", fontWeight: 900, lineHeight: 1.3,
-                    whiteSpace: "nowrap", textAlign: "center",
-                    boxShadow: active ? `0 0 10px ${zone.color}` : "none",
-                    transition: "all 0.06s",
-                  }}>
-                    {zone.label}<div style={{ fontSize: "8px", opacity: 0.65 }}>[{zone.key}]</div>
-                  </div>
-                </div>
+              <div style={{
+                background: active ? zone.color : "rgba(0,0,0,0.62)",
+                color: active ? "#000" : "rgba(255,255,255,0.9)",
+                border: `1.5px solid ${active ? zone.color : "rgba(255,255,255,0.2)"}`,
+                borderRadius: "7px",
+                padding: size < 180 ? "1px 3px" : "1px 5px",
+                fontSize: size < 180 ? "8px" : "10px",
+                fontWeight: 900, lineHeight: 1.3,
+                whiteSpace: "nowrap", textAlign: "center",
+                boxShadow: active ? `0 0 10px ${zone.color}` : "none",
+                transition: "all 0.06s",
+              }}>
+                {zone.label}
+                {/* only show key hint on larger screens where keyboard is useful */}
+                {size >= 200 && (
+                  <div style={{ fontSize: "7px", opacity: 0.6 }}>[{zone.key}]</div>
+                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  /* ── Reusable: sequencer controls ── */
+  const renderControls = (compact?: boolean) => (
+    <div className={`flex-shrink-0 border-t border-white/8 ${compact ? "px-2" : "px-3"}`}
+      style={{ background: "rgba(0,0,0,0.38)" }}>
+
+      {/* Row 1: Play/Stop · REC · BPM · Clear */}
+      <div className={`flex items-center gap-1.5 ${compact ? "py-1" : "py-1.5"}`}>
+        <button
+          data-testid="btn-seq-play"
+          onClick={() => setIsPlaying(p => !p)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-extrabold text-xs text-black transition-all flex-shrink-0"
+          style={{
+            background: isPlaying ? "#f87171" : "#4ade80",
+            boxShadow: `0 0 10px ${isPlaying ? "#f87171" : "#4ade80"}55`,
+            touchAction: "manipulation",
+          }}>
+          {isPlaying ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+          {isPlaying ? "Dur" : "Çal"}
+        </button>
+
+        {isPlaying && (
+          <motion.div
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 0.9, repeat: Infinity }}
+            className="flex items-center gap-1 px-1.5 py-1 rounded-md flex-shrink-0"
+            style={{ background: "rgba(239,68,68,0.2)", border: "1.5px solid #ef4444" }}>
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            <span className="text-red-400 text-[9px] font-extrabold">REC</span>
+          </motion.div>
+        )}
+
+        <span className="text-white/55 text-[11px] font-bold flex-shrink-0">BPM</span>
+        <input type="range" min={50} max={160} value={bpm}
+          onChange={e => setBpm(Number(e.target.value))}
+          className="flex-1 h-2 rounded accent-yellow-400"
+          style={{ minWidth: 0, touchAction: "none" }} />
+        <span className="text-yellow-400 font-extrabold text-xs w-6 text-right flex-shrink-0">{bpm}</span>
+
+        <div className="w-px h-4 bg-white/15 flex-shrink-0" />
+
+        <button
+          data-testid="btn-seq-clear"
+          onClick={() => setPattern(emptyPattern())}
+          className="flex items-center gap-1 px-1.5 py-1.5 rounded-lg border border-white/20 text-white/60 hover:text-white hover:border-white/40 text-[11px] font-bold transition-all flex-shrink-0"
+          style={{ touchAction: "manipulation" }}>
+          <Trash2 className="w-3 h-3" />
+          {!compact && "Temizle"}
+        </button>
+
+        {/* Export buttons – only show in compact mode as icons only */}
+        {compact && (
+          <>
+            <button data-testid="btn-export-wav" onClick={handleExportWav}
+              disabled={exporting === "wav"}
+              title="WAV indir"
+              className="flex items-center gap-0.5 px-1.5 py-1 rounded-md text-[10px] font-extrabold flex-shrink-0"
+              style={{
+                background: "rgba(74,222,128,0.15)", border: "1.5px solid rgba(74,222,128,0.4)",
+                color: exporting === "wav" ? "#6b7280" : "#4ade80",
+                touchAction: "manipulation",
+              }}>
+              <Download className="w-3 h-3" />
+            </button>
+            <button data-testid="btn-export-midi-compact" onClick={handleExportMidi}
+              title="MIDI indir"
+              className="flex items-center gap-0.5 px-1.5 py-1 rounded-md text-[10px] font-extrabold flex-shrink-0"
+              style={{
+                background: "rgba(168,85,247,0.15)", border: "1.5px solid rgba(168,85,247,0.4)",
+                color: "#a855f7",
+                touchAction: "manipulation",
+              }}>
+              <Music className="w-3 h-3" />
+            </button>
+          </>
+        )}
       </div>
 
-      {/* ── Sequencer Controls ── portrait: 2 satır, landscape: 1 satır ── */}
-      <div className="flex-shrink-0 border-t border-white/8 px-3"
-        style={{ background: "rgba(0,0,0,0.35)" }}>
-
-        {/* Satır 1: Çal/Dur + BPM + Temizle */}
-        <div className="flex items-center gap-2 py-1.5">
-          {/* Play / Stop */}
-          <button
-            data-testid="btn-seq-play"
-            onClick={() => setIsPlaying(p => !p)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold text-sm text-black transition-all flex-shrink-0"
-            style={{ background: isPlaying ? "#f87171" : "#4ade80", boxShadow: `0 0 12px ${isPlaying ? "#f87171" : "#4ade80"}66` }}>
-            {isPlaying ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            {isPlaying ? "Dur" : "Çal"}
-          </button>
-
-          {/* REC indicator */}
-          {isPlaying && (
-            <motion.div
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 0.9, repeat: Infinity }}
-              className="flex items-center gap-1 px-2 py-1 rounded-md flex-shrink-0"
-              style={{ background: "rgba(239,68,68,0.2)", border: "1.5px solid #ef4444" }}>
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-red-400 text-[10px] font-extrabold">REC</span>
-            </motion.div>
-          )}
-
-          {/* BPM */}
-          <span className="text-white/60 text-xs font-bold flex-shrink-0">BPM</span>
-          <input type="range" min={50} max={160} value={bpm}
-            onChange={e => setBpm(Number(e.target.value))}
-            className="flex-1 h-2 rounded accent-yellow-400"
-            style={{ minWidth: 0 }} />
-          <span className="text-yellow-400 font-extrabold text-sm w-7 text-right flex-shrink-0">{bpm}</span>
-
-          <div className="w-px h-5 bg-white/15 flex-shrink-0" />
-
-          {/* Clear */}
-          <button
-            data-testid="btn-seq-clear"
-            onClick={() => setPattern(emptyPattern())}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-white/20 text-white/60 hover:text-white hover:border-white/40 text-xs font-bold transition-all flex-shrink-0">
-            <Trash2 className="w-3.5 h-3.5" /> Temizle
-          </button>
-        </div>
-
-        {/* Satır 2: Metronom ses kontrolü */}
+      {/* Row 2: Metronome (only in non-compact / portrait) */}
+      {!compact && (
         <div className="flex items-center gap-2 pb-1.5">
           <button
             data-testid="btn-metro-mute"
@@ -751,6 +725,7 @@ export default function DrumKit() {
               background: metroMuted ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.08)",
               border: `1.5px solid ${metroMuted ? "#ef4444" : "rgba(255,255,255,0.18)"}`,
               color: metroMuted ? "#f87171" : "rgba(255,255,255,0.7)",
+              touchAction: "manipulation",
             }}>
             {metroMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
           </button>
@@ -765,79 +740,238 @@ export default function DrumKit() {
             %{Math.round(metroVolume * 100)}
           </span>
         </div>
-      </div>
-
-      {/* ── Sequencer Grid ── */}
-      <div className="flex-1 px-2 overflow-hidden flex flex-col gap-0.5"
-        style={{ minHeight: 0, paddingBottom: "max(8px, env(safe-area-inset-bottom, 8px))" }}>
-
-        {/* Beat header: measure numbers */}
-        <div className="flex items-center mb-0.5">
-          <div style={{ width: 66 }} />
-          {[1, 2, 3, 4].map(m => (
-            <div key={m} className="flex-1 flex gap-0.5 px-0.5">
-              <div className="flex-1 text-center text-[9px] font-extrabold text-white/30">{m}. Ölçü</div>
-            </div>
-          ))}
+      )}
+      {/* Compact metronome: icon only mute + slider */}
+      {compact && (
+        <div className="flex items-center gap-1.5 pb-1">
+          <button
+            data-testid="btn-metro-mute"
+            onClick={() => setMetroMuted(m => !m)}
+            className="flex-shrink-0 rounded-md p-1 transition-all"
+            style={{
+              background: metroMuted ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.08)",
+              border: `1.5px solid ${metroMuted ? "#ef4444" : "rgba(255,255,255,0.18)"}`,
+              color: metroMuted ? "#f87171" : "rgba(255,255,255,0.7)",
+              touchAction: "manipulation",
+            }}>
+            {metroMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+          </button>
+          <input type="range" min={0} max={100} value={Math.round(metroVolume * 100)}
+            onChange={e => setMetroVolume(Number(e.target.value) / 100)}
+            disabled={metroMuted}
+            className="flex-1 h-1.5 rounded accent-cyan-400"
+            style={{ opacity: metroMuted ? 0.35 : 1, minWidth: 0 }} />
+          <span className="text-cyan-400 font-extrabold text-[10px] w-7 text-right flex-shrink-0"
+            style={{ opacity: metroMuted ? 0.35 : 1 }}>
+            %{Math.round(metroVolume * 100)}
+          </span>
         </div>
+      )}
+    </div>
+  );
 
-        {/* Drum rows */}
-        {SEQ_DRUMS.map(drum => (
-          <div key={drum.id} className="flex items-center gap-0" style={{ flex: "1 1 0", minHeight: 0 }}>
-            {/* Label */}
-            <div className="flex-shrink-0 text-right pr-2 flex items-center justify-end"
-              style={{ width: 66 }}>
-              <div className="px-1.5 py-0.5 rounded text-[10px] font-extrabold"
-                style={{
-                  background: `${drum.color}22`,
-                  color: drum.color,
-                  border: `1px solid ${drum.color}44`,
-                  whiteSpace: "nowrap",
-                }}>
-                {drum.label}
-              </div>
-            </div>
+  /* ── Reusable: sequencer grid ── */
+  const renderGrid = (labelW = 58) => (
+    <div className="flex-1 flex flex-col gap-0.5 overflow-y-auto px-1"
+      style={{ minHeight: 0, paddingBottom: "max(6px, env(safe-area-inset-bottom, 6px))" }}>
 
-            {/* 4 measures × 4 beats = 16 cells */}
-            <div className="flex flex-1 gap-0.5 min-w-0">
-              {[0, 1, 2, 3].map(measure => (
-                <div key={measure}
-                  className="flex gap-0.5 flex-1"
-                  style={{ borderLeft: measure > 0 ? "2px solid rgba(255,255,255,0.12)" : "none", paddingLeft: measure > 0 ? 4 : 0 }}>
-                  {[0, 1, 2, 3].map(beat => {
-                    const step = measure * 4 + beat;
-                    const on = pattern[drum.id]?.[step] ?? false;
-                    const isCurrent = currentStep === step && isPlaying;
-                    return (
-                      <button key={beat}
-                        data-testid={`seq-cell-${drum.id}-${step}`}
-                        onClick={() => toggleStep(drum.id, step)}
-                        className="flex-1 rounded transition-all"
-                        style={{
-                          minWidth: 0,
-                          background: on
-                            ? (isCurrent ? `${drum.color}` : `${drum.color}cc`)
-                            : isCurrent
-                              ? "rgba(255,255,255,0.25)"
-                              : beat === 0
-                                ? "rgba(255,255,255,0.11)"  // beat 1 of measure = slightly highlighted
-                                : "rgba(255,255,255,0.06)",
-                          boxShadow: on && isCurrent ? `0 0 10px 3px ${drum.color}88` : "none",
-                          border: on
-                            ? `1.5px solid ${drum.color}88`
-                            : `1px solid rgba(255,255,255,${isCurrent ? "0.3" : "0.1"})`,
-                          transform: on && isCurrent ? "scale(1.06)" : "scale(1)",
-                          aspectRatio: "1 / 1",
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+      {/* Beat header */}
+      <div className="flex items-center mb-0.5 flex-shrink-0">
+        <div style={{ width: labelW }} />
+        {[1, 2, 3, 4].map(m => (
+          <div key={m} className="flex-1 text-center text-[8px] font-extrabold text-white/30">
+            {m}.
           </div>
         ))}
       </div>
+
+      {/* Drum rows */}
+      {SEQ_DRUMS.map(drum => (
+        <div key={drum.id} className="flex items-center gap-0" style={{ flex: "1 1 0", minHeight: 18 }}>
+          <div className="flex-shrink-0 flex items-center justify-end pr-1.5"
+            style={{ width: labelW }}>
+            <div className="px-1 py-0.5 rounded text-[9px] font-extrabold leading-tight"
+              style={{
+                background: `${drum.color}22`,
+                color: drum.color,
+                border: `1px solid ${drum.color}44`,
+                whiteSpace: "nowrap",
+              }}>
+              {drum.label}
+            </div>
+          </div>
+
+          <div className="flex flex-1 gap-0.5 min-w-0">
+            {[0, 1, 2, 3].map(measure => (
+              <div key={measure}
+                className="flex gap-0.5 flex-1"
+                style={{
+                  borderLeft: measure > 0 ? "1.5px solid rgba(255,255,255,0.10)" : "none",
+                  paddingLeft: measure > 0 ? 3 : 0,
+                }}>
+                {[0, 1, 2, 3].map(beat => {
+                  const step = measure * 4 + beat;
+                  const on = pattern[drum.id]?.[step] ?? false;
+                  const isCurrent = currentStep === step && isPlaying;
+                  return (
+                    <button key={beat}
+                      data-testid={`seq-cell-${drum.id}-${step}`}
+                      onClick={() => toggleStep(drum.id, step)}
+                      className="flex-1 rounded transition-all"
+                      style={{
+                        minWidth: 0,
+                        aspectRatio: "1 / 1",
+                        touchAction: "manipulation",
+                        background: on
+                          ? (isCurrent ? drum.color : `${drum.color}cc`)
+                          : isCurrent
+                            ? "rgba(255,255,255,0.25)"
+                            : beat === 0
+                              ? "rgba(255,255,255,0.11)"
+                              : "rgba(255,255,255,0.06)",
+                        boxShadow: on && isCurrent ? `0 0 8px 2px ${drum.color}88` : "none",
+                        border: on
+                          ? `1.5px solid ${drum.color}88`
+                          : `1px solid rgba(255,255,255,${isCurrent ? "0.3" : "0.08"})`,
+                        transform: on && isCurrent ? "scale(1.05)" : "scale(1)",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  /* ── Shared header ── */
+  const renderHeader = () => (
+    <header className="flex items-center justify-between px-3 border-b border-white/10 flex-shrink-0"
+      style={{
+        height: HEADER_H,
+        background: "rgba(0,0,0,0.58)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+      }}>
+      {/* Back */}
+      <Button variant="ghost" size="sm"
+        onClick={() => navigate("/student/home")}
+        className="gap-1 text-white/80 hover:text-white hover:bg-white/10 rounded-xl flex-shrink-0"
+        data-testid="btn-back-drum"
+        style={{ touchAction: "manipulation" }}>
+        <ArrowLeft className="w-4 h-4" />
+        <span className="hidden sm:inline text-sm">Geri</span>
+      </Button>
+
+      {/* Title + star */}
+      <div className="flex flex-col items-center flex-1 mx-2 min-w-0">
+        <h1 className="font-extrabold text-sm text-white tracking-tight leading-tight whitespace-nowrap">
+          🥁 Davul Seti
+        </h1>
+        {student && (
+          <div className="flex items-center gap-1 mt-0.5 flex-wrap justify-center">
+            <span className="text-yellow-400 text-[11px] font-extrabold">⭐ {earnedStars}</span>
+            <span className="text-white/40 text-[10px]">·</span>
+            <span className="text-white/50 text-[10px] font-semibold whitespace-nowrap">
+              {isPlaying ? `${minsLeft} dk → +1⭐` : "Çalmaya başla → ⭐ kazan"}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Right: last-hit label + export buttons */}
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <AnimatePresence mode="wait">
+          {lastZone && (
+            <motion.span key={lastHit?.ts}
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-extrabold text-black"
+              style={{ background: lastZone.color }}>
+              {lastZone.label}
+            </motion.span>
+          )}
+        </AnimatePresence>
+
+        <button data-testid="btn-export-wav"
+          onClick={handleExportWav} disabled={exporting === "wav"}
+          title="Ses dosyası indir (.wav)"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-extrabold"
+          style={{
+            background: "rgba(74,222,128,0.15)", border: "1.5px solid rgba(74,222,128,0.4)",
+            color: exporting === "wav" ? "#6b7280" : "#4ade80",
+            opacity: exporting === "wav" ? 0.6 : 1,
+            touchAction: "manipulation",
+          }}>
+          <Download className="w-3 h-3" />
+          <span className="hidden xs:inline">{exporting === "wav" ? "..." : "WAV"}</span>
+        </button>
+
+        <button data-testid="btn-export-midi"
+          onClick={handleExportMidi}
+          title="MIDI dosyası indir (.mid)"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-extrabold"
+          style={{
+            background: "rgba(168,85,247,0.15)", border: "1.5px solid rgba(168,85,247,0.4)",
+            color: "#a855f7",
+            touchAction: "manipulation",
+          }}>
+          <Music className="w-3 h-3" />
+          <span className="hidden xs:inline">MIDI</span>
+        </button>
+      </div>
+    </header>
+  );
+
+  return (
+    <div className="flex flex-col select-none"
+      style={{
+        height: `${viewSize.h}px`,
+        background: "linear-gradient(160deg, #0e0920 0%, #0d1a3a 60%, #080d1a 100%)",
+        touchAction: "none",
+        overflow: "hidden",
+        WebkitUserSelect: "none",
+        userSelect: "none",
+      }}>
+
+      {renderHeader()}
+
+      {isPortrait ? (
+        /* ═══ PORTRAIT: vertical stack ═══ */
+        <>
+          {/* Drum pad – centered, proportional */}
+          <div className="flex-shrink-0 flex justify-center items-center pt-1 px-2"
+            style={{ height: portraitDrumSize }}>
+            {renderDrumPad(portraitDrumSize)}
+          </div>
+
+          {/* Controls – 2 rows */}
+          {renderControls()}
+
+          {/* Sequencer grid – fills remaining space, scrollable */}
+          {renderGrid()}
+        </>
+      ) : (
+        /* ═══ LANDSCAPE: drum left | controls+grid right ═══ */
+        <div className="flex flex-1 overflow-hidden">
+
+          {/* Left column: drum pad */}
+          <div className="flex-shrink-0 flex items-center justify-center py-1 pl-1"
+            style={{ width: landscapeDrumSize }}>
+            {renderDrumPad(landscapeDrumSize - 8)}
+          </div>
+
+          {/* Right column: controls (compact) + grid */}
+          <div className="flex flex-col flex-1 overflow-hidden border-l border-white/10">
+            {renderControls(true)}
+            {renderGrid(52)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
