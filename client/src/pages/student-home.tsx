@@ -32,7 +32,7 @@ export default function StudentHome() {
 
   if (studentLoading || !student) return null;
 
-  const totalStars = (rhythmProgress?.starsEarned ?? 0) + (notesProgress?.starsEarned ?? 0);
+  const totalStars = progress?.reduce((sum, p) => sum + (p.starsEarned ?? 0), 0) ?? 0;
   const notesBadge = notesProgress?.notesBadge as "bronze" | "silver" | "gold" | null | undefined;
 
   const BADGE_INFO = {
