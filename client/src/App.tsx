@@ -28,6 +28,7 @@ const RhythmOrchestra   = lazy(() => import("@/pages/rhythm-orchestra"));
 const TeacherOrchestra  = lazy(() => import("@/pages/teacher-orchestra"));
 const DrumKit           = lazy(() => import("@/pages/drum-kit"));
 const MelodyEcho        = lazy(() => import("@/pages/melody-echo"));
+const Leaderboard       = lazy(() => import("@/pages/leaderboard"));
 
 // Arka planda tüm sayfa parçalarını önceden yükler — kullanıcı bir butona
 // tıkladığında sayfa anında açılır, "Yükleniyor" gösterilmez
@@ -49,6 +50,7 @@ function usePrefetchRoutes() {
       import("@/pages/teacher-orchestra");
       import("@/pages/drum-kit");
       import("@/pages/melody-echo");
+      import("@/pages/leaderboard");
     }, 500);
     return () => clearTimeout(t);
   }, []);
@@ -92,6 +94,7 @@ function Router() {
           <Route path="/metronome" component={Metronome} />
           <Route path="/student/drum" component={DrumKit} />
           <Route path="/student/melody" component={MelodyEcho} />
+          <Route path="/leaderboard" component={Leaderboard} />
           <Route component={NotFound} />
         </Switch>
       </Suspense>

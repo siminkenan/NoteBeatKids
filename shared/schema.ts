@@ -129,6 +129,28 @@ export const maestroViewProgress = pgTable("maestro_view_progress", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [uniqueIndex("mvp_student_resource_idx").on(t.studentId, t.resourceId)]);
 
+export const monthlyStats = pgTable("monthly_stats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").references(() => students.id).notNull().unique(),
+  monthlyStars: integer("monthly_stars").notNull().default(0),
+  monthlyBadgesCount: integer("monthly_badges_count").notNull().default(0),
+  lastResetMonth: varchar("last_reset_month", { length: 7 }).notNull().default(""),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const monthlyWinners = pgTable("monthly_winners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  institutionId: varchar("institution_id").references(() => institutions.id).notNull(),
+  month: varchar("month", { length: 7 }).notNull(),
+  studentId: varchar("student_id").references(() => students.id).notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  classCode: varchar("class_code", { length: 6 }),
+  score: integer("score").notNull().default(0),
+  rank: integer("rank").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertInstitutionSchema = createInsertSchema(institutions).omit({ id: true, createdAt: true });
 export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true, createdAt: true }).extend({
   email: z.string().email().optional().nullable(),
@@ -156,6 +178,8 @@ export type OrchestraProgress = typeof orchestraProgress.$inferSelect;
 
 export type MaestroResource = typeof maestroResources.$inferSelect;
 export type MaestroViewProgress = typeof maestroViewProgress.$inferSelect;
+export type MonthlyStats = typeof monthlyStats.$inferSelect;
+export type MonthlyWinner = typeof monthlyWinners.$inferSelect;
 
 export type InsertUser = { username: string; password: string };
 export type User = { id: string; username: string; password: string };

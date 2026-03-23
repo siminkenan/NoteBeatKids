@@ -1,0 +1,266 @@
+I am building a production-level web app called "NoteBeat Kids", a gamified music learning platform for elementary school students.
+
+I need you to build a COMPLETE, ERROR-FREE, RESPONSIVE leaderboard system with MONTHLY reset logic, historical winners tracking, and teacher panel integration.
+
+-----------------------------------
+🔹 MAIN STRUCTURE
+-----------------------------------
+
+Create a "Leaderboard" main icon/menu.
+
+Inside it, create 3 tabs:
+
+1) Class Ranking (Sınıf Sıralaması)
+2) School Ranking (Kurum Geneli)
+3) Monthly Ranking (Aylık Sıralama)
+
+Additionally:
+
+- On the RIGHT SIDE of the School Ranking page,
+  show a panel:
+  "Top 3 of Last Month" (Geçen Ayın İlk 3'ü)
+
+-----------------------------------
+🔹 DATA MODEL (STRICT)
+-----------------------------------
+
+Each student must have:
+
+- id (uuid)
+- studentCode (unique)
+- classCode
+- name
+- surname
+
+TOTAL DATA:
+- totalStars (number)
+- badges (array)
+- totalScore (computed)
+
+MONTHLY DATA:
+- monthlyStars (number)
+- monthlyBadges (array)
+- monthlyScore (computed)
+
+SYSTEM FIELDS:
+- createdAt
+- updatedAt
+
+-----------------------------------
+🔹 SCORE CALCULATIONS
+-----------------------------------
+
+totalScore = totalStars * 10 + badges.length * 50
+monthlyScore = monthlyStars * 10 + monthlyBadges.length * 50
+
+-----------------------------------
+🔹 MONTHLY RESET SYSTEM (CRITICAL)
+-----------------------------------
+
+- Reset EVERY 1st day of the month at 00:00
+- DO NOT delete total data
+
+Reset ONLY:
+- monthlyStars → 0
+- monthlyBadges → []
+- monthlyScore → 0
+
+-----------------------------------
+🔹 STORE LAST MONTH WINNERS
+-----------------------------------
+
+Before reset:
+
+- Save TOP 3 students (by monthlyScore) into a new table:
+  "monthly_winners"
+
+Fields:
+- id
+- month (e.g. "2026-03")
+- studentId
+- name
+- surname
+- score
+- rank (1,2,3)
+
+-----------------------------------
+🔹 SCHOOL RANKING PAGE EXTRA PANEL
+-----------------------------------
+
+On the right side:
+
+Title:
+"🏆 Top 3 of Last Month"
+
+Display:
+🥇 Name - Score  
+🥈 Name - Score  
+🥉 Name - Score  
+
+-----------------------------------
+🔹 CLASS RANKING
+-----------------------------------
+
+- Filter by logged-in student's classCode
+- Sort by totalScore DESC
+
+-----------------------------------
+🔹 SCHOOL RANKING
+-----------------------------------
+
+- All students
+- Sort by totalScore DESC
+
+-----------------------------------
+🔹 MONTHLY RANKING
+-----------------------------------
+
+- All students
+- Sort by monthlyScore DESC
+
+-----------------------------------
+🔹 TABLE UI (REUSABLE)
+-----------------------------------
+
+Columns:
+
+1. Rank 🏆
+2. Student Code
+3. Name Surname
+4. Score
+5. Stars ⭐
+6. Badges 🏅
+
+-----------------------------------
+🔹 UX FEATURES
+-----------------------------------
+
+- Highlight logged-in student
+- Auto-scroll to current user
+- Top 3 special styling:
+  🥇 Gold
+  🥈 Silver
+  🥉 Bronze
+
+-----------------------------------
+🔹 RESPONSIVE DESIGN (VERY IMPORTANT)
+-----------------------------------
+
+Must work perfectly on:
+
+- Mobile phones 📱
+- Tablets 📲
+- Smartboards 🖥️
+- Desktop 💻
+
+Rules:
+
+- Use flexible layout (Flexbox/Grid)
+- Table must convert to card layout on small screens
+- No horizontal overflow
+- Touch-friendly buttons
+- Font scaling for children
+
+-----------------------------------
+🔹 TEACHER PANEL
+-----------------------------------
+
+Create TeacherDashboard:
+
+Features:
+
+- View:
+  - Class ranking
+  - School ranking
+  - Monthly ranking
+
+- Filters:
+  - classCode selector
+  - student search
+
+- View:
+  - totalScore
+  - monthlyScore
+  - stars
+  - badges
+
+- Button:
+  "Manual Monthly Reset"
+  (with confirmation modal)
+
+-----------------------------------
+🔹 BACKEND (SUPABASE REQUIRED)
+-----------------------------------
+
+- Use Supabase:
+
+Tables:
+1) students
+2) monthly_winners
+
+- Implement:
+  - Scheduled function OR cron job for monthly reset
+  - Save winners BEFORE reset
+
+- Use:
+  - async/await
+  - proper error handling
+
+-----------------------------------
+🔹 COMPONENT STRUCTURE (REACT)
+-----------------------------------
+
+pages/
+- LeaderboardPage.jsx
+- TeacherDashboard.jsx
+
+components/
+- LeaderboardTabs.jsx
+- LeaderboardTable.jsx
+- MonthlyWinnersPanel.jsx
+- TopThree.jsx
+- HighlightRow.jsx
+- FilterBar.jsx
+
+-----------------------------------
+🔹 PERFORMANCE
+-----------------------------------
+
+- useMemo for sorting
+- Avoid re-renders
+- Optimize queries
+
+-----------------------------------
+🔹 INTEGRATION
+-----------------------------------
+
+- Must integrate into NoteBeat Kids
+- Use existing login system
+- Detect current user
+- Get classCode dynamically
+
+-----------------------------------
+🔹 CODE QUALITY
+-----------------------------------
+
+- Clean
+- Modular
+- Fully commented
+- No errors
+- Ready to deploy
+
+-----------------------------------
+🔹 OUTPUT
+-----------------------------------
+
+Provide FULL working system including:
+
+- Supabase SQL schema
+- Monthly reset logic
+- React frontend
+- Example data
+- Teacher panel
+
+DO NOT skip anything.
+DO NOT leave placeholders.
+Ensure everything runs correctly.

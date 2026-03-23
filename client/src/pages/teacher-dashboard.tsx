@@ -252,6 +252,29 @@ export default function TeacherDashboard() {
                 <p className="text-white/80 text-sm font-semibold">Video & fotoğraf ödev yükle</p>
               </div>
             </motion.button>
+
+            <motion.button
+              data-testid="button-leaderboard"
+              className="flex items-center gap-4 p-4 rounded-2xl shadow-md flex-1 text-left"
+              style={{
+                background: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
+                border: "3px solid rgba(255,255,255,0.4)",
+              }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate("/leaderboard")}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center bg-white/20 rounded-2xl">
+                <span className="text-4xl">🏆</span>
+              </div>
+              <div>
+                <p className="text-white font-extrabold text-lg leading-tight">Liderlik Tablosu</p>
+                <p className="text-white/80 text-sm font-semibold">Öğrenci sıralamalarını gör</p>
+              </div>
+            </motion.button>
           </div>
         </div>
 

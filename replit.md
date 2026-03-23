@@ -12,6 +12,8 @@ Core features include:
 - **Metronome**: Standalone BPM tool for teachers (40–208 BPM)
 - **Teacher Dashboard**: Class management, student roster, QR code generation, progress charts, and Orchestra Panel for song upload & performance tracking
 - **Admin Dashboard**: Institution management, per-slot individual teacher codes (QR + copy), teacher creation, license/subscription management, and platform-wide stats
+- **Melody Echo**: Ear-training game — hear a melody, repeat on a piano keyboard. 4 difficulty sections, 25 questions/section, 3 turns total (300 Qs), seeded-random order per student. Badge system: Bronze→Silver→Gold. Progress persists.
+- **Leaderboard**: School-wide and class-level ranking for students. Monthly scoring mode with reset + winner archive. Scoring: stars×10 + badges×50. Accessible by both students and teachers.
 
 ---
 

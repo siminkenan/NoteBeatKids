@@ -754,5 +754,79 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(prog);
   });
 
+  // ── Leaderboard ────────────────────────────────────────────────────────────
+
+  app.get("/api/leaderboard", async (req: Request, res: Response) => {
+    const type = (req.query.type as string) ?? "school";
+    const studentId = (req.session as any).studentId;
+    const teacherId = (req.session as any).teacherId;
+
+    try {
+      let institutionId: string | null = null;
+      let classId: string | undefined;
+      let currentStudentId: string | null = null;
+
+      if (studentId) {
+        currentStudentId = studentId;
+        institutionId = await storage.getInstitutionIdForStudent(studentId);
+        if (type === "class") {
+          classId = (await storage.getClassIdForStudent(studentId)) ?? undefined;
+        }
+      } else if (teacherId) {
+        const teacher = await storage.getTeacher(teacherId);
+        institutionId = teacher?.institutionId ?? null;
+        if (type === "class" && req.query.classId) {
+          classId = req.query.classId as string;
+        }
+      } else {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      if (!institutionId) return res.status(404).json({ message: "Institution not found" });
+
+      const entries = await storage.getLeaderboard(institutionId, type as any, classId);
+      res.json({ entries, currentStudentId });
+    } catch (e) {
+      console.error("Leaderboard error:", e);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.get("/api/leaderboard/winners", async (req: Request, res: Response) => {
+    const studentId = (req.session as any).studentId;
+    const teacherId = (req.session as any).teacherId;
+
+    try {
+      let institutionId: string | null = null;
+      if (studentId) {
+        institutionId = await storage.getInstitutionIdForStudent(studentId);
+      } else if (teacherId) {
+        const teacher = await storage.getTeacher(teacherId);
+        institutionId = teacher?.institutionId ?? null;
+      } else {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      if (!institutionId) return res.json([]);
+      const winners = await storage.getLastMonthWinners(institutionId);
+      res.json(winners);
+    } catch (e) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/teacher/leaderboard/reset", async (req: Request, res: Response) => {
+    const teacherId = (req.session as any).teacherId;
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const teacher = await storage.getTeacher(teacherId);
+      if (!teacher?.institutionId) return res.status(404).json({ message: "Institution not found" });
+      const result = await storage.performMonthlyReset(teacher.institutionId);
+      res.json(result);
+    } catch (e) {
+      console.error("Monthly reset error:", e);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   return httpServer;
 }

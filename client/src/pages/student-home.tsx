@@ -349,6 +349,30 @@ export default function StudentHome() {
             </div>
           </motion.button>
 
+          {/* 8. Liderlik Tablosu */}
+          <motion.button
+            data-testid="button-leaderboard"
+            className="w-full p-5 rounded-3xl shadow-lg cursor-pointer text-left flex items-center gap-4"
+            style={{
+              background: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
+              border: "3px solid rgba(255,255,255,0.5)",
+            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/leaderboard")}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-3xl">🏆</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-white">Liderlik Tablosu</h2>
+              <p className="text-white/85 font-semibold text-sm">Okul sıralamasında yerinizi görün!</p>
+            </div>
+          </motion.button>
+
         </div>
       </div>
     </div>

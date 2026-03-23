@@ -1,8 +1,10 @@
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { db } from "./db";
+import bcrypt from "bcryptjs";
 import {
   institutions, admins, teachers, classes, students, studentProgress, teacherCodes, studentCodes,
   orchestraSongs, orchestraProgress, maestroResources, maestroViewProgress,
+  monthlyStats, monthlyWinners,
   type Institution, type InsertInstitution,
   type Admin, type Teacher, type InsertTeacher,
   type Class, type InsertClass,
@@ -11,8 +13,32 @@ import {
   type TeacherCode, type StudentCode,
   type OrchestraSong, type OrchestraProgress,
   type MaestroResource, type MaestroViewProgress,
+  type MonthlyWinner,
 } from "@shared/schema";
-import bcrypt from "bcryptjs";
+
+export type LeaderboardEntry = {
+  rank: number;
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  classCode: string;
+  totalStars: number;
+  totalBadges: number;
+  totalScore: number;
+  monthlyStars: number;
+  monthlyBadges: number;
+  monthlyScore: number;
+};
+
+function getCurrentMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function getPreviousMonth(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 export interface IStorage {
   // Admin
@@ -113,6 +139,13 @@ export interface IStorage {
   upsertMaestroViewProgress(studentId: string, resourceId: string, watchedSeconds: number, completed: boolean): Promise<MaestroViewProgress>;
   getMaestroViewProgressByTeacher(teacherId: string): Promise<Array<{ resourceId: string; resourceTitle: string; studentId: string; studentName: string; watchedSeconds: number; completed: boolean; durationSeconds: number }>>;
   getMaestroViewProgressByStudent(studentId: string): Promise<MaestroViewProgress[]>;
+  // Leaderboard
+  getLeaderboard(institutionId: string, type: "class" | "school" | "monthly", classId?: string): Promise<LeaderboardEntry[]>;
+  getLastMonthWinners(institutionId: string): Promise<MonthlyWinner[]>;
+  incrementMonthlyStats(studentId: string, deltaStars: number, deltaBadges: number): Promise<void>;
+  performMonthlyReset(institutionId: string): Promise<{ month: string; winners: MonthlyWinner[] }>;
+  getInstitutionIdForStudent(studentId: string): Promise<string | null>;
+  getClassIdForStudent(studentId: string): Promise<string | null>;
   // Seed
   seedData(): Promise<void>;
 }
@@ -404,14 +437,22 @@ export class DatabaseStorage implements IStorage {
 
   async upsertProgress(studentId: string, appType: string, data: Partial<InsertProgress>): Promise<StudentProgress> {
     const existing = await this.getProgressByStudentAndType(studentId, appType);
+    const oldStars = existing?.starsEarned ?? 0;
+    const newStars = data.starsEarned ?? 0;
+    const deltaStars = Math.max(0, newStars - oldStars);
+    const oldHadBadge = !!existing?.notesBadge;
+    const newHasBadge = !!data.notesBadge;
+    const deltaBadges = (!oldHadBadge && newHasBadge) ? 1 : 0;
+
+    let result: StudentProgress;
     if (existing) {
       const updated = await db.update(studentProgress)
         .set({ ...data, updatedAt: new Date() })
         .where(eq(studentProgress.id, existing.id))
         .returning();
-      return updated[0];
+      result = updated[0];
     } else {
-      const result = await db.insert(studentProgress).values({
+      const inserted = await db.insert(studentProgress).values({
         studentId,
         appType,
         level: data.level ?? 1,
@@ -421,8 +462,11 @@ export class DatabaseStorage implements IStorage {
         timeSpentSeconds: data.timeSpentSeconds ?? 0,
         notesBadge: data.notesBadge ?? null,
       }).returning();
-      return result[0];
+      result = inserted[0];
     }
+
+    this.incrementMonthlyStats(studentId, deltaStars, deltaBadges).catch(() => {});
+    return result;
   }
 
   async getClassProgress(classId: string): Promise<Array<Student & { rhythmProgress?: StudentProgress; notesProgress?: StudentProgress; drumProgress?: StudentProgress; melodyProgress?: StudentProgress }>> {
@@ -561,6 +605,141 @@ export class DatabaseStorage implements IStorage {
       totalExercisesCompleted: Number(progressStats[0]?.totalCorrect ?? 0),
       totalTimeSpentSeconds: Number(progressStats[0]?.totalTime ?? 0),
     };
+  }
+
+  async getInstitutionIdForStudent(studentId: string): Promise<string | null> {
+    const result = await db
+      .select({ institutionId: teachers.institutionId })
+      .from(students)
+      .innerJoin(classes, eq(students.classId, classes.id))
+      .innerJoin(teachers, eq(classes.teacherId, teachers.id))
+      .where(eq(students.id, studentId))
+      .limit(1);
+    return result[0]?.institutionId ?? null;
+  }
+
+  async getClassIdForStudent(studentId: string): Promise<string | null> {
+    const result = await db.select({ classId: students.classId }).from(students).where(eq(students.id, studentId)).limit(1);
+    return result[0]?.classId ?? null;
+  }
+
+  async incrementMonthlyStats(studentId: string, deltaStars: number, deltaBadges: number): Promise<void> {
+    if (deltaStars === 0 && deltaBadges === 0) return;
+    const currentMonth = getCurrentMonth();
+    const existing = await db.select().from(monthlyStats).where(eq(monthlyStats.studentId, studentId)).limit(1);
+    if (existing.length === 0) {
+      await db.insert(monthlyStats).values({
+        studentId,
+        monthlyStars: deltaStars,
+        monthlyBadgesCount: deltaBadges,
+        lastResetMonth: currentMonth,
+      });
+    } else {
+      const row = existing[0];
+      const isSameMonth = row.lastResetMonth === currentMonth;
+      await db.update(monthlyStats).set({
+        monthlyStars: isSameMonth ? row.monthlyStars + deltaStars : deltaStars,
+        monthlyBadgesCount: isSameMonth ? row.monthlyBadgesCount + deltaBadges : deltaBadges,
+        lastResetMonth: currentMonth,
+        updatedAt: new Date(),
+      }).where(eq(monthlyStats.studentId, studentId));
+    }
+  }
+
+  async getLeaderboard(institutionId: string, type: "class" | "school" | "monthly", classId?: string): Promise<LeaderboardEntry[]> {
+    const currentMonth = getCurrentMonth();
+    const rows = await db.execute(sql`
+      SELECT
+        s.id AS student_id,
+        s.first_name,
+        s.last_name,
+        c.class_code,
+        COALESCE(SUM(sp.stars_earned), 0)::int AS total_stars,
+        COUNT(CASE WHEN sp.notes_badge IS NOT NULL THEN 1 END)::int AS total_badges,
+        COALESCE(ms.monthly_stars, 0)::int AS monthly_stars,
+        COALESCE(ms.monthly_badges_count, 0)::int AS monthly_badges,
+        ms.last_reset_month
+      FROM students s
+      JOIN classes c ON s.class_id = c.id
+      JOIN teachers t ON c.teacher_id = t.id
+      LEFT JOIN student_progress sp ON sp.student_id = s.id
+      LEFT JOIN monthly_stats ms ON ms.student_id = s.id
+      WHERE t.institution_id = ${institutionId}
+        ${classId ? sql`AND c.id = ${classId}` : sql``}
+      GROUP BY s.id, s.first_name, s.last_name, c.class_code, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
+    `);
+
+    const entries = (rows.rows as any[]).map(row => {
+      const totalStars = Number(row.total_stars);
+      const totalBadges = Number(row.total_badges);
+      const isSameMonth = row.last_reset_month === currentMonth;
+      const monthlyStars = isSameMonth ? Number(row.monthly_stars) : 0;
+      const monthlyBadges = isSameMonth ? Number(row.monthly_badges) : 0;
+      return {
+        rank: 0,
+        studentId: row.student_id as string,
+        firstName: row.first_name as string,
+        lastName: row.last_name as string,
+        classCode: row.class_code as string,
+        totalStars,
+        totalBadges,
+        totalScore: totalStars * 10 + totalBadges * 50,
+        monthlyStars,
+        monthlyBadges,
+        monthlyScore: monthlyStars * 10 + monthlyBadges * 50,
+      };
+    });
+
+    const sortKey = type === "monthly" ? "monthlyScore" : "totalScore";
+    entries.sort((a, b) => b[sortKey] - a[sortKey] || b.totalStars - a.totalStars);
+    entries.forEach((e, i) => { e.rank = i + 1; });
+    return entries;
+  }
+
+  async getLastMonthWinners(institutionId: string): Promise<MonthlyWinner[]> {
+    const prevMonth = getPreviousMonth();
+    return db.select().from(monthlyWinners)
+      .where(and(eq(monthlyWinners.institutionId, institutionId), eq(monthlyWinners.month, prevMonth)))
+      .orderBy(monthlyWinners.rank);
+  }
+
+  async performMonthlyReset(institutionId: string): Promise<{ month: string; winners: MonthlyWinner[] }> {
+    const currentMonth = getCurrentMonth();
+    const leaderboard = await this.getLeaderboard(institutionId, "monthly");
+    const top3 = leaderboard.filter(e => e.monthlyScore > 0).slice(0, 3);
+
+    const savedWinners: MonthlyWinner[] = [];
+    if (top3.length > 0) {
+      await db.delete(monthlyWinners).where(
+        and(eq(monthlyWinners.institutionId, institutionId), eq(monthlyWinners.month, currentMonth))
+      );
+      for (let i = 0; i < top3.length; i++) {
+        const e = top3[i];
+        const [w] = await db.insert(monthlyWinners).values({
+          institutionId,
+          month: currentMonth,
+          studentId: e.studentId,
+          firstName: e.firstName,
+          lastName: e.lastName,
+          classCode: e.classCode,
+          score: e.monthlyScore,
+          rank: i + 1,
+        }).returning();
+        savedWinners.push(w);
+      }
+    }
+
+    const allStudentIds = leaderboard.map(e => e.studentId);
+    if (allStudentIds.length > 0) {
+      await db.update(monthlyStats).set({
+        monthlyStars: 0,
+        monthlyBadgesCount: 0,
+        lastResetMonth: "",
+        updatedAt: new Date(),
+      }).where(inArray(monthlyStats.studentId, allStudentIds));
+    }
+
+    return { month: currentMonth, winners: savedWinners };
   }
 
   async seedData(): Promise<void> {
