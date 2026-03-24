@@ -1,0 +1,137 @@
+I want to FIX and IMPROVE my existing system in NoteBeat Kids.
+
+IMPORTANT:
+- I already have a working leaderboard UI (mobile/iPhone compatible)
+- DO NOT rebuild from scratch
+- ONLY fix logic and extend features cleanly
+
+-----------------------------------
+CRITICAL RULE: ONE CODE = ONE STUDENT
+-----------------------------------
+
+- Each student has a unique studentCode
+- One studentCode = ONLY ONE student record
+- NEVER allow duplicates
+
+DATABASE UPDATE:
+- Add UNIQUE constraint to studentCode
+
+If using SQL:
+ALTER TABLE students ADD CONSTRAINT unique_student_code UNIQUE (studentCode);
+
+-----------------------------------
+LOGIN / STUDENT FLOW (VERY IMPORTANT)
+-----------------------------------
+
+When a student enters a studentCode:
+
+1. Check if studentCode exists
+   → IF EXISTS:
+       - DO NOT create new student
+       - Use existing student
+   → IF NOT EXISTS:
+       - Create ONE new student
+
+2. NEVER allow:
+   - duplicate insert
+   - empty student records
+
+3. If duplicate attempt happens:
+   - prevent it silently OR return safe error
+
+-----------------------------------
+FIX EXISTING DATA (CLEANUP)
+-----------------------------------
+
+- Find duplicate studentCode records
+- Keep ONLY ONE:
+   → highest totalStars
+- Merge totalBadges if needed
+- Delete others
+- Remove empty records
+
+-----------------------------------
+EXTEND CURRENT LEADERBOARD (DO NOT REBUILD UI)
+-----------------------------------
+
+Use existing leaderboard component and MODIFY it:
+
+ADD:
+- totalStars (already exists)
+- totalBadges (NEW)
+
+LOGIC:
+- Show TOTAL data from institution start date → now
+- NO monthly reset
+- NO duplicate students
+
+SORT:
+1. totalStars DESC
+2. totalBadges DESC
+
+DISPLAY (in current leaderboard UI):
+- student name
+- class name
+- school name
+- ⭐ totalStars
+- 🏅 totalBadges
+
+-----------------------------------
+TEACHER PANEL FIX
+-----------------------------------
+
+- Each student appears ONLY ONCE
+- Remove duplicate rows
+- Remove empty entries
+
+SHOW:
+- totalStars
+- totalBadges
+
+-----------------------------------
+BADGE SYSTEM
+-----------------------------------
+
+- When student earns badge:
+   → increase totalBadges
+
+OPTIONAL:
+- store badge history table
+
+-----------------------------------
+MOBILE / IPHONE COMPATIBILITY
+-----------------------------------
+
+- DO NOT break current UI
+- Keep responsive design
+- Ensure leaderboard:
+   - fits small screens
+   - icons (star + badge) are visible and aligned
+   - no overflow issues
+
+-----------------------------------
+DATA CONSISTENCY
+-----------------------------------
+
+- Always update SAME student record
+- No parallel records
+- Prevent race conditions
+
+-----------------------------------
+EXPECTED RESULT
+-----------------------------------
+
+- One student = one code = one record
+- No duplicates anywhere
+- Leaderboard shows correct ranking
+- Stars + badges visible
+- Teacher panel clean
+- Fully stable system
+
+-----------------------------------
+IMPORTANT
+-----------------------------------
+
+- Do NOT rewrite entire project
+- Only fix + extend existing system
+- Write clean, production-ready code

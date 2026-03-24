@@ -22,6 +22,7 @@ export type LeaderboardEntry = {
   firstName: string;
   lastName: string;
   classCode: string;
+  institutionName: string;
   totalStars: number;
   totalBadges: number;
   totalScore: number;
@@ -671,6 +672,7 @@ export class DatabaseStorage implements IStorage {
         s.first_name,
         s.last_name,
         c.class_code,
+        i.name AS institution_name,
         COALESCE(SUM(sp.stars_earned), 0)::int AS total_stars,
         COUNT(CASE WHEN sp.notes_badge IS NOT NULL THEN 1 END)::int AS total_badges,
         COALESCE(ms.monthly_stars, 0)::int AS monthly_stars,
@@ -679,11 +681,16 @@ export class DatabaseStorage implements IStorage {
       FROM students s
       JOIN classes c ON s.class_id = c.id
       JOIN teachers t ON c.teacher_id = t.id
+      JOIN institutions i ON t.institution_id = i.id
       LEFT JOIN student_progress sp ON sp.student_id = s.id
       LEFT JOIN monthly_stats ms ON ms.student_id = s.id
       WHERE t.institution_id = ${institutionId}
         ${classId ? sql`AND c.id = ${classId}` : sql``}
-      GROUP BY s.id, s.first_name, s.last_name, c.class_code, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
+        AND (
+          EXISTS (SELECT 1 FROM student_codes sc WHERE sc.student_id = s.id)
+          OR EXISTS (SELECT 1 FROM student_progress sp2 WHERE sp2.student_id = s.id AND sp2.stars_earned > 0)
+        )
+      GROUP BY s.id, s.first_name, s.last_name, c.class_code, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
     `);
 
     const entries = (rows.rows as any[]).map(row => {
@@ -698,6 +705,7 @@ export class DatabaseStorage implements IStorage {
         firstName: row.first_name as string,
         lastName: row.last_name as string,
         classCode: row.class_code as string,
+        institutionName: row.institution_name as string,
         totalStars,
         totalBadges,
         totalScore: totalStars * 10 + totalBadges * 50,
@@ -707,8 +715,12 @@ export class DatabaseStorage implements IStorage {
       };
     });
 
-    const sortKey = type === "monthly" ? "monthlyStars" : "totalStars";
-    entries.sort((a, b) => b[sortKey] - a[sortKey]);
+    // Sort: primary = stars DESC, secondary = badges DESC (tiebreaker)
+    if (type === "monthly") {
+      entries.sort((a, b) => b.monthlyStars !== a.monthlyStars ? b.monthlyStars - a.monthlyStars : b.monthlyBadges - a.monthlyBadges);
+    } else {
+      entries.sort((a, b) => b.totalStars !== a.totalStars ? b.totalStars - a.totalStars : b.totalBadges - a.totalBadges);
+    }
     entries.forEach((e, i) => { e.rank = i + 1; });
     return entries;
   }

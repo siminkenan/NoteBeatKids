@@ -11,6 +11,7 @@ type LeaderboardEntry = {
   firstName: string;
   lastName: string;
   classCode: string;
+  institutionName: string;
   totalStars: number;
   totalBadges: number;
   monthlyStars: number;
@@ -48,8 +49,8 @@ const TABS = [
 ];
 
 const TAB_DESC: Record<string, string> = {
-  school:  "Okuldaki tüm öğrenciler • Toplam ⭐",
-  class:   "Sınıfındaki öğrenciler • Toplam ⭐",
+  school:  "Okuldaki tüm öğrenciler • Toplam ⭐ + 🏅",
+  class:   "Sınıfındaki öğrenciler • Toplam ⭐ + 🏅",
   monthly: "Bu ay kazanılan ⭐ sıralaması",
 };
 
@@ -96,6 +97,7 @@ export default function Leaderboard() {
   const entries = data?.entries ?? [];
   const currentStudentId = data?.currentStudentId ?? student?.student?.id ?? null;
   const starsKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyStars" : "totalStars";
+  const badgesKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyBadges" : "totalBadges";
 
   const myEntry = entries.find(e => e.studentId === currentStudentId);
 
@@ -129,13 +131,15 @@ export default function Leaderboard() {
             className="mb-4 rounded-2xl px-4 py-3 border border-purple-400/50 bg-gradient-to-r from-purple-600/25 to-indigo-600/15 flex items-center gap-3"
           >
             <span className="text-2xl">{myEntry.rank <= 3 ? MEDAL[myEntry.rank - 1] : `#${myEntry.rank}`}</span>
-            <div className="flex-1">
-              <p className="text-white font-extrabold text-sm">{myEntry.firstName} {myEntry.lastName} <span className="text-purple-300">(Sen)</span></p>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-extrabold text-sm truncate">{myEntry.firstName} {myEntry.lastName} <span className="text-purple-300">(Sen)</span></p>
               <p className="text-xs text-gray-400">{myEntry.classCode}</p>
             </div>
-            <div className="text-right">
-              <p className="text-yellow-300 font-extrabold text-lg">⭐ {(myEntry as any)[starsKey]}</p>
-              <p className="text-xs text-gray-400">yıldız</p>
+            <div className="text-right flex-shrink-0">
+              <p className="text-yellow-300 font-extrabold text-lg leading-tight">⭐ {(myEntry as any)[starsKey]}</p>
+              {(myEntry as any)[badgesKey] > 0 && (
+                <p className="text-amber-400 font-bold text-sm leading-tight">🏅 {(myEntry as any)[badgesKey]}</p>
+              )}
             </div>
           </motion.div>
         )}
@@ -234,11 +238,18 @@ export default function Leaderboard() {
                     <p className="text-xs text-gray-500">{entry.classCode}</p>
                   </div>
 
-                  {/* Stars */}
-                  <div className={`flex items-center gap-1 font-extrabold text-base flex-shrink-0 ${
-                    isTop3 ? "text-yellow-300" : isMe ? "text-purple-200" : "text-gray-300"
-                  }`}>
-                    ⭐ <span>{stars}</span>
+                  {/* Stars + Badges */}
+                  <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                    <div className={`flex items-center gap-1 font-extrabold text-base leading-tight ${
+                      isTop3 ? "text-yellow-300" : isMe ? "text-purple-200" : "text-gray-300"
+                    }`}>
+                      ⭐ <span>{stars}</span>
+                    </div>
+                    {(entry as any)[badgesKey] > 0 && (
+                      <div className="flex items-center gap-1 font-bold text-xs text-amber-400 leading-tight">
+                        🏅 <span>{(entry as any)[badgesKey]}</span>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
