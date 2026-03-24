@@ -386,6 +386,7 @@ export class DatabaseStorage implements IStorage {
       await db.delete(maestroViewProgress).where(inArray(maestroViewProgress.studentId, studentIds));
       await db.delete(studentProgress).where(inArray(studentProgress.studentId, studentIds));
       await db.delete(orchestraProgress).where(inArray(orchestraProgress.studentId, studentIds));
+      await db.delete(monthlyStats).where(inArray(monthlyStats.studentId, studentIds));
     }
 
     // 3. Nullify studentId refs in student_codes (FK: student_codes.studentId → students.id)
@@ -528,7 +529,9 @@ export class DatabaseStorage implements IStorage {
     }
     // 5. Delete teacher invite codes
     await db.delete(teacherCodes).where(eq(teacherCodes.institutionId, institutionId));
-    // 6. Delete teachers, then institution
+    // 6. Delete monthly winners for this institution (FK: monthly_winners.institution_id → institutions.id)
+    await db.delete(monthlyWinners).where(eq(monthlyWinners.institutionId, institutionId));
+    // 7. Delete teachers, then institution
     await db.delete(teachers).where(eq(teachers.institutionId, institutionId));
     await db.delete(institutions).where(eq(institutions.id, institutionId));
   }
