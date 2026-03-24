@@ -55,13 +55,14 @@ const TAB_DESC: Record<string, string> = {
 
 export default function Leaderboard() {
   const [, navigate] = useLocation();
-  const { student, teacher } = useAuth();
+  const { student, teacher, studentLoading } = useAuth();
   const [tab, setTab] = useState<"school" | "class" | "monthly">("school");
 
   const apiBase = import.meta.env.VITE_API_URL || "";
 
   // Pass studentId as query param so localStorage-based sessions work even without a server session cookie
   const sid = student?.student?.id ?? null;
+  const isReady = !studentLoading && !!(student || teacher);
 
   const { data, isLoading } = useQuery<{ entries: LeaderboardEntry[]; currentStudentId: string | null }>({
     queryKey: ["/api/leaderboard", tab, sid],
@@ -72,9 +73,9 @@ export default function Leaderboard() {
       if (!res.ok) throw new Error("Yüklenemedi");
       return res.json();
     },
-    enabled: !!(student || teacher),
+    enabled: isReady,
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: "always",
     refetchInterval: 15000,
   });
 
@@ -87,9 +88,9 @@ export default function Leaderboard() {
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: !!(student || teacher),
+    enabled: isReady,
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: "always",
   });
 
   const entries = data?.entries ?? [];
@@ -100,7 +101,7 @@ export default function Leaderboard() {
 
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" }}>
-      <div className="max-w-lg mx-auto px-4 py-6 pb-12">
+      <div className="max-w-lg md:max-w-2xl mx-auto px-4 py-6 pb-12">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">

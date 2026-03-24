@@ -244,7 +244,7 @@ export default function TeacherOrchestra() {
     <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)" }}>
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10 max-w-4xl mx-auto">
         <button onClick={() => navigate("/teacher/dashboard")} className="text-white/60 hover:text-white cursor-pointer">
           <ArrowLeft size={22} />
         </button>
@@ -255,7 +255,7 @@ export default function TeacherOrchestra() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 px-6 pt-5">
+      <div className="flex gap-2 px-6 pt-5 max-w-4xl mx-auto">
         {([
           { key: "videos",  icon: <Video size={15} />,     label: "Videolar" },
           { key: "photos",  icon: <Image size={15} />,     label: "Fotoğraflar" },
@@ -273,7 +273,7 @@ export default function TeacherOrchestra() {
         ))}
       </div>
 
-      <div className="px-6 py-5 max-w-4xl">
+      <div className="px-6 py-5 max-w-4xl mx-auto">
 
         {/* ── Videos tab ──────────────────────────────────────────────────── */}
         {tab === "videos" && (

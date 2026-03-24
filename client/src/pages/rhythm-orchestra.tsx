@@ -122,7 +122,7 @@ export default function RhythmOrchestra() {
       style={{ background: "linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)" }}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10 max-w-4xl mx-auto w-full">
         <button
           onClick={() => navigate("/student/home")}
           className="text-white/60 hover:text-white cursor-pointer"
@@ -139,7 +139,7 @@ export default function RhythmOrchestra() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 px-5 pt-5">
+      <div className="flex gap-2 px-5 pt-5 max-w-4xl mx-auto">
         <button
           onClick={() => setTab("videos")}
           data-testid="tab-videos"
@@ -171,7 +171,7 @@ export default function RhythmOrchestra() {
       </div>
 
       {/* Content */}
-      <div className="px-5 py-5 max-w-2xl">
+      <div className="px-5 py-5 max-w-2xl md:max-w-4xl mx-auto">
 
         {/* ── Videos ─────────────────────────────────────────────────────── */}
         {tab === "videos" && (
@@ -181,7 +181,7 @@ export default function RhythmOrchestra() {
               <p className="font-semibold">Öğretmeniniz henüz video eklememiş.</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {videos.map(v => {
                 const prog = getProgress(v.id);
                 const pct =
@@ -247,7 +247,7 @@ export default function RhythmOrchestra() {
               <p className="font-semibold">Öğretmeniniz henüz fotoğraf eklememiş.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {photos.map(p => (
                 <div
                   key={p.id}
@@ -256,7 +256,7 @@ export default function RhythmOrchestra() {
                   data-testid={`card-photo-${p.id}`}
                 >
                   <img
-                    src={`/api/maestro/file/${p.storedFilename}`}
+                    src={`${(import.meta.env.VITE_API_URL || "")}/api/maestro/file/${p.storedFilename}`}
                     alt={p.title}
                     className="w-full h-full object-cover"
                     data-testid={`img-photo-${p.id}`}
@@ -305,7 +305,7 @@ export default function RhythmOrchestra() {
 
               <video
                 ref={videoRef}
-                src={`/api/maestro/file/${activeVideo.storedFilename}`}
+                src={`${(import.meta.env.VITE_API_URL || "")}/api/maestro/file/${activeVideo.storedFilename}`}
                 controls
                 autoPlay
                 className="w-full rounded-2xl bg-black max-h-[65vh]"
@@ -353,7 +353,7 @@ export default function RhythmOrchestra() {
               </div>
 
               <img
-                src={`/api/maestro/file/${activePhoto.storedFilename}`}
+                src={`${(import.meta.env.VITE_API_URL || "")}/api/maestro/file/${activePhoto.storedFilename}`}
                 alt={activePhoto.title}
                 className="w-full rounded-2xl max-h-[70vh] object-contain"
               />

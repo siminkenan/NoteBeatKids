@@ -61,7 +61,7 @@ export default function StudentHome() {
         ))}
       </div>
 
-      <div className="relative z-10 max-w-lg mx-auto px-4 py-6 flex flex-col min-h-screen">
+      <div className="relative z-10 max-w-lg md:max-w-5xl mx-auto px-4 py-6 flex flex-col min-h-screen">
         {/* Üst bar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -146,7 +146,7 @@ export default function StudentHome() {
         )}
 
         {/* Oyun butonları — sıra: Metronom, Nota Dedektifi, Ritmi Yakala, Melodi Taklit, Davul Seti, İlerleme Haritam, Maestro */}
-        <div className="flex flex-col gap-5 flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 items-start">
 
           {/* 1. Metronom */}
           <motion.button
