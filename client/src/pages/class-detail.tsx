@@ -104,7 +104,7 @@ function buildShareText(
 export default function ClassDetail() {
   const [, navigate] = useLocation();
   const [, params] = useRoute("/teacher/class/:classId");
-  const { teacher, setTeacher } = useAuth();
+  const { teacher, setTeacher, authLoading } = useAuth();
   const { toast } = useToast();
   const classId = params?.classId;
   const [showCodes, setShowCodes] = useState(false);
@@ -113,12 +113,13 @@ export default function ClassDetail() {
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!teacher) {
       fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, { credentials: "include" })
         .then(r => r.ok ? r.json() : null)
         .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
     }
-  }, []);
+  }, [authLoading]);
 
   const { data, isLoading } = useQuery<ClassDetailData>({
     queryKey: ["/api/teacher/classes", classId, "students"],

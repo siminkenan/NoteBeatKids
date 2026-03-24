@@ -115,7 +115,7 @@ function formatTime(seconds: number) {
 
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
-  const { admin, setAdmin, logoutAdmin } = useAuth();
+  const { admin, setAdmin, logoutAdmin, authLoading } = useAuth();
   const { toast } = useToast();
   const [instDialogOpen, setInstDialogOpen] = useState(false);
   const [teacherDialogOpen, setTeacherDialogOpen] = useState(false);
@@ -126,12 +126,13 @@ export default function AdminDashboard() {
   const [editingInst, setEditingInst] = useState<InstWithExpiry | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!admin) {
       fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/admin/me`, { credentials: "include" })
         .then(r => r.ok ? r.json() : null)
         .then(a => { if (a) setAdmin(a); else navigate("/admin/login"); });
     }
-  }, []);
+  }, [authLoading]);
 
   const { data: stats } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -34,10 +34,19 @@ function authFetch(url: string, options: RequestInit = {}) {
 }
 
 export default function TeacherOrchestra() {
-  const { teacher } = useAuth();
+  const { teacher, setTeacher, authLoading } = useAuth();
   const [, navigate] = useLocation();
   const qc = useQueryClient();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!teacher) {
+      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, { credentials: "include" })
+        .then(r => r.ok ? r.json() : null)
+        .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
+    }
+  }, [authLoading]);
 
   const [tab, setTab] = useState<"videos" | "photos" | "report">("videos");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);

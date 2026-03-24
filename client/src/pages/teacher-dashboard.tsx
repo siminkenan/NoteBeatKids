@@ -29,18 +29,20 @@ type ClassForm = z.infer<typeof classSchema>;
 
 export default function TeacherDashboard() {
   const [, navigate] = useLocation();
-  const { teacher, setTeacher, logoutTeacher } = useAuth();
+  const { teacher, setTeacher, logoutTeacher, authLoading } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [qrClass, setQrClass] = useState<Class | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!teacher) {
+      // Fallback: try server session in case auth context didn't catch it
       fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, { credentials: "include" })
         .then(r => r.ok ? r.json() : null)
         .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
     }
-  }, []);
+  }, [authLoading]);
 
   const { data: classes, isLoading } = useQuery<Class[]>({
     queryKey: ["/api/teacher/classes"],
