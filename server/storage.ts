@@ -1,4 +1,4 @@
-import { eq, and, sql, desc, inArray } from "drizzle-orm";
+import { eq, and, sql, desc, inArray, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
 import {
@@ -476,9 +476,24 @@ export class DatabaseStorage implements IStorage {
 
   async getClassProgress(classId: string): Promise<Array<Student & { rhythmProgress?: StudentProgress; notesProgress?: StudentProgress; drumProgress?: StudentProgress; melodyProgress?: StudentProgress }>> {
     const studentList = await this.getStudentsByClass(classId);
+
+    // Build set of studentIds that have an active code assignment
+    const codeRows = await db
+      .select({ studentId: studentCodes.studentId })
+      .from(studentCodes)
+      .where(and(eq(studentCodes.classId, classId), isNotNull(studentCodes.studentId)));
+    const codedStudentIds = new Set(codeRows.map(r => r.studentId as string));
+
     const result = [];
     for (const student of studentList) {
       const progress = await this.getProgressByStudent(student.id);
+      const hasProgress = progress.length > 0;
+      const hasCode = codedStudentIds.has(student.id);
+
+      // Only include students that either have a code assigned or have played at least once.
+      // This filters out orphaned duplicate records created by the old multi-login bug.
+      if (!hasCode && !hasProgress) continue;
+
       const rhythmProgress = progress.find(p => p.appType === 'rhythm');
       const notesProgress = progress.find(p => p.appType === 'notes');
       const drumProgress = progress.find(p => p.appType === 'drum_kit');

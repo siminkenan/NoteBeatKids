@@ -180,43 +180,75 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/auth/student/login", async (req: Request, res: Response) => {
     try {
       const { firstName, lastName, classCode, studentCode } = req.body;
-
-      let cls: Awaited<ReturnType<typeof storage.getClassByCode>> | undefined;
-
-      let resolvedStudentCode: string | null = null;
+      const normalize = (s: string) => (s ?? "").trim().toLowerCase();
 
       if (studentCode) {
-        // Individual student code flow
+        // ── Individual student code flow ──────────────────────────────────
         const codeRecord = await storage.findStudentCodeByValue(studentCode.trim().toUpperCase());
         if (!codeRecord) return res.status(404).json({ message: "Geçersiz öğrenci kodu. Öğretmeninizden aldığınız kodu kontrol edin." });
-        cls = await storage.getClass(codeRecord.classId);
-        resolvedStudentCode = codeRecord.code;
-      } else {
-        // Legacy class code flow
-        cls = await storage.getClassByCode(classCode);
-      }
 
-      if (!cls) return res.status(404).json({ message: "Sınıf bulunamadı. Kodu kontrol edin." });
-      if (cls.expiresAt && new Date(cls.expiresAt) < new Date()) {
-        return res.status(403).json({ message: "Bu sınıfın süresi dolmuş." });
-      }
-      let student = await storage.findStudent(cls.id, firstName, lastName);
-      if (!student) {
-        const studentCount = (await storage.getStudentsByClass(cls.id)).length;
-        if (studentCount >= cls.maxStudents) {
-          return res.status(403).json({ message: "Sınıf kapasitesi dolu." });
+        const cls = await storage.getClass(codeRecord.classId);
+        if (!cls) return res.status(404).json({ message: "Sınıf bulunamadı." });
+        if (cls.expiresAt && new Date(cls.expiresAt) < new Date()) {
+          return res.status(403).json({ message: "Bu sınıfın süresi dolmuş." });
         }
-        student = await storage.createStudent({ classId: cls.id, firstName, lastName });
+
+        let student: Awaited<ReturnType<typeof storage.getStudent>>;
+
+        if (codeRecord.studentId) {
+          // Code already assigned to a student → must be a re-login, never create new
+          student = await storage.getStudent(codeRecord.studentId);
+          if (!student) return res.status(404).json({ message: "Öğrenci kaydı bulunamadı. Öğretmeninizle iletişime geçin." });
+
+          // Verify the name matches (case-insensitive, trimmed)
+          if (normalize(student.firstName) !== normalize(firstName) || normalize(student.lastName) !== normalize(lastName)) {
+            return res.status(403).json({
+              message: `Bu kod "${student.firstName} ${student.lastName}" adına kayıtlıdır. Lütfen kayıt sırasında kullandığınız adı girin.`,
+            });
+          }
+        } else {
+          // Code not yet claimed → first-time use
+          // Check if a student with this exact name already exists in the class (edge case: prev class-code login)
+          let existing = await storage.findStudent(cls.id, firstName, lastName);
+          if (!existing) {
+            const studentCount = (await storage.getStudentsByClass(cls.id)).length;
+            if (studentCount >= cls.maxStudents) {
+              return res.status(403).json({ message: "Sınıf kapasitesi dolu." });
+            }
+            existing = await storage.createStudent({ classId: cls.id, firstName, lastName });
+          }
+          // Lock the code exclusively to this student (one-time assignment)
+          await storage.linkStudentToStudentCode(codeRecord.code, existing.id);
+          student = existing;
+        }
+
+        (req.session as any).studentId = student!.id;
+        req.session.save(() => {
+          res.json({ student, class: { id: cls!.id, name: cls!.name, classCode: cls!.classCode } });
+        });
+
+      } else {
+        // ── Legacy class code flow ────────────────────────────────────────
+        const cls = await storage.getClassByCode(classCode);
+        if (!cls) return res.status(404).json({ message: "Sınıf bulunamadı. Kodu kontrol edin." });
+        if (cls.expiresAt && new Date(cls.expiresAt) < new Date()) {
+          return res.status(403).json({ message: "Bu sınıfın süresi dolmuş." });
+        }
+        let student = await storage.findStudent(cls.id, firstName, lastName);
+        if (!student) {
+          const studentCount = (await storage.getStudentsByClass(cls.id)).length;
+          if (studentCount >= cls.maxStudents) {
+            return res.status(403).json({ message: "Sınıf kapasitesi dolu." });
+          }
+          student = await storage.createStudent({ classId: cls.id, firstName, lastName });
+        }
+        (req.session as any).studentId = student.id;
+        req.session.save(() => {
+          res.json({ student, class: { id: cls.id, name: cls.name, classCode: cls.classCode } });
+        });
       }
-      // Link individual code to student (idempotent)
-      if (resolvedStudentCode) {
-        await storage.linkStudentToStudentCode(resolvedStudentCode, student.id);
-      }
-      (req.session as any).studentId = student.id;
-      req.session.save(() => {
-        res.json({ student, class: { id: cls.id, name: cls.name, classCode: cls.classCode } });
-      });
     } catch (e) {
+      console.error("Student login error:", e);
       res.status(500).json({ message: "Server error" });
     }
   });
