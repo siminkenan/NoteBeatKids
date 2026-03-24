@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -71,7 +71,7 @@ function buildShareText(
   dAcc: number,
   mAcc: number,
 ) {
-  const totalStars = (student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0) + (student.melodyProgress?.starsEarned ?? 0);
+  const totalStars = (student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0) + (student.drumProgress?.starsEarned ?? 0) + (student.melodyProgress?.starsEarned ?? 0);
   const totalTime = formatTime(
     (student.rhythmProgress?.timeSpentSeconds ?? 0) +
     (student.notesProgress?.timeSpentSeconds ?? 0) +
@@ -177,6 +177,22 @@ export default function ClassDetail() {
       .map(c => [c.studentId!, c])
   );
 
+  // Compute total stars (all 4 games) and class rank per student
+  const studentStatsMap = useMemo(() => {
+    const students = data?.students ?? [];
+    const withStars = students.map(s => ({
+      id: s.id,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      totalStars: (s.rhythmProgress?.starsEarned ?? 0) + (s.notesProgress?.starsEarned ?? 0) + (s.drumProgress?.starsEarned ?? 0) + (s.melodyProgress?.starsEarned ?? 0),
+      student: s,
+    }));
+    const sorted = [...withStars].sort((a, b) => b.totalStars - a.totalStars);
+    const map = new Map<string, { totalStars: number; classRank: number; firstName: string; lastName: string; student: typeof withStars[0]["student"] }>();
+    sorted.forEach((s, i) => map.set(s.id, { totalStars: s.totalStars, classRank: i + 1, firstName: s.firstName, lastName: s.lastName, student: s.student }));
+    return map;
+  }, [data]);
+
   const searchTrimmed = codeSearch.trim().toUpperCase();
   const matchedStudentId = searchTrimmed.length === 8
     ? (codesData?.codes.find(c => c.code === searchTrimmed)?.studentId ?? null)
@@ -228,7 +244,7 @@ export default function ClassDetail() {
                 { label: "Ort. Nota %", value: `${Math.round(chartData.reduce((a, c) => a + c.notesAccuracy, 0) / (chartData.length || 1))}%`, color: "text-purple-500", bg: "bg-purple-50", icon: "🔍" },
                 { label: "Top. Davul Süresi", value: formatTime(data?.students.reduce((a, s) => a + (s.drumProgress?.timeSpentSeconds ?? 0), 0) ?? 0), color: "text-amber-500", bg: "bg-amber-50", icon: "🥁" },
                 { label: "Ort. Melodi %", value: `${Math.round(chartData.filter(c => c.melodyAccuracy > 0).reduce((a, c) => a + c.melodyAccuracy, 0) / (chartData.filter(c => c.melodyAccuracy > 0).length || 1))}%`, color: "text-pink-500", bg: "bg-pink-50", icon: "🎹" },
-                { label: "Toplam Yıldız", value: data?.students.reduce((a, s) => a + (s.rhythmProgress?.starsEarned ?? 0) + (s.notesProgress?.starsEarned ?? 0) + (s.melodyProgress?.starsEarned ?? 0), 0) ?? 0, color: "text-yellow-500", bg: "bg-yellow-50", icon: "⭐" },
+                { label: "Toplam Yıldız", value: data?.students.reduce((a, s) => a + (s.rhythmProgress?.starsEarned ?? 0) + (s.notesProgress?.starsEarned ?? 0) + (s.drumProgress?.starsEarned ?? 0) + (s.melodyProgress?.starsEarned ?? 0), 0) ?? 0, color: "text-yellow-500", bg: "bg-yellow-50", icon: "⭐" },
               ].map((stat, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
                   <Card className="rounded-2xl">
@@ -285,7 +301,11 @@ export default function ClassDetail() {
                         data-testid="button-copy-all-codes"
                         onClick={async () => {
                           const text = codesData.codes
-                            .map(c => `Öğrenci ${c.slotNumber}: ${c.code}`)
+                            .map(c => {
+                              const stats = c.studentId ? studentStatsMap.get(c.studentId) : null;
+                              const nameStr = stats ? ` — ${stats.firstName} ${stats.lastName} (⭐${stats.totalStars}, #${stats.classRank})` : " — Kullanılmamış";
+                              return `Öğrenci ${c.slotNumber}: ${c.code}${nameStr}`;
+                            })
                             .join("\n");
                           const header = `🎵 NoteBeat Kids — ${codesData.class.name}\nSınıf Kodu: ${codesData.class.classCode}\n\n${text}`;
                           await copyText(header);
@@ -323,6 +343,10 @@ export default function ClassDetail() {
                           `Giriş ekranında adınızı ve bu kodu girin.`,
                         ].join("\n");
 
+                        const studentStats = c.studentId ? studentStatsMap.get(c.studentId) : null;
+                        const isCopied = copiedSlot === c.slotNumber;
+                        const isAssigned = !!studentStats;
+
                         const handleCopyCode = async () => {
                           await copyText(c.code);
                           setCopiedSlot(c.slotNumber);
@@ -332,16 +356,26 @@ export default function ClassDetail() {
                         };
 
                         const handleShareCode = async () => {
-                          const result = await shareOrCopy(
-                            "NoteBeat Kids — Öğrenci Davet Kodu",
-                            shareText
-                          );
-                          if (result === "copied") {
-                            toast({ title: "Davet mesajı kopyalandı!", description: `${c.code} — panoya kopyalandı.` });
+                          if (isAssigned && studentStats) {
+                            // Share student's performance report
+                            const s = studentStats.student;
+                            const rAcc = accuracy(s.rhythmProgress?.correctAnswers ?? 0, s.rhythmProgress?.wrongAnswers ?? 0);
+                            const nAcc = accuracy(s.notesProgress?.correctAnswers ?? 0, s.notesProgress?.wrongAnswers ?? 0);
+                            const dAcc = accuracy(s.drumProgress?.correctAnswers ?? 0, s.drumProgress?.wrongAnswers ?? 0);
+                            const mAcc = accuracy(s.melodyProgress?.correctAnswers ?? 0, s.melodyProgress?.wrongAnswers ?? 0);
+                            const reportText = buildShareText(s, codesData!.class.name, rAcc, nAcc, dAcc, mAcc);
+                            const result = await shareOrCopy(`NoteBeat Kids — ${studentStats.firstName} ${studentStats.lastName}`, reportText);
+                            if (result === "copied") {
+                              toast({ title: "Rapor kopyalandı!", description: `${studentStats.firstName} ${studentStats.lastName} performans özeti kopyalandı.` });
+                            }
+                          } else {
+                            // Share invite code
+                            const result = await shareOrCopy("NoteBeat Kids — Öğrenci Davet Kodu", shareText);
+                            if (result === "copied") {
+                              toast({ title: "Davet mesajı kopyalandı!", description: `${c.code} — panoya kopyalandı.` });
+                            }
                           }
                         };
-
-                        const isCopied = copiedSlot === c.slotNumber;
 
                         return (
                           <motion.div
@@ -349,13 +383,32 @@ export default function ClassDetail() {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: (c.slotNumber - 1) * 0.015 }}
-                            className="bg-indigo-50 border border-indigo-100 rounded-xl p-2.5 flex flex-col items-center gap-1.5"
+                            className={`border rounded-xl p-2.5 flex flex-col gap-1.5 ${isAssigned ? "bg-white border-indigo-200 shadow-sm" : "bg-indigo-50 border-indigo-100"}`}
                             data-testid={`card-student-code-${c.slotNumber}`}
                           >
-                            <span className="text-[10px] font-bold text-indigo-400">#{c.slotNumber}</span>
-                            <span className="font-mono font-extrabold text-indigo-700 text-sm tracking-widest">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-indigo-400">#{c.slotNumber}</span>
+                              {isAssigned && (
+                                <span className="text-[10px] font-extrabold bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                  ⭐{studentStats.totalStars}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-mono font-extrabold text-indigo-700 text-xs tracking-widest text-center">
                               {c.code}
                             </span>
+                            {isAssigned ? (
+                              <div className="text-center">
+                                <p className="text-[10px] font-extrabold text-gray-700 leading-tight truncate">
+                                  {studentStats.firstName} {studentStats.lastName}
+                                </p>
+                                <p className="text-[9px] font-bold text-indigo-400">
+                                  Sınıf #{studentStats.classRank}. sıra
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-[9px] text-center text-muted-foreground font-semibold">Henüz kullanılmamış</p>
+                            )}
                             <div className="flex gap-1 w-full">
                               <Button
                                 variant="ghost"
@@ -370,10 +423,10 @@ export default function ClassDetail() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 flex-1 rounded-lg text-indigo-500 hover:bg-indigo-100 hover:text-indigo-700 text-xs font-bold gap-0.5"
+                                className={`h-7 flex-1 rounded-lg text-xs font-bold gap-0.5 ${isAssigned ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" : "text-indigo-500 hover:bg-indigo-100 hover:text-indigo-700"}`}
                                 onClick={handleShareCode}
                                 data-testid={`button-share-code-${c.slotNumber}`}
-                                title="Davet mesajını paylaş"
+                                title={isAssigned ? "Raporu paylaş" : "Davet mesajını paylaş"}
                               >
                                 <Share2 className="w-3 h-3" />
                               </Button>
@@ -483,7 +536,7 @@ export default function ClassDetail() {
                                 <p className="font-extrabold text-foreground">{student.firstName} {student.lastName}</p>
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                                  <span className="text-xs font-bold text-muted-foreground">{(student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0) + (student.melodyProgress?.starsEarned ?? 0)} yıldız toplam</span>
+                                  <span className="text-xs font-bold text-muted-foreground">{(student.rhythmProgress?.starsEarned ?? 0) + (student.notesProgress?.starsEarned ?? 0) + (student.drumProgress?.starsEarned ?? 0) + (student.melodyProgress?.starsEarned ?? 0)} yıldız toplam</span>
                                   {assignedCode && (
                                     <span
                                       className="font-mono text-[10px] font-extrabold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-md tracking-widest"
