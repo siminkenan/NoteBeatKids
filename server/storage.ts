@@ -377,20 +377,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClass(id: string): Promise<void> {
-    // 1. Delete all per-student data before deleting students (FK constraints)
+    // 1. Collect student IDs first
     const studentList = await this.getStudentsByClass(id);
-    for (const student of studentList) {
-      await db.delete(studentProgress).where(eq(studentProgress.studentId, student.id));
-      await db.delete(orchestraProgress).where(eq(orchestraProgress.studentId, student.id));
-      await db.delete(maestroViewProgress).where(eq(maestroViewProgress.studentId, student.id));
+    const studentIds = studentList.map(s => s.id);
+
+    // 2. Bulk-delete all dependent rows in one query each (avoids FK violations)
+    if (studentIds.length > 0) {
+      await db.delete(maestroViewProgress).where(inArray(maestroViewProgress.studentId, studentIds));
+      await db.delete(studentProgress).where(inArray(studentProgress.studentId, studentIds));
+      await db.delete(orchestraProgress).where(inArray(orchestraProgress.studentId, studentIds));
     }
-    // 2. Nullify studentId refs in student_codes BEFORE deleting students (FK: student_codes.studentId → students.id)
+
+    // 3. Nullify studentId refs in student_codes (FK: student_codes.studentId → students.id)
     await db.update(studentCodes).set({ studentId: null }).where(eq(studentCodes.classId, id));
-    // 3. Now safe to delete students
+    // 4. Now safe to delete students
     await db.delete(students).where(eq(students.classId, id));
-    // 4. Delete student_codes for the class
+    // 5. Delete student_codes for the class
     await db.delete(studentCodes).where(eq(studentCodes.classId, id));
-    // 5. Delete the class
+    // 6. Delete the class
     await db.delete(classes).where(eq(classes.id, id));
   }
 
