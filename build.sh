@@ -14,6 +14,9 @@ npx esbuild server/index.ts \
   --packages=external \
   --tsconfig=tsconfig.json
 
+# Also copy to dist/index.js so Replit deployment (run = ["node","dist/index.js"]) works
+cp dist/server/index.js dist/index.js
+
 echo "==> Build complete."
 echo "    Frontend: dist/public/"
-echo "    Backend:  dist/server/index.js"
+echo "    Backend:  dist/server/index.js  (+ dist/index.js)"
