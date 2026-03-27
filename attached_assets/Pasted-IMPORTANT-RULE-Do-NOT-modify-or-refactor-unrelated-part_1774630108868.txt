@@ -1,0 +1,90 @@
+IMPORTANT RULE:
+- Do NOT modify or refactor unrelated parts of the project
+- Do NOT change file structure
+- Do NOT rename existing files or functions
+- ONLY fix the admin login system and deployment-related issues (API, CORS, ENV)
+- Keep ALL existing features exactly as they are (leaderboard, student panel, teacher panel, UI)
+
+---
+
+I have a project called "NoteBeat Kids" that was originally working in Replit, including a working admin login system.
+
+I deployed:
+- Backend → Render
+- Frontend → Vercel
+
+After deployment, the admin login is NOT working.
+
+Admin password: 114344_Kenan
+
+Your task is to FIX this issue completely WITHOUT breaking anything.
+
+---
+
+### REQUIREMENTS:
+
+1. Move admin password to environment variable:
+   - Use: process.env.ADMIN_PASSWORD
+   - Do NOT hardcode password in frontend
+
+2. Fix backend login route:
+   - Create or fix POST /admin/login endpoint
+   - Compare entered password with process.env.ADMIN_PASSWORD
+   - Return JSON response:
+     success: true/false
+     message: "Login successful" or "Invalid password"
+
+3. Fix frontend login request:
+   - Replace ALL localhost or Replit URLs with Render backend URL
+   - Use a constant:
+     const API_URL = "https://your-backend.onrender.com"
+   - Send POST request to:
+     ${API_URL}/admin/login
+
+4. Fix CORS in backend:
+   - Allow only Vercel frontend domain
+   - Example:
+     origin: "https://your-frontend.vercel.app"
+
+5. Ensure full connection:
+   - No CORS errors
+   - No 404 errors
+   - No undefined ENV variables
+   - Frontend (Vercel) must successfully connect to Backend (Render)
+
+6. Make system production-ready:
+   - Works on mobile, tablet, desktop
+   - Clean error handling
+   - No unnecessary reload issues
+
+7. DO NOT TOUCH:
+   - leaderboard system
+   - student panel
+   - teacher panel
+   - UI design
+
+8. DEBUG and FIX possible issues:
+   - Missing environment variables in Render
+   - Wrong API URL in frontend
+   - Incorrect fetch request
+   - CORS misconfiguration
+
+---
+
+### OUTPUT FORMAT:
+
+Give me:
+
+1. Updated backend code (only necessary parts)
+2. Updated frontend login code (only necessary parts)
+3. EXACT instructions:
+   - Where to add ADMIN_PASSWORD in Render
+   - What to change in Vercel (if needed)
+4. Short explanation of what was wrong and how you fixed it
+
+---
+
+IMPORTANT:
+This must work AFTER deployment (Render + Vercel), not just locally.
+
+Return clean, minimal, and working production-ready code.
