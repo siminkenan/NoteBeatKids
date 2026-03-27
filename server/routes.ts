@@ -4,6 +4,40 @@ import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
+import crypto from "crypto";
+
+// ── Admin token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
+const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
+
+function signAdminToken(adminId: string): string {
+  const payload = Buffer.from(adminId).toString("base64url");
+  const sig = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
+}
+
+function verifyAdminToken(token: string): string | null {
+  try {
+    const [payload, sig] = token.split(".");
+    if (!payload || !sig) return null;
+    const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+    if (sig !== expected) return null;
+    return Buffer.from(payload, "base64url").toString();
+  } catch {
+    return null;
+  }
+}
+
+function getAdminId(req: Request): string | null {
+  // 1. Session (Replit same-origin)
+  const sessionId = (req.session as any).adminId;
+  if (sessionId) return sessionId;
+  // 2. Bearer token (Render + Vercel cross-domain)
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) {
+    return verifyAdminToken(auth.slice(7));
+  }
+  return null;
+}
 
 function getContentType(filename: string): string {
   const ext = (filename.split(".").pop() || "").toLowerCase();
@@ -87,9 +121,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const valid = await bcrypt.compare(password, admin.password);
       if (!valid) return res.status(401).json({ message: "Invalid credentials" });
       (req.session as any).adminId = admin.id;
+      const token = signAdminToken(String(admin.id));
       req.session.save((err) => {
         if (err) return res.status(500).json({ message: "Session error" });
-        res.json({ id: admin.id, name: admin.name, email: admin.email, role: "admin" });
+        res.json({ id: admin.id, name: admin.name, email: admin.email, role: "admin", token });
       });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
@@ -101,7 +136,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/auth/admin/me", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const admin = await storage.getAdminByEmail("admin@notebeatkids.com");
     if (!admin) return res.status(401).json({ message: "Not found" });
@@ -380,7 +415,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Admin routes
   app.get("/api/admin/stats", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const stats = await storage.getAdminStats();
     res.json(stats);
@@ -391,7 +426,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     new Date(inst.licenseEnd) < new Date();
 
   app.get("/api/admin/institutions", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const list = await storage.getInstitutions();
     // Return institutions with computed isExpired flag; isActive is admin-controlled only
@@ -399,7 +434,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/admin/institutions", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     try {
       const body = {
@@ -419,7 +454,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.patch("/api/admin/institutions/:id", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const current = await storage.getInstitution(req.params.id);
     if (!current) return res.status(404).json({ message: "Institution not found" });
@@ -438,14 +473,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/admin/institutions/:id/reset-quota", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     await storage.resetInstitutionQuota(req.params.id);
     res.json({ ok: true });
   });
 
   app.delete("/api/admin/institutions/:id", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const inst = await storage.getInstitution(req.params.id);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
@@ -454,7 +489,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/admin/institutions/:id/details", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const inst = await storage.getInstitution(req.params.id);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
@@ -464,14 +499,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/admin/institutions/:id/teacher-codes", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const codes = await storage.getTeacherCodesByInstitution(req.params.id);
     res.json(codes);
   });
 
   app.post("/api/admin/institutions/:id/teacher-codes/generate", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const inst = await storage.getInstitution(req.params.id);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
@@ -483,14 +518,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/admin/teachers", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const list = await storage.getTeachers();
     res.json(list.map(({ password: _, ...t }) => t));
   });
 
   app.post("/api/admin/teachers", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     try {
       if (req.body.institutionId) {
@@ -512,7 +547,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Admin: list all classes
   app.get("/api/admin/classes", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const list = await storage.getAllClasses();
     res.json(list);
@@ -520,7 +555,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Admin: delete any class
   app.delete("/api/admin/classes/:classId", async (req: Request, res: Response) => {
-    const adminId = (req.session as any).adminId;
+    const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const cls = await storage.getClass(req.params.classId);
     if (!cls) return res.status(404).json({ message: "Class not found" });

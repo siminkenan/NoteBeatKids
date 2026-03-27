@@ -113,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutAdmin = async () => {
     await fetch(`${API_BASE}/api/auth/admin/logout`, { method: "POST", credentials: "include" });
+    localStorage.removeItem("adminToken");
     setAdminState(null);
   };
 

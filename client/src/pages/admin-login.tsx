@@ -27,6 +27,8 @@ export default function AdminLogin() {
         password,
       });
       const admin = await result.json();
+      // Token'ı kaydet (Render+Vercel cross-domain için)
+      if (admin.token) localStorage.setItem("adminToken", admin.token);
       setAdmin(admin);
       navigate("/admin/dashboard");
     } catch (e: any) {
