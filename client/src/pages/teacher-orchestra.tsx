@@ -302,7 +302,7 @@ export default function TeacherOrchestra() {
               <p className="text-white font-extrabold mb-3 flex items-center gap-2">
                 <Upload size={16} /> Video Yükle
                 <span className="ml-auto text-xs text-white/50 font-normal">
-                  {videos.length}/{MAX_VIDEOS} video · Max 3:17
+                  {videos.length}/{MAX_VIDEOS} video · Max 3:17 · Max 45 MB
                 </span>
               </p>
 
@@ -338,7 +338,7 @@ export default function TeacherOrchestra() {
                   <div>
                     <Video size={28} className="mx-auto mb-2 text-purple-400 opacity-60" />
                     <p className="text-white/50 text-sm">Tıkla veya video sürükle</p>
-                    <p className="text-white/30 text-xs mt-1">Max 3 dakika 17 saniye</p>
+                    <p className="text-white/30 text-xs mt-1">Max 3 dakika 17 saniye · 45 MB</p>
                   </div>
                 )}
               </div>
@@ -384,7 +384,7 @@ export default function TeacherOrchestra() {
                       </p>
                     </div>
                     <button
-                      onClick={() => { setPreviewUrl(`/api/maestro/file/${v.storedFilename}`); setPreviewIsImage(false); }}
+                      onClick={() => { setPreviewUrl(`${API_URL}/api/maestro/file/${v.storedFilename}`); setPreviewIsImage(false); }}
                       className="text-purple-300 hover:text-white cursor-pointer p-2"
                       title="Önizle"
                     >
@@ -470,14 +470,14 @@ export default function TeacherOrchestra() {
                 {photos.map(p => (
                   <div key={p.id} className="relative group rounded-2xl overflow-hidden bg-white/10 border border-white/10 aspect-square">
                     <img
-                      src={`/api/maestro/file/${p.storedFilename}`}
+                      src={`${API_URL}/api/maestro/file/${p.storedFilename}`}
                       alt={p.title}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-2 p-2">
                       <p className="text-white font-bold text-sm text-center line-clamp-2">{p.title}</p>
                       <button
-                        onClick={() => { setPreviewUrl(`/api/maestro/file/${p.storedFilename}`); setPreviewIsImage(true); }}
+                        onClick={() => { setPreviewUrl(`${API_URL}/api/maestro/file/${p.storedFilename}`); setPreviewIsImage(true); }}
                         className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer w-full"
                       >
                         Büyüt
