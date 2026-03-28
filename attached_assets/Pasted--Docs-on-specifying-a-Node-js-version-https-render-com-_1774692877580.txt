@@ -1,0 +1,47 @@
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+Menu
+==> Running build command 'sh build.sh'...
+==> Building frontend (Vite)...
+vite.config.ts (1:289) [UNRESOLVED_IMPORT] Warning: Could not resolve 'vite' in vite.config.ts
+   ╭─[ vite.config.ts:1:290 ]
+   │
+ 1 │ const __vite_injected_original_dirname = "/opt/render/project/src";const __vite_injected_original_filename = "/opt/render/project/src/vite.config.ts";const __vite_injected_original_import_meta_url = "file:///opt/render/project/src/vite.config.ts";import { defineConfig, type Plugin } from "vite";
+   │                                                                                                                                                                                                                                                                                                  ───┬──  
+   │                                                                                                                                                                                                                                                                                                     ╰──── Module not found, treating it as an external dependency
+───╯
+vite.config.ts (2:18) [UNRESOLVED_IMPORT] Warning: Could not resolve '@vitejs/plugin-react' in vite.config.ts
+   ╭─[ vite.config.ts:2:19 ]
+   │
+ 2 │ import react from "@vitejs/plugin-react";
+   │                   ───────────┬──────────  
+   │                              ╰──────────── Module not found, treating it as an external dependency
+───╯
+vite.config.ts (4:24) [UNRESOLVED_IMPORT] Warning: Could not resolve 'tailwindcss' in vite.config.ts
+   ╭─[ vite.config.ts:4:25 ]
+   │
+ 4 │ import tailwindcss from "tailwindcss";
+   │                         ──────┬──────  
+   │                               ╰──────── Module not found, treating it as an external dependency
+───╯
+vite.config.ts (5:25) [UNRESOLVED_IMPORT] Warning: Could not resolve 'autoprefixer' in vite.config.ts
+   ╭─[ vite.config.ts:5:26 ]
+   │
+ 5 │ import autoprefixer from "autoprefixer";
+   │                          ───────┬──────  
+   │                                 ╰──────── Module not found, treating it as an external dependency
+───╯
+failed to load config from /opt/render/project/src/vite.config.ts
+error during build:
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /opt/render/project/src/vite.config.ts.timestamp-1774692838705-490777df4ceb1.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+==> Build failed 😞
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

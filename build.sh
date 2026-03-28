@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+echo "==> Installing dependencies (including devDependencies for build)..."
+npm install --include=dev
+
 echo "==> Building frontend (Vite)..."
 npx vite build
 
