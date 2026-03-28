@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload, Trash2, Play, Video, Image, BarChart2, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { MaestroResource } from "@shared/schema";
+import { API_URL, teacherAuthHeader } from "@/lib/queryClient";
 
 const MAX_DURATION = 197; // 3 dk 17 sn
 const MAX_VIDEOS = 3;
@@ -28,9 +29,15 @@ type WatchRow = {
   durationSeconds: number;
 };
 
-// Helper: fetch with session cookie always included
+// Helper: fetch with session cookie + Bearer token + VITE_API_URL for cross-domain
 function authFetch(url: string, options: RequestInit = {}) {
-  return fetch(url, { ...options, credentials: "include" });
+  const fullUrl = url.startsWith("http") ? url : `${API_URL}${url}`;
+  const existingHeaders = (options.headers as Record<string, string>) || {};
+  return fetch(fullUrl, {
+    ...options,
+    credentials: "include",
+    headers: { ...existingHeaders, ...teacherAuthHeader() },
+  });
 }
 
 export default function TeacherOrchestra() {
@@ -42,7 +49,10 @@ export default function TeacherOrchestra() {
   useEffect(() => {
     if (authLoading) return;
     if (!teacher) {
-      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, { credentials: "include" })
+      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, {
+        credentials: "include",
+        headers: teacherAuthHeader(),
+      })
         .then(r => r.ok ? r.json() : null)
         .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
     }

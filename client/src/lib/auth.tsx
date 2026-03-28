@@ -59,10 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // 2. Try to restore teacher/admin session from server
     async function restoreSession() {
+      const teacherToken = localStorage.getItem("teacherToken");
+      const adminToken = localStorage.getItem("adminToken");
+
       try {
-        // Try teacher first
+        // Try teacher first (session cookie OR Bearer token)
         const tRes = await fetch(`${API_BASE}/api/auth/teacher/me`, {
           credentials: "include",
+          headers: teacherToken ? { Authorization: `Bearer ${teacherToken}` } : {},
         });
         if (tRes.ok) {
           const t = await tRes.json();
@@ -73,9 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {}
 
       try {
-        // Try admin
+        // Try admin (session cookie OR Bearer token)
         const aRes = await fetch(`${API_BASE}/api/auth/admin/me`, {
           credentials: "include",
+          headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : {},
         });
         if (aRes.ok) {
           const a = await aRes.json();
@@ -108,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutTeacher = async () => {
     await fetch(`${API_BASE}/api/auth/teacher/logout`, { method: "POST", credentials: "include" });
+    localStorage.removeItem("teacherToken");
     setTeacherState(null);
   };
 

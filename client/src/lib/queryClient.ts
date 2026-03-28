@@ -15,6 +15,11 @@ function adminAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+export function teacherAuthHeader(): Record<string, string> {
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("teacherToken") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -25,6 +30,7 @@ export async function apiRequest(
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
       ...adminAuthHeader(),
+      ...teacherAuthHeader(),
     },
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
@@ -44,7 +50,7 @@ export const getQueryFn: <T>(options: {
     const url = API_URL ? `${API_URL}${path}` : path;
     const res = await fetch(url, {
       credentials: "include",
-      headers: adminAuthHeader(),
+      headers: { ...adminAuthHeader(), ...teacherAuthHeader() },
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

@@ -6,26 +6,31 @@ import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
 import crypto from "crypto";
 
-// ── Admin token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
+// ── Token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
 const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
 
-function signAdminToken(adminId: string): string {
-  const payload = Buffer.from(adminId).toString("base64url");
+function signToken(id: string, prefix: string): string {
+  const payload = Buffer.from(`${prefix}:${id}`).toString("base64url");
   const sig = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
 
-function verifyAdminToken(token: string): string | null {
+function verifyToken(token: string, prefix: string): string | null {
   try {
     const [payload, sig] = token.split(".");
     if (!payload || !sig) return null;
     const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
     if (sig !== expected) return null;
-    return Buffer.from(payload, "base64url").toString();
+    const decoded = Buffer.from(payload, "base64url").toString();
+    if (!decoded.startsWith(`${prefix}:`)) return null;
+    return decoded.slice(prefix.length + 1);
   } catch {
     return null;
   }
 }
+
+function signAdminToken(adminId: string): string { return signToken(adminId, "admin"); }
+function signTeacherToken(teacherId: string): string { return signToken(teacherId, "teacher"); }
 
 function getAdminId(req: Request): string | null {
   // 1. Session (Replit same-origin)
@@ -34,7 +39,19 @@ function getAdminId(req: Request): string | null {
   // 2. Bearer token (Render + Vercel cross-domain)
   const auth = req.headers.authorization;
   if (auth?.startsWith("Bearer ")) {
-    return verifyAdminToken(auth.slice(7));
+    return verifyToken(auth.slice(7), "admin");
+  }
+  return null;
+}
+
+function getTeacherId(req: Request): string | null {
+  // 1. Session (Replit same-origin)
+  const sessionId = (req.session as any).teacherId;
+  if (sessionId) return sessionId;
+  // 2. Bearer token (Render + Vercel cross-domain)
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) {
+    return verifyToken(auth.slice(7), "teacher");
   }
   return null;
 }
@@ -188,9 +205,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
         (req.session as any).teacherId = existingTeacher.id;
         const { password: _, ...safe } = existingTeacher;
+        const teacherToken = signTeacherToken(existingTeacher.id);
         return req.session.save((err) => {
           if (err) return res.status(500).json({ message: "Session error" });
-          res.json({ ...safe, role: "teacher" });
+          res.json({ ...safe, role: "teacher", teacherToken });
         });
       }
 
@@ -199,9 +217,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       await storage.linkTeacherToCode(codeRecord.id, teacher.id);
       (req.session as any).teacherId = teacher.id;
       const { password: _, ...safeTeacher } = teacher;
+      const teacherToken = signTeacherToken(teacher.id);
       req.session.save((err) => {
         if (err) return res.status(500).json({ message: "Session error" });
-        res.json({ ...safeTeacher, role: "teacher" });
+        res.json({ ...safeTeacher, role: "teacher", teacherToken });
       });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
@@ -223,7 +242,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/auth/teacher/me", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const teacher = await storage.getTeacher(teacherId);
     if (!teacher) return res.status(401).json({ message: "Not found" });
@@ -338,7 +357,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher institution info
   app.get("/api/teacher/institution", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const teacher = await storage.getTeacher(teacherId);
     if (!teacher || !teacher.institutionId) return res.status(404).json({ message: "Kurum bulunamadı" });
@@ -349,14 +368,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher classes
   app.get("/api/teacher/classes", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const classList = await storage.getClassesByTeacher(teacherId);
     res.json(classList);
   });
 
   app.post("/api/teacher/classes", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     try {
       const teacher = await storage.getTeacher(teacherId);
@@ -390,7 +409,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.delete("/api/teacher/classes/:classId", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const cls = await storage.getClass(req.params.classId);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
@@ -399,7 +418,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/teacher/classes/:classId/student-codes", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const cls = await storage.getClass(req.params.classId);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
@@ -408,7 +427,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/teacher/classes/:classId/student-codes/generate", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const cls = await storage.getClass(req.params.classId);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
@@ -425,7 +444,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/teacher/classes/:classId/students", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const cls = await storage.getClass(req.params.classId);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
@@ -603,7 +622,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Teacher: upload song
   app.post("/api/teacher/orchestra/songs", upload.single("audio"), async (req: Request, res: Response) => {
     try {
-      const teacherId = (req.session as any).teacherId;
+      const teacherId = getTeacherId(req);
       if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
       if (!req.file) return res.status(400).json({ message: "No audio file provided" });
 
@@ -636,7 +655,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher: list songs
   app.get("/api/teacher/orchestra/songs", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const songs = await storage.getOrchestraSongsByTeacher(teacherId);
     res.json(songs);
@@ -644,7 +663,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher: delete song
   app.delete("/api/teacher/orchestra/songs/:id", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const song = await storage.getOrchestraSong(req.params.id);
     if (!song) return res.status(404).json({ message: "Song not found" });
@@ -655,7 +674,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher: update song BPM (regenerate rhythm)
   app.patch("/api/teacher/orchestra/songs/:id", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const song = await storage.getOrchestraSong(req.params.id);
     if (!song) return res.status(404).json({ message: "Song not found" });
@@ -676,7 +695,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher: get orchestra performance data
   app.get("/api/teacher/orchestra/progress", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const data = await storage.getOrchestraProgressByTeacher(teacherId);
     res.json(data);
@@ -743,7 +762,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Teacher: upload video (max 3, max 197s = 3m17s — duration validated client-side)
   app.post("/api/teacher/maestro/videos", maestroUpload.single("video"), async (req: Request, res: Response) => {
     try {
-      const teacherId = (req.session as any).teacherId;
+      const teacherId = getTeacherId(req);
       console.log(`[video-upload] teacherId=${teacherId}, file=${req.file?.originalname}, size=${req.file?.size}`);
       if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
       if (!req.file) return res.status(400).json({ message: "No video file provided" });
@@ -778,7 +797,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Teacher: upload photo (no limit on count)
   app.post("/api/teacher/maestro/photos", maestroUpload.single("photo"), async (req: Request, res: Response) => {
     try {
-      const teacherId = (req.session as any).teacherId;
+      const teacherId = getTeacherId(req);
       if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
       if (!req.file) return res.status(400).json({ message: "No photo file provided" });
 
@@ -801,7 +820,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher: list all resources
   app.get("/api/teacher/maestro/resources", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const resources = await storage.getMaestroResourcesByTeacher(teacherId);
     res.json(resources);
@@ -809,7 +828,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher: delete resource
   app.delete("/api/teacher/maestro/resources/:id", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const resource = await storage.getMaestroResource(req.params.id);
     if (!resource) return res.status(404).json({ message: "Resource not found" });
@@ -820,7 +839,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Teacher: watch report
   app.get("/api/teacher/maestro/watch-report", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const data = await storage.getMaestroViewProgressByTeacher(teacherId);
     res.json(data);
@@ -864,7 +883,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const sessionStudentId = (req.session as any).studentId;
     const qStudentId = req.query.studentId as string | undefined;
     const studentId = sessionStudentId || qStudentId;
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
 
     try {
       let institutionId: string | null = null;
@@ -901,7 +920,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const sessionStudentId = (req.session as any).studentId;
     const qStudentId = req.query.studentId as string | undefined;
     const studentId = sessionStudentId || qStudentId;
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
 
     try {
       let institutionId: string | null = null;
@@ -922,7 +941,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/teacher/leaderboard/reset", async (req: Request, res: Response) => {
-    const teacherId = (req.session as any).teacherId;
+    const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     try {
       const teacher = await storage.getTeacher(teacherId);

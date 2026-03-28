@@ -76,6 +76,9 @@ export default function TeacherLogin() {
       teacherCode: teacherCode.trim().toUpperCase(),
     });
     const teacher = await result.json();
+    if (teacher.teacherToken) {
+      localStorage.setItem("teacherToken", teacher.teacherToken);
+    }
     if (remember) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), teacherCode: teacherCode.trim().toUpperCase() }));
     } else {

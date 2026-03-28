@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, teacherAuthHeader } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -37,8 +37,11 @@ export default function TeacherDashboard() {
   useEffect(() => {
     if (authLoading) return;
     if (!teacher) {
-      // Fallback: try server session in case auth context didn't catch it
-      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, { credentials: "include" })
+      // Fallback: try server session + token in case auth context didn't catch it
+      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, {
+        credentials: "include",
+        headers: teacherAuthHeader(),
+      })
         .then(r => r.ok ? r.json() : null)
         .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
     }
