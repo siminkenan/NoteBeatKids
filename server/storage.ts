@@ -44,6 +44,7 @@ function getPreviousMonth(): string {
 export interface IStorage {
   // Admin
   getAdminByEmail(email: string): Promise<Admin | undefined>;
+  createAdmin(data: { email: string; password: string }): Promise<Admin>;
   // Institutions
   getInstitutions(): Promise<Institution[]>;
   getInstitution(id: string): Promise<Institution | undefined>;
@@ -154,6 +155,11 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   async getAdminByEmail(email: string): Promise<Admin | undefined> {
     const result = await db.select().from(admins).where(eq(admins.email, email)).limit(1);
+    return result[0];
+  }
+
+  async createAdmin(data: { email: string; password: string }): Promise<Admin> {
+    const result = await db.insert(admins).values({ email: data.email, password: data.password }).returning();
     return result[0];
   }
 
@@ -772,26 +778,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async seedData(): Promise<void> {
-    const ADMIN_EMAIL = "admin@notebeatkids.com";
-    const ADMIN_PASSWORD = "114344_Kenan";
-
-    const existingAdmin = await this.getAdminByEmail(ADMIN_EMAIL);
-    if (existingAdmin) {
-      // Ensure password is always up-to-date
-      const ok = await bcrypt.compare(ADMIN_PASSWORD, existingAdmin.password);
-      if (!ok) {
-        const hashedPw = await bcrypt.hash(ADMIN_PASSWORD, 10);
-        await db.update(admins).set({ password: hashedPw }).where(eq(admins.email, ADMIN_EMAIL));
-      }
-      return;
-    }
-
-    const hashedPw = await bcrypt.hash(ADMIN_PASSWORD, 10);
-    await db.insert(admins).values({
-      email: ADMIN_EMAIL,
-      password: hashedPw,
-      name: "System Admin",
-    });
+    // Admin ilk girişte otomatik oluşturuluyor, burada seed gerekmez.
 
     const [inst1] = await db.insert(institutions).values({
       name: "Sunshine Elementary School",

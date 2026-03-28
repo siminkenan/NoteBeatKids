@@ -9,38 +9,16 @@ import { eq } from "drizzle-orm";
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
 async function seedDatabase() {
+  // Admin artık ilk girişte otomatik oluşturuluyor.
+  // Eski "admin@notebeatkids.com" kaydı varsa temizle (tek seferlik migrasyon).
   try {
-    const bcrypt = await import("bcryptjs");
-
-    // 🔑 Şifre seçimi
-    const adminPassword =
-      process.env.ADMIN_PASSWORD || "114344_Kenan";
-
-    const hash = await bcrypt.default.hash(adminPassword, 10);
-
-    const existing = await db.select().from(schema.admins).limit(1);
-
-    if (existing.length === 0) {
-      // ➜ Hiç admin yoksa oluştur
-      await db.insert(schema.admins).values({
-        email: "admin@notebeatkids.com",
-        password: hash,
-      });
-
-      log("✅ Admin created");
-    } else {
-      // ➜ Admin varsa her zaman güncelle (Render fix)
-      await db
-        .update(schema.admins)
-        .set({ password: hash })
-        .where(eq(schema.admins.email, "admin@notebeatkids.com"));
-
-      log("✅ Admin password synced");
-    }
-
-  } catch (err) {
-    log(`❌ Database seed error: ${(err as Error).message}`);
+    await db
+      .delete(schema.admins)
+      .where(eq(schema.admins.email, "admin@notebeatkids.com"));
+  } catch (_) {
+    // Tablo yoksa veya kayıt yoksa devam et
   }
+  log("✅ Admin seed skipped — created on first login");
 }
 
 async function main() {

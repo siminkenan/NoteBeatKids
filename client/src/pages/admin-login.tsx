@@ -23,7 +23,7 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       const result = await apiRequest("POST", "/api/auth/admin/login", {
-        email: "admin@notebeatkids.com",
+        email: "ovalikenan46@gmail.com",
         password,
       });
       const admin = await result.json();

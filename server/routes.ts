@@ -113,18 +113,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Admin auth
+  // Sanal koruma: Sadece bu e-posta admin olabilir, veritabanındaki role ne olursa olsun.
+  const ADMIN_EMAIL = "ovalikenan46@gmail.com";
+
   app.post("/api/auth/admin/login", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
-      const admin = await storage.getAdminByEmail(email);
-      if (!admin) return res.status(401).json({ message: "Invalid credentials" });
-      const valid = await bcrypt.compare(password, admin.password);
-      if (!valid) return res.status(401).json({ message: "Invalid credentials" });
-      (req.session as any).adminId = admin.id;
-      const token = signAdminToken(String(admin.id));
+
+      // 1. Sanal admin koruması — yalnızca bu e-posta kabul edilir
+      if (email !== ADMIN_EMAIL) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const existing = await storage.getAdminByEmail(ADMIN_EMAIL);
+
+      let admin: typeof existing;
+
+      if (!existing) {
+        // 2a. İlk giriş — admin veritabanında yok, oluştur
+        const hashed = await bcrypt.hash(password, 10);
+        admin = await storage.createAdmin({ email: ADMIN_EMAIL, password: hashed });
+      } else {
+        // 2b. Admin var — şifreyi kontrol et
+        const valid = await bcrypt.compare(password, existing.password);
+        if (!valid) return res.status(401).json({ message: "Şifre yanlış" });
+        admin = existing;
+      }
+
+      (req.session as any).adminId = admin!.id;
+      const token = signAdminToken(String(admin!.id));
       req.session.save((err) => {
         if (err) return res.status(500).json({ message: "Session error" });
-        res.json({ id: admin.id, name: admin.name, email: admin.email, role: "admin", token });
+        res.json({ id: admin!.id, name: admin!.name, email: admin!.email, role: "admin", token });
       });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
@@ -138,7 +158,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/auth/admin/me", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const admin = await storage.getAdminByEmail("admin@notebeatkids.com");
+    const admin = await storage.getAdminByEmail(ADMIN_EMAIL);
     if (!admin) return res.status(401).json({ message: "Not found" });
     res.json({ id: admin.id, name: admin.name, email: admin.email, role: "admin" });
   });
