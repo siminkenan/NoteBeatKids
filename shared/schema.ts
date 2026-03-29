@@ -46,6 +46,7 @@ export const students = pgTable("students", {
   classId: varchar("class_id").references(() => classes.id).notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
+  lastSeenAt: timestamp("last_seen_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

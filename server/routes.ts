@@ -349,6 +349,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const progress = await storage.upsertProgress(req.params.studentId, appType, finalData);
+      // Track online status (non-blocking)
+      storage.updateStudentLastSeen(req.params.studentId).catch(() => {});
       res.json(progress);
     } catch (e) {
       res.status(500).json({ message: "Server error" });
@@ -450,6 +452,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
     const data = await storage.getClassProgress(req.params.classId);
     res.json({ class: cls, students: data });
+  });
+
+  // Add more codes to an existing class (teacher — requires admin to have raised maxStudents first)
+  app.post("/api/teacher/classes/:classId/student-codes/add", async (req: Request, res: Response) => {
+    try {
+      const teacherId = getTeacherId(req);
+      if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+      const cls = await storage.getClass(req.params.classId);
+      if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
+      const existing = await storage.getStudentCodesByClass(req.params.classId);
+      const available = cls.maxStudents - existing.length;
+      if (available <= 0) return res.status(400).json({ message: "Sınıf kapasitesi dolu. Yöneticinizden kapasite artırmasını isteyin." });
+      const count = Math.min(available, Number(req.body.count) || 1);
+      const newCodes = await storage.addStudentCodesToClass(req.params.classId, count);
+      res.json({ class: cls, codes: newCodes });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Teacher: get online student count for their classes
+  app.get("/api/teacher/online-count", async (req: Request, res: Response) => {
+    const teacherId = getTeacherId(req);
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const count = await storage.getOnlineStudentCountByTeacher(teacherId);
+    res.json({ count });
   });
 
   // Admin routes
@@ -600,6 +628,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!cls) return res.status(404).json({ message: "Class not found" });
     await storage.deleteClass(req.params.classId);
     res.json({ ok: true });
+  });
+
+  // Admin: update class maxStudents (grants teacher permission to add more codes)
+  app.patch("/api/admin/classes/:classId/max-students", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const { maxStudents } = req.body;
+    if (typeof maxStudents !== "number" || maxStudents < 1) return res.status(400).json({ message: "Geçersiz değer" });
+    const cls = await storage.updateClassMaxStudents(req.params.classId, maxStudents);
+    res.json(cls);
+  });
+
+  // Admin: all student codes with online/offline status
+  app.get("/api/admin/online-students", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const data = await storage.getAllStudentCodesWithOnlineStatus();
+    res.json(data);
   });
 
   // Class public info (for students to verify)
@@ -864,6 +910,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       Math.round(watchedSeconds) || 0,
       !!completed,
     );
+    storage.updateStudentLastSeen(req.params.studentId).catch(() => {});
     res.json(prog);
   });
 

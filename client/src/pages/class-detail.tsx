@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Star, Clock, CheckCircle, XCircle, Share2, Key, Copy, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Star, Clock, CheckCircle, XCircle, Share2, Key, Copy, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { Student, StudentProgress, StudentCode } from "@shared/schema";
 import ProtectedLogo from "@/components/protected-logo";
@@ -175,6 +175,29 @@ export default function ClassDetail() {
     },
   });
 
+  const addCodesMutation = useMutation({
+    mutationFn: async (count: number) => {
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/classes/${classId}/student-codes/add`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...teacherAuthHeader() },
+        body: JSON.stringify({ count }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Kod eklenemedi");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes", classId, "student-codes"] });
+      toast({ title: "Kodlar eklendi!", description: "Yeni öğrenci davet kodları oluşturuldu." });
+    },
+    onError: (e: any) => {
+      toast({ title: "Hata", description: e.message, variant: "destructive" });
+    },
+  });
+
   // Map: studentId → assigned student code
   const studentIdToCode = new Map<string, StudentCode>(
     (codesData?.codes ?? [])
@@ -320,6 +343,21 @@ export default function ClassDetail() {
                         <Copy className="w-3.5 h-3.5" />
                         Tümünü Kopyala
                       </Button>
+                      {/* Add codes if capacity allows */}
+                      {codesData.class.maxStudents > codesData.codes.length && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl gap-1.5 text-xs font-bold border-green-200 text-green-700 hover:bg-green-50"
+                          data-testid="button-add-codes"
+                          disabled={addCodesMutation.isPending}
+                          onClick={() => addCodesMutation.mutate(codesData.class.maxStudents - codesData.codes.length)}
+                          title={`${codesData.class.maxStudents - codesData.codes.length} ek kod eklenebilir`}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          {addCodesMutation.isPending ? "Ekleniyor..." : `+${codesData.class.maxStudents - codesData.codes.length} Kod Ekle`}
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -334,6 +372,11 @@ export default function ClassDetail() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Her öğrenciye kendi kodunu paylaşın — 8 haneli bireysel kod ile giriş yapabilirler.
+                    {codesData.class.maxStudents > codesData.codes.length && (
+                      <span className="ml-2 text-green-600 font-semibold">
+                        ({codesData.codes.length}/{codesData.class.maxStudents} kod oluşturuldu)
+                      </span>
+                    )}
                   </p>
                 </CardHeader>
                 {showCodes && (

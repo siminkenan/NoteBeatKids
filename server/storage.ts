@@ -84,6 +84,18 @@ export interface IStorage {
   findStudent(classId: string, firstName: string, lastName: string): Promise<Student | undefined>;
   createStudent(data: InsertStudent): Promise<Student>;
   countStudents(): Promise<number>;
+  updateStudentLastSeen(studentId: string): Promise<void>;
+  // Online tracking
+  getOnlineStudentCountByTeacher(teacherId: string): Promise<number>;
+  getAllStudentCodesWithOnlineStatus(): Promise<Array<{
+    id: string; code: string; slotNumber: number; classId: string; className: string;
+    teacherName: string; institutionName: string | null;
+    studentId: string | null; firstName: string | null; lastName: string | null;
+    isOnline: boolean; lastSeenAt: string | null;
+  }>>;
+  // Class management
+  updateClassMaxStudents(classId: string, maxStudents: number): Promise<Class>;
+  addStudentCodesToClass(classId: string, additionalCount: number): Promise<StudentCode[]>;
   // Progress
   getProgressByStudent(studentId: string): Promise<StudentProgress[]>;
   getProgressByStudentAndType(studentId: string, appType: string): Promise<StudentProgress | undefined>;
@@ -434,6 +446,84 @@ export class DatabaseStorage implements IStorage {
   async countStudents(): Promise<number> {
     const result = await db.select({ count: sql<number>`count(*)` }).from(students);
     return Number(result[0]?.count ?? 0);
+  }
+
+  async updateStudentLastSeen(studentId: string): Promise<void> {
+    await db.update(students).set({ lastSeenAt: new Date() }).where(eq(students.id, studentId));
+  }
+
+  async getOnlineStudentCountByTeacher(teacherId: string): Promise<number> {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const teacherClasses = await db.select({ id: classes.id }).from(classes).where(eq(classes.teacherId, teacherId));
+    if (teacherClasses.length === 0) return 0;
+    const classIds = teacherClasses.map(c => c.id);
+    const result = await db.select({ count: sql<number>`count(*)` }).from(students)
+      .where(and(
+        inArray(students.classId, classIds),
+        sql`${students.lastSeenAt} > ${tenMinutesAgo}`
+      ));
+    return Number(result[0]?.count ?? 0);
+  }
+
+  async getAllStudentCodesWithOnlineStatus(): Promise<Array<{
+    id: string; code: string; slotNumber: number; classId: string; className: string;
+    teacherName: string; institutionName: string | null;
+    studentId: string | null; firstName: string | null; lastName: string | null;
+    isOnline: boolean; lastSeenAt: string | null;
+  }>> {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const rows = await db
+      .select({
+        id: studentCodes.id,
+        code: studentCodes.code,
+        slotNumber: studentCodes.slotNumber,
+        classId: studentCodes.classId,
+        className: classes.name,
+        teacherName: teachers.name,
+        institutionName: institutions.name,
+        studentId: studentCodes.studentId,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        lastSeenAt: students.lastSeenAt,
+      })
+      .from(studentCodes)
+      .innerJoin(classes, eq(studentCodes.classId, classes.id))
+      .innerJoin(teachers, eq(classes.teacherId, teachers.id))
+      .leftJoin(institutions, eq(teachers.institutionId, institutions.id))
+      .leftJoin(students, eq(studentCodes.studentId, students.id))
+      .orderBy(classes.name, studentCodes.slotNumber);
+    return rows.map(r => ({
+      id: r.id,
+      code: r.code,
+      slotNumber: r.slotNumber,
+      classId: r.classId,
+      className: r.className,
+      teacherName: r.teacherName,
+      institutionName: r.institutionName ?? null,
+      studentId: r.studentId ?? null,
+      firstName: r.firstName ?? null,
+      lastName: r.lastName ?? null,
+      isOnline: !!(r.lastSeenAt && new Date(r.lastSeenAt) > tenMinutesAgo),
+      lastSeenAt: r.lastSeenAt ? r.lastSeenAt.toISOString() : null,
+    }));
+  }
+
+  async updateClassMaxStudents(classId: string, maxStudents: number): Promise<Class> {
+    const [updated] = await db.update(classes).set({ maxStudents }).where(eq(classes.id, classId)).returning();
+    return updated;
+  }
+
+  async addStudentCodesToClass(classId: string, additionalCount: number): Promise<StudentCode[]> {
+    const existing = await db.select().from(studentCodes).where(eq(studentCodes.classId, classId)).orderBy(studentCodes.slotNumber);
+    const maxSlot = existing.length > 0 ? Math.max(...existing.map(c => c.slotNumber)) : 0;
+    const rows = [];
+    for (let i = 0; i < additionalCount; i++) {
+      const code = await this.uniqueStudentCode();
+      rows.push({ classId, code, slotNumber: maxSlot + i + 1 });
+    }
+    if (rows.length === 0) return [];
+    const result = await db.insert(studentCodes).values(rows).returning();
+    return result;
   }
 
   async getProgressByStudent(studentId: string): Promise<StudentProgress[]> {

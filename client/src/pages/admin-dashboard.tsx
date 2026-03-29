@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy, Pencil, CalendarClock } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy, Pencil, CalendarClock, Circle, Wifi } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import type { Institution, Teacher } from "@shared/schema";
@@ -154,6 +154,37 @@ export default function AdminDashboard() {
   const { data: allClasses } = useQuery<AdminClass[]>({
     queryKey: ["/api/admin/classes"],
     enabled: !!admin,
+  });
+
+  type OnlineStudentItem = {
+    id: string; code: string; slotNumber: number; classId: string; className: string;
+    teacherName: string; institutionName: string | null;
+    studentId: string | null; firstName: string | null; lastName: string | null;
+    isOnline: boolean; lastSeenAt: string | null;
+  };
+  const { data: onlineStudents, refetch: refetchOnline } = useQuery<OnlineStudentItem[]>({
+    queryKey: ["/api/admin/online-students"],
+    enabled: !!admin,
+    refetchInterval: 30000,
+    staleTime: 0,
+  });
+
+  const [editClassMaxOpen, setEditClassMaxOpen] = useState<{ id: string; name: string; current: number } | null>(null);
+  const [newMaxStudents, setNewMaxStudents] = useState(30);
+
+  const updateClassMax = useMutation({
+    mutationFn: async ({ classId, maxStudents }: { classId: string; maxStudents: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/classes/${classId}/max-students`, { maxStudents });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      setEditClassMaxOpen(null);
+      toast({ title: "Kapasite güncellendi!", description: "Öğretmen artık sınıfa ek kod ekleyebilir." });
+    },
+    onError: (e: any) => {
+      toast({ title: "Hata", description: e.message, variant: "destructive" });
+    },
   });
 
   const { data: institutionDetails, isLoading: detailsLoading } = useQuery<InstitutionDetails>({
@@ -376,6 +407,15 @@ export default function AdminDashboard() {
             <TabsTrigger value="institutions" className="rounded-lg font-bold">Kurumlar</TabsTrigger>
             <TabsTrigger value="teachers" className="rounded-lg font-bold">Öğretmenler</TabsTrigger>
             <TabsTrigger value="classes" className="rounded-lg font-bold">Sınıflar</TabsTrigger>
+            <TabsTrigger value="online" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-online">
+              <Circle className={`w-2 h-2 fill-current ${(onlineStudents ?? []).some(s => s.isOnline) ? "text-green-500" : "text-gray-300"}`} />
+              Çevrimiçi
+              {(onlineStudents ?? []).filter(s => s.isOnline).length > 0 && (
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-1.5 py-0.5 rounded-full ml-0.5">
+                  {(onlineStudents ?? []).filter(s => s.isOnline).length}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="institutions">
@@ -739,10 +779,16 @@ export default function AdminDashboard() {
                           )}
                         </div>
 
-                        <div className="flex gap-2 flex-wrap">
-                          <span className="bg-green-50 text-green-700 font-bold text-xs px-2 py-1 rounded-lg" data-testid={`text-student-count-${cls.id}`}>
+                        <div className="flex gap-2 flex-wrap items-center">
+                          <button
+                            className="bg-green-50 text-green-700 font-bold text-xs px-2 py-1 rounded-lg hover:bg-green-100 transition-colors flex items-center gap-1"
+                            data-testid={`text-student-count-${cls.id}`}
+                            title="Kapasiteyi düzenle"
+                            onClick={() => { setEditClassMaxOpen({ id: cls.id, name: cls.name, current: cls.maxStudents }); setNewMaxStudents(cls.maxStudents); }}
+                          >
                             {cls.studentCount} / {cls.maxStudents} öğrenci
-                          </span>
+                            <Pencil className="w-3 h-3 opacity-50" />
+                          </button>
                           {cls.expiresAt && (
                             <span className={`font-bold text-xs px-2 py-1 rounded-lg ${new Date(cls.expiresAt) < new Date() ? "bg-red-50 text-red-600" : "bg-yellow-50 text-yellow-700"}`}>
                               {new Date(cls.expiresAt) < new Date() ? "Süresi doldu" : `Bitiş: ${new Date(cls.expiresAt).toLocaleDateString("tr-TR")}`}
@@ -758,8 +804,92 @@ export default function AdminDashboard() {
               )}
             </div>
           </TabsContent>
+
+          {/* Online students tab */}
+          <TabsContent value="online">
+            <div className="flex items-center justify-between mb-4 gap-3">
+              <div>
+                <h3 className="text-xl font-extrabold">Çevrimiçi Öğrenciler</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Son 10 dakikada aktif olan öğrenciler yeşil gösterilir. Otomatik yenileme: 30 sn.</p>
+              </div>
+              <Button variant="outline" size="sm" className="rounded-xl gap-1.5 font-bold" onClick={() => refetchOnline()} data-testid="button-refresh-online">
+                <Wifi className="w-4 h-4" />
+                Yenile
+              </Button>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="list-online-students">
+              {(onlineStudents ?? []).length === 0 && (
+                <p className="text-muted-foreground font-semibold col-span-3 py-8 text-center">Öğrenci kodu henüz oluşturulmamış.</p>
+              )}
+              {(onlineStudents ?? [])
+                .sort((a, b) => (b.isOnline ? 1 : 0) - (a.isOnline ? 1 : 0))
+                .map(s => (
+                  <div
+                    key={s.id}
+                    className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${s.isOnline ? "bg-green-50 border-green-200" : "bg-white border-gray-100"}`}
+                    data-testid={`item-online-student-${s.id}`}
+                  >
+                    <Circle className={`w-3 h-3 fill-current flex-shrink-0 ${s.isOnline ? "text-green-500" : "text-gray-300"}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-sm truncate">
+                        {s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : <span className="text-muted-foreground italic">Kullanılmamış</span>}
+                        <code className="ml-2 text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md font-bold">{s.code}</code>
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{s.className} · {s.teacherName}</p>
+                      {s.lastSeenAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Son görülme: {new Date(s.lastSeenAt).toLocaleTimeString("tr-TR")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </TabsContent>
         </Tabs>
       </main>
+
+      {/* Edit class maxStudents dialog */}
+      <Dialog open={!!editClassMaxOpen} onOpenChange={open => { if (!open) setEditClassMaxOpen(null); }}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-extrabold flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-600" />
+              Sınıf Kapasitesini Düzenle
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-bold text-foreground">{editClassMaxOpen?.name}</span> sınıfı için maksimum öğrenci sayısını ayarlayın.
+              Bu değeri artırdığınızda öğretmen sınıfa ek kod ekleyebilir.
+            </p>
+            <div>
+              <label className="text-sm font-bold block mb-1">Maksimum Öğrenci</label>
+              <Input
+                type="number"
+                min={1}
+                max={10000}
+                value={newMaxStudents}
+                onChange={e => setNewMaxStudents(Number(e.target.value))}
+                className="rounded-xl"
+                data-testid="input-max-students"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" className="rounded-xl" onClick={() => setEditClassMaxOpen(null)}>İptal</Button>
+              <Button
+                className="rounded-xl font-bold"
+                disabled={updateClassMax.isPending || newMaxStudents < 1}
+                onClick={() => editClassMaxOpen && updateClassMax.mutate({ classId: editClassMaxOpen.id, maxStudents: newMaxStudents })}
+                data-testid="button-save-max-students"
+              >
+                {updateClassMax.isPending ? "Kaydediliyor..." : "Kaydet"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Kurum Düzenleme Dialog */}
       <Dialog open={!!editingInst} onOpenChange={open => { if (!open) setEditingInst(null); }}>

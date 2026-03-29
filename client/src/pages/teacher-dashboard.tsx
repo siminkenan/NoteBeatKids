@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode } from "lucide-react";
+import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode, Circle } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import metronomeImgPath from "@assets/metronome-logo.png";
@@ -62,6 +62,22 @@ export default function TeacherDashboard() {
   });
 
   const instMax = instData?.maxStudents ?? 10000000;
+
+  const { data: onlineData } = useQuery<{ count: number }>({
+    queryKey: ["/api/teacher/online-count"],
+    queryFn: async () => {
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/online-count`, {
+        credentials: "include",
+        headers: teacherAuthHeader(),
+      });
+      if (!res.ok) return { count: 0 };
+      return res.json();
+    },
+    enabled: !!teacher,
+    refetchInterval: 30000, // refresh every 30 seconds
+    staleTime: 0,
+  });
+  const onlineCount = onlineData?.count ?? 0;
 
   const form = useForm<ClassForm>({
     resolver: zodResolver(classSchema),
@@ -129,6 +145,16 @@ export default function TeacherDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Online student count badge */}
+            <div
+              className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-xl px-3 py-1.5"
+              title="Son 10 dakikada aktif öğrenciler"
+              data-testid="badge-online-count"
+            >
+              <Circle className={`w-2.5 h-2.5 fill-current ${onlineCount > 0 ? "text-green-500" : "text-gray-300"}`} />
+              <span className="text-sm font-bold text-green-700">{onlineCount}</span>
+              <span className="text-xs text-green-600 hidden sm:inline">çevrimiçi</span>
+            </div>
             <div className="hidden sm:block text-right">
               <p className="font-bold text-sm text-foreground">{teacher?.name}</p>
               <p className="text-xs text-muted-foreground">{teacher?.email}</p>
