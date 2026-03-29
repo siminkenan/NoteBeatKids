@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, teacherAuthHeader } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,7 +115,10 @@ export default function ClassDetail() {
   useEffect(() => {
     if (authLoading) return;
     if (!teacher) {
-      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, { credentials: "include" })
+      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/teacher/me`, {
+        credentials: "include",
+        headers: teacherAuthHeader(),
+      })
         .then(r => r.ok ? r.json() : null)
         .then(t => { if (t) setTeacher(t); else navigate("/teacher/login"); });
     }
@@ -131,6 +134,7 @@ export default function ClassDetail() {
         {
           credentials: "include",
           cache: "no-store",
+          headers: teacherAuthHeader(),
         }
       );
 
@@ -147,6 +151,7 @@ export default function ClassDetail() {
     queryFn: async () => {
       const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/classes/${classId}/student-codes`, {
         credentials: "include",
+        headers: teacherAuthHeader(),
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
