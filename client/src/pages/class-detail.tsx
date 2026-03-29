@@ -8,7 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Star, Clock, CheckCircle, XCircle, Share2, Key, Copy, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Star, Clock, CheckCircle, XCircle, Share2, Key, Copy, ChevronDown, ChevronUp, Plus, Minus, Lock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { Student, StudentProgress, StudentCode } from "@shared/schema";
 import ProtectedLogo from "@/components/protected-logo";
@@ -110,6 +111,7 @@ export default function ClassDetail() {
   const [showCodes, setShowCodes] = useState(false);
   const [codeSearch, setCodeSearch] = useState("");
   const [copiedSlot, setCopiedSlot] = useState<number | null>(null);
+  const [addCodeCount, setAddCodeCount] = useState(1);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -343,21 +345,6 @@ export default function ClassDetail() {
                         <Copy className="w-3.5 h-3.5" />
                         Tümünü Kopyala
                       </Button>
-                      {/* Add codes if capacity allows */}
-                      {codesData.class.maxStudents > codesData.codes.length && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-xl gap-1.5 text-xs font-bold border-green-200 text-green-700 hover:bg-green-50"
-                          data-testid="button-add-codes"
-                          disabled={addCodesMutation.isPending}
-                          onClick={() => addCodesMutation.mutate(codesData.class.maxStudents - codesData.codes.length)}
-                          title={`${codesData.class.maxStudents - codesData.codes.length} ek kod eklenebilir`}
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          {addCodesMutation.isPending ? "Ekleniyor..." : `+${codesData.class.maxStudents - codesData.codes.length} Kod Ekle`}
-                        </Button>
-                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -372,12 +359,77 @@ export default function ClassDetail() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Her öğrenciye kendi kodunu paylaşın — 8 haneli bireysel kod ile giriş yapabilirler.
-                    {codesData.class.maxStudents > codesData.codes.length && (
-                      <span className="ml-2 text-green-600 font-semibold">
-                        ({codesData.codes.length}/{codesData.class.maxStudents} kod oluşturuldu)
-                      </span>
-                    )}
                   </p>
+
+                  {/* ── Kod Ekle — her zaman görünür ── */}
+                  <div className="mt-3 pt-3 border-t border-dashed border-indigo-100">
+                    {codesData.class.maxStudents > codesData.codes.length ? (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-foreground">
+                            Kod Ekle
+                            <span className="ml-2 text-indigo-500 font-normal">
+                              {codesData.codes.length}/{codesData.class.maxStudents} · {codesData.class.maxStudents - codesData.codes.length} ek kod eklenebilir
+                            </span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">Yönetici kapasitesi dahilinde yeni davet kodu üretebilirsiniz.</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg border-indigo-200"
+                            onClick={() => setAddCodeCount(v => Math.max(1, v - 1))}
+                            disabled={addCodeCount <= 1 || addCodesMutation.isPending}
+                            data-testid="button-add-count-minus"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={codesData.class.maxStudents - codesData.codes.length}
+                            value={addCodeCount}
+                            onChange={e => {
+                              const max = codesData.class.maxStudents - codesData.codes.length;
+                              const v = Math.max(1, Math.min(max, Number(e.target.value) || 1));
+                              setAddCodeCount(v);
+                            }}
+                            className="h-8 w-14 text-center font-bold text-sm rounded-lg border-indigo-200"
+                            data-testid="input-add-code-count"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg border-indigo-200"
+                            onClick={() => setAddCodeCount(v => Math.min(codesData.class.maxStudents - codesData.codes.length, v + 1))}
+                            disabled={addCodeCount >= codesData.class.maxStudents - codesData.codes.length || addCodesMutation.isPending}
+                            data-testid="button-add-count-plus"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-8 rounded-lg gap-1 font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                            disabled={addCodesMutation.isPending}
+                            onClick={() => addCodesMutation.mutate(addCodeCount)}
+                            data-testid="button-add-codes"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {addCodesMutation.isPending ? "Ekleniyor..." : `${addCodeCount} Kod Ekle`}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-gray-50 rounded-xl px-3 py-2">
+                        <Lock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <span>
+                          Kapasite dolu <span className="font-bold text-foreground">({codesData.codes.length}/{codesData.class.maxStudents})</span>.
+                          Daha fazla kod için yöneticinizden kapasite artırmasını isteyin.
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </CardHeader>
                 {showCodes && (
                   <CardContent className="pt-0">
@@ -483,6 +535,7 @@ export default function ClassDetail() {
                         );
                       })}
                     </div>
+
                   </CardContent>
                 )}
               </Card>
