@@ -177,6 +177,13 @@ export default function MelodyEcho() {
   });
 
   useEffect(() => {
+    if (!sid) return;
+    const API = (import.meta.env.VITE_API_URL || "") as string;
+    const ping = () => fetch(`${API}/api/student/${sid}/ping`, { method: "POST", credentials: "include" }).catch(() => {});
+    ping(); const t = setInterval(ping, 20000); return () => clearInterval(t);
+  }, [sid]);
+
+  useEffect(() => {
     if (!savedProgress || progressLoaded) return;
     const p = savedProgress.find(p => p.appType === "melody");
     if (p) {

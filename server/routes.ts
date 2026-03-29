@@ -333,6 +333,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(progress);
   });
 
+  // Lightweight heartbeat — öğrenci sayfada aktifken her 20 sn çağrılır
+  app.post("/api/student/:studentId/ping", async (req: Request, res: Response) => {
+    storage.updateStudentLastSeen(req.params.studentId).catch(() => {});
+    res.json({ ok: true });
+  });
+
   app.post("/api/student/:studentId/progress", async (req: Request, res: Response) => {
     try {
       const { appType, ...data } = req.body;

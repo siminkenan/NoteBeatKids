@@ -74,7 +74,7 @@ export default function TeacherDashboard() {
       return res.json();
     },
     enabled: !!teacher,
-    refetchInterval: 30000, // refresh every 30 seconds
+    refetchInterval: 20000, // refresh every 20 seconds
     staleTime: 0,
   });
   const onlineCount = onlineData?.count ?? 0;

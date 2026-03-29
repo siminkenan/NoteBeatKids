@@ -453,14 +453,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOnlineStudentCountByTeacher(teacherId: string): Promise<number> {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const onlineThreshold = new Date(Date.now() - 40 * 1000);
     const teacherClasses = await db.select({ id: classes.id }).from(classes).where(eq(classes.teacherId, teacherId));
     if (teacherClasses.length === 0) return 0;
     const classIds = teacherClasses.map(c => c.id);
     const result = await db.select({ count: sql<number>`count(*)` }).from(students)
       .where(and(
         inArray(students.classId, classIds),
-        sql`${students.lastSeenAt} > ${tenMinutesAgo}`
+        sql`${students.lastSeenAt} > ${onlineThreshold}`
       ));
     return Number(result[0]?.count ?? 0);
   }
@@ -471,7 +471,7 @@ export class DatabaseStorage implements IStorage {
     studentId: string | null; firstName: string | null; lastName: string | null;
     isOnline: boolean; lastSeenAt: string | null;
   }>> {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const onlineThreshold = new Date(Date.now() - 40 * 1000);
     const rows = await db
       .select({
         id: studentCodes.id,
@@ -503,7 +503,7 @@ export class DatabaseStorage implements IStorage {
       studentId: r.studentId ?? null,
       firstName: r.firstName ?? null,
       lastName: r.lastName ?? null,
-      isOnline: !!(r.lastSeenAt && new Date(r.lastSeenAt) > tenMinutesAgo),
+      isOnline: !!(r.lastSeenAt && new Date(r.lastSeenAt) > onlineThreshold),
       lastSeenAt: r.lastSeenAt ? r.lastSeenAt.toISOString() : null,
     }));
   }

@@ -165,7 +165,7 @@ export default function AdminDashboard() {
   const { data: onlineStudents, refetch: refetchOnline } = useQuery<OnlineStudentItem[]>({
     queryKey: ["/api/admin/online-students"],
     enabled: !!admin,
-    refetchInterval: 30000,
+    refetchInterval: 20000,
     staleTime: 0,
   });
 

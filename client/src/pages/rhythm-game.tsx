@@ -299,6 +299,14 @@ export default function RhythmGame() {
   useEffect(() => { if (!student) navigate("/student/login"); }, [student, navigate]);
 
   useEffect(() => {
+    if (!student) return;
+    const sid = student.student.id;
+    const API = (import.meta.env.VITE_API_URL || "") as string;
+    const ping = () => fetch(`${API}/api/student/${sid}/ping`, { method: "POST", credentials: "include" }).catch(() => {});
+    ping(); const t = setInterval(ping, 20000); return () => clearInterval(t);
+  }, [student?.student.id]);
+
+  useEffect(() => {
     const p = savedProgress?.find(p => p.appType === "rhythm");
     if (p) {
       // URL'den seviye parametresi varsa onu kullan (ilerleme haritasından gelen)
