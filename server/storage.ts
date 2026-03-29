@@ -87,6 +87,10 @@ export interface IStorage {
   updateStudentLastSeen(studentId: string): Promise<void>;
   // Online tracking
   getOnlineStudentCountByTeacher(teacherId: string): Promise<number>;
+  getOnlineStudentsByTeacher(teacherId: string): Promise<Array<{
+    studentId: string; firstName: string; lastName: string;
+    code: string; classId: string; className: string; lastSeenAt: string;
+  }>>;
   getAllStudentCodesWithOnlineStatus(): Promise<Array<{
     id: string; code: string; slotNumber: number; classId: string; className: string;
     teacherName: string; institutionName: string | null;
@@ -463,6 +467,40 @@ export class DatabaseStorage implements IStorage {
         sql`${students.lastSeenAt} > ${onlineThreshold}`
       ));
     return Number(result[0]?.count ?? 0);
+  }
+
+  async getOnlineStudentsByTeacher(teacherId: string): Promise<Array<{
+    studentId: string; firstName: string; lastName: string;
+    code: string; classId: string; className: string; lastSeenAt: string;
+  }>> {
+    const onlineThreshold = new Date(Date.now() - 40 * 1000);
+    const rows = await db
+      .select({
+        studentId: students.id,
+        firstName: students.firstName,
+        lastName: students.lastName,
+        code: studentCodes.code,
+        classId: classes.id,
+        className: classes.name,
+        lastSeenAt: students.lastSeenAt,
+      })
+      .from(students)
+      .innerJoin(studentCodes, eq(studentCodes.studentId, students.id))
+      .innerJoin(classes, eq(classes.id, students.classId))
+      .where(and(
+        eq(classes.teacherId, teacherId),
+        sql`${students.lastSeenAt} > ${onlineThreshold}`
+      ))
+      .orderBy(classes.name, students.firstName, students.lastName);
+    return rows.map(r => ({
+      studentId: r.studentId,
+      firstName: r.firstName,
+      lastName: r.lastName,
+      code: r.code,
+      classId: r.classId,
+      className: r.className,
+      lastSeenAt: r.lastSeenAt!.toISOString(),
+    }));
   }
 
   async getAllStudentCodesWithOnlineStatus(): Promise<Array<{

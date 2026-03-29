@@ -486,6 +486,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ count });
   });
 
+  // Teacher: get detailed list of online students (name + surname + class code)
+  app.get("/api/teacher/online-students", async (req: Request, res: Response) => {
+    const teacherId = getTeacherId(req);
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const students = await storage.getOnlineStudentsByTeacher(teacherId);
+    res.json(students);
+  });
+
   // Admin routes
   app.get("/api/admin/stats", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);

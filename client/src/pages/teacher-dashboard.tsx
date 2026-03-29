@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode, Circle } from "lucide-react";
+import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode, Circle, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import metronomeImgPath from "@assets/metronome-logo.png";
@@ -74,10 +74,27 @@ export default function TeacherDashboard() {
       return res.json();
     },
     enabled: !!teacher,
-    refetchInterval: 20000, // refresh every 20 seconds
+    refetchInterval: 20000,
     staleTime: 0,
   });
   const onlineCount = onlineData?.count ?? 0;
+
+  type OnlineStudent = { studentId: string; firstName: string; lastName: string; code: string; classId: string; className: string; lastSeenAt: string };
+  const [onlineListOpen, setOnlineListOpen] = useState(false);
+  const { data: onlineStudents, refetch: refetchOnlineList } = useQuery<OnlineStudent[]>({
+    queryKey: ["/api/teacher/online-students"],
+    queryFn: async () => {
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/online-students`, {
+        credentials: "include",
+        headers: teacherAuthHeader(),
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!teacher && onlineListOpen,
+    refetchInterval: onlineListOpen ? 20000 : false,
+    staleTime: 0,
+  });
 
   const form = useForm<ClassForm>({
     resolver: zodResolver(classSchema),
@@ -146,15 +163,16 @@ export default function TeacherDashboard() {
           </div>
           <div className="flex items-center gap-3">
             {/* Online student count badge */}
-            <div
-              className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-xl px-3 py-1.5"
-              title="Son 10 dakikada aktif öğrenciler"
+            <button
+              className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-xl px-3 py-1.5 hover:bg-green-100 transition-colors"
+              title="Çevrimiçi öğrencileri göster"
               data-testid="badge-online-count"
+              onClick={() => { setOnlineListOpen(true); refetchOnlineList(); }}
             >
-              <Circle className={`w-2.5 h-2.5 fill-current ${onlineCount > 0 ? "text-green-500" : "text-gray-300"}`} />
+              <Circle className={`w-2.5 h-2.5 fill-current ${onlineCount > 0 ? "text-green-500 animate-pulse" : "text-gray-300"}`} />
               <span className="text-sm font-bold text-green-700">{onlineCount}</span>
               <span className="text-xs text-green-600 hidden sm:inline">çevrimiçi</span>
-            </div>
+            </button>
             <div className="hidden sm:block text-right">
               <p className="font-bold text-sm text-foreground">{teacher?.name}</p>
               <p className="text-xs text-muted-foreground">{teacher?.email}</p>
@@ -458,6 +476,64 @@ export default function TeacherDashboard() {
           </div>
         )}
       </main>
+
+      {/* Online Students Dialog */}
+      <Dialog open={onlineListOpen} onOpenChange={setOnlineListOpen}>
+        <DialogContent className="rounded-2xl max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="font-extrabold flex items-center gap-2">
+              <Circle className={`w-3 h-3 fill-current ${onlineCount > 0 ? "text-green-500" : "text-gray-300"}`} />
+              Çevrimiçi Öğrenciler
+              <span className="bg-green-100 text-green-700 text-sm font-bold px-2 py-0.5 rounded-full">
+                {onlineStudents?.length ?? onlineCount}
+              </span>
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">Son 40 saniyede aktif olan öğrenciler • Her 20 saniyede güncellenir</p>
+          </DialogHeader>
+
+          <div className="overflow-y-auto flex-1 mt-2 space-y-2 pr-1" data-testid="list-teacher-online-students">
+            {(onlineStudents?.length ?? 0) === 0 ? (
+              <div className="text-center py-10">
+                <Circle className="w-10 h-10 text-gray-200 fill-current mx-auto mb-3" />
+                <p className="text-muted-foreground font-semibold">Şu an çevrimiçi öğrenci yok.</p>
+                <p className="text-xs text-muted-foreground mt-1">Öğrenciler oyun oynarken burada görünür.</p>
+              </div>
+            ) : (
+              onlineStudents?.map((s, i) => (
+                <div
+                  key={s.studentId}
+                  className="flex items-center gap-3 bg-green-50 border border-green-100 rounded-xl px-3 py-2.5"
+                  data-testid={`item-teacher-online-${s.studentId}`}
+                >
+                  <Circle className="w-2.5 h-2.5 fill-current text-green-500 flex-shrink-0 animate-pulse" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-extrabold text-sm text-foreground">
+                      {s.firstName} {s.lastName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{s.className}</p>
+                  </div>
+                  <code className="text-xs font-bold bg-white border border-green-200 text-indigo-600 px-2 py-1 rounded-lg flex-shrink-0">
+                    {s.code}
+                  </code>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex justify-end mt-3 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-1.5 font-bold"
+              onClick={() => refetchOnlineList()}
+              data-testid="button-refresh-online-list"
+            >
+              <Circle className="w-3 h-3" />
+              Yenile
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
