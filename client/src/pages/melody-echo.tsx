@@ -266,10 +266,9 @@ export default function MelodyEcho() {
       return;
     }
 
-    // Doğru nota — ard arda yanlış sayacını sıfırla
-    consecutiveWrongRef.current = 0;
-
     if (newSeq.length === melody.length) {
+      // Melodi tamamen doğru tamamlandı — ard arda yanlış sayacını sıfırla
+      consecutiveWrongRef.current = 0;
       const newScore = score + 1;
       const newStreak = streak + 1;
       const nextIdx = melodyIdx + 1;
