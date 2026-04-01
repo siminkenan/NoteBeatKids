@@ -551,8 +551,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const inst = await storage.getInstitution(req.params.id);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
-    await storage.deleteInstitution(req.params.id);
-    res.json({ ok: true });
+    try {
+      await storage.deleteInstitution(req.params.id);
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("deleteInstitution error:", e);
+      res.status(500).json({ message: e?.message ?? "Kurum silinemedi" });
+    }
   });
 
   app.get("/api/admin/institutions/:id/details", async (req: Request, res: Response) => {

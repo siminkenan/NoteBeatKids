@@ -402,6 +402,7 @@ export class DatabaseStorage implements IStorage {
       await db.delete(studentProgress).where(inArray(studentProgress.studentId, studentIds));
       await db.delete(orchestraProgress).where(inArray(orchestraProgress.studentId, studentIds));
       await db.delete(monthlyStats).where(inArray(monthlyStats.studentId, studentIds));
+      await db.delete(monthlyWinners).where(inArray(monthlyWinners.studentId, studentIds));
     }
 
     // 3. Nullify studentId refs in student_codes (FK: student_codes.studentId → students.id)
