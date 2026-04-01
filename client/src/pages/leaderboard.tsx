@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import { ChevronLeft, Trophy, Crown } from "lucide-react";
+import { ChevronLeft, Trophy, Crown, Search, X } from "lucide-react";
 
 type LeaderboardEntry = {
   rank: number;
@@ -48,9 +48,15 @@ const TABS = [
   { key: "monthly" as const, label: "Bu Ay", icon: "📅" },
 ];
 
-const TAB_DESC: Record<string, string> = {
+const TAB_DESC_STUDENT: Record<string, string> = {
   school:  "Okuldaki tüm öğrenciler • Toplam ⭐ + 🏅",
   class:   "Sınıfındaki öğrenciler • Toplam ⭐ + 🏅",
+  monthly: "Bu ay kazanılan ⭐ sıralaması",
+};
+
+const TAB_DESC_TEACHER: Record<string, string> = {
+  school:  "Okuldaki tüm öğrenciler • Toplam ⭐ + 🏅",
+  class:   "Oluşturduğun tüm kodlara giren öğrenciler",
   monthly: "Bu ay kazanılan ⭐ sıralaması",
 };
 
@@ -58,6 +64,7 @@ export default function Leaderboard() {
   const [, navigate] = useLocation();
   const { student, teacher, studentLoading } = useAuth();
   const [tab, setTab] = useState<"school" | "class" | "monthly">("school");
+  const [search, setSearch] = useState("");
 
   const apiBase = import.meta.env.VITE_API_URL || "";
 
@@ -94,12 +101,19 @@ export default function Leaderboard() {
     refetchOnMount: "always",
   });
 
-  const entries = data?.entries ?? [];
+  const allEntries = data?.entries ?? [];
   const currentStudentId = data?.currentStudentId ?? student?.student?.id ?? null;
   const starsKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyStars" : "totalStars";
   const badgesKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyBadges" : "totalBadges";
 
-  const myEntry = entries.find(e => e.studentId === currentStudentId);
+  const TAB_DESC = teacher ? TAB_DESC_TEACHER : TAB_DESC_STUDENT;
+
+  const searchLower = search.trim().toLowerCase();
+  const entries = searchLower
+    ? allEntries.filter(e => `${e.firstName} ${e.lastName}`.toLowerCase().includes(searchLower))
+    : allEntries;
+
+  const myEntry = allEntries.find(e => e.studentId === currentStudentId);
 
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" }}>
@@ -171,12 +185,12 @@ export default function Leaderboard() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1.5 mb-5 bg-white/5 rounded-2xl p-1">
+        <div className="flex gap-1.5 mb-3 bg-white/5 rounded-2xl p-1">
           {TABS.map(t => (
             <button
               key={t.key}
               data-testid={`tab-${t.key}`}
-              onClick={() => setTab(t.key)}
+              onClick={() => { setTab(t.key); setSearch(""); }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold transition-all ${
                 tab === t.key
                   ? "bg-purple-600 text-white shadow"
@@ -188,6 +202,28 @@ export default function Leaderboard() {
           ))}
         </div>
 
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            data-testid="input-search"
+            type="text"
+            placeholder="İsme göre ara…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full bg-white/8 border border-white/15 rounded-xl py-2 pl-9 pr-9 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-400/60 transition"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition"
+              data-testid="button-clear-search"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
         {/* List */}
         {isLoading ? (
           <div className="flex justify-center py-16">
@@ -196,8 +232,17 @@ export default function Leaderboard() {
         ) : entries.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <Trophy size={48} className="mx-auto mb-3 opacity-30" />
-            <p className="font-bold">Henüz yıldız kazanılmadı</p>
-            <p className="text-sm mt-1">Oyunlar oynandıkça sıralama burada görünür</p>
+            {searchLower ? (
+              <>
+                <p className="font-bold">Sonuç bulunamadı</p>
+                <p className="text-sm mt-1">"{search}" ile eşleşen öğrenci yok</p>
+              </>
+            ) : (
+              <>
+                <p className="font-bold">Henüz yıldız kazanılmadı</p>
+                <p className="text-sm mt-1">Oyunlar oynandıkça sıralama burada görünür</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-2.5">

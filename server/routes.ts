@@ -946,7 +946,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       if (!institutionId) return res.status(404).json({ message: "Institution not found" });
 
-      const entries = await storage.getLeaderboard(institutionId, type as any, classId);
+      // "Sınıf" sekmesinde öğretmen ise kendi tüm sınıflarını filtrele
+      const leaderboardTeacherId = (teacherId && type === "class" && !classId) ? teacherId : undefined;
+      const entries = await storage.getLeaderboard(institutionId, type as any, classId, leaderboardTeacherId);
       res.json({ entries, currentStudentId });
     } catch (e) {
       console.error("Leaderboard error:", e);
