@@ -124,6 +124,20 @@ export default function TeacherDashboard() {
     enabled: !!addCodesClass,
   });
 
+  const { data: stockData, isLoading: stockLoading } = useQuery<{ used: number; max: number; remaining: number }>({
+    queryKey: ["/api/teacher/institution/student-stock"],
+    queryFn: async () => {
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/institution/student-stock`, {
+        credentials: "include",
+        headers: teacherAuthHeader(),
+      });
+      if (!res.ok) return { used: 0, max: 0, remaining: 0 };
+      return res.json();
+    },
+    enabled: !!addCodesClass,
+    staleTime: 0,
+  });
+
   const addCodesMutation = useMutation({
     mutationFn: async ({ classId, count }: { classId: string; count: number }) => {
       const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/classes/${classId}/student-codes/add`, {
@@ -140,6 +154,7 @@ export default function TeacherDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes", addCodesClass?.id, "student-codes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teacher/institution/student-stock"] });
       toast({ title: "Kodlar eklendi!", description: "Yeni öğrenci davet kodları oluşturuldu." });
       setAddCodesCount(1);
     },
@@ -495,26 +510,81 @@ export default function TeacherDashboard() {
             </DialogTitle>
           </DialogHeader>
 
-          {addCodesLoading ? (
+          {(addCodesLoading || stockLoading) ? (
             <div className="py-8 text-center text-muted-foreground text-sm">Yükleniyor...</div>
-          ) : addCodesData ? (() => {
-            const used = addCodesData.codes.length;
-            const max = addCodesData.class.maxStudents;
-            const available = max - used;
-            return available > 0 ? (
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground font-bold">Kapasite Durumu</p>
-                    <p className="text-lg font-extrabold text-indigo-700">{used} / {max}</p>
+          ) : addCodesData && stockData ? (() => {
+            const classUsed = addCodesData.codes.length;
+            const classMax = addCodesData.class.maxStudents;
+            const classAvailable = classMax - classUsed;
+            const instRemaining = stockData.remaining;
+            // Gerçekte eklenebilecek = sınıf kapasitesi VE kurum stoğunun minimumu
+            const available = Math.min(classAvailable, instRemaining);
+            const instExhausted = instRemaining <= 0;
+            const classFull = classAvailable <= 0;
+
+            if (instExhausted) {
+              return (
+                <div className="py-4 space-y-3">
+                  <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                    <Lock className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-red-700">Kurum öğrenci stoğu doldu</p>
+                      <p className="text-xs text-red-600 mt-0.5">
+                        Kurumunuza ait toplam {stockData.max} öğrenci kontenjanı kullanılmıştır.
+                        Daha fazla kod üretmek için yöneticinizden kapasite artırmasını isteyin.
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground font-bold">Eklenebilir</p>
-                    <p className="text-lg font-extrabold text-green-600">+{available}</p>
+                  <div className="bg-gray-50 rounded-xl px-4 py-3">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Kurum Toplam Stoğu</span>
+                      <span className="font-bold text-foreground">{stockData.used} / {stockData.max}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="bg-red-400 h-1.5 rounded-full" style={{ width: "100%" }} />
+                    </div>
                   </div>
                 </div>
+              );
+            }
+
+            if (classFull) {
+              return (
+                <div className="py-4 space-y-3">
+                  <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                    <Lock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-foreground">Sınıf kapasitesi dolu ({classUsed}/{classMax})</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Daha fazla kod eklemek için yöneticinizden sınıf kapasitesini artırmasını isteyin.
+                        Kurum stoğunuz hâlâ mevcut ({instRemaining} kalan).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-4 pt-2">
+                {/* İki özet satır */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
+                    <p className="text-xs text-muted-foreground font-bold">Bu Sınıf</p>
+                    <p className="text-base font-extrabold text-indigo-700">{classUsed} / {classMax}</p>
+                    <p className="text-xs text-indigo-500">Sınıf kapasitesi</p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl px-3 py-2.5">
+                    <p className="text-xs text-muted-foreground font-bold">Kurum Stoğu</p>
+                    <p className="text-base font-extrabold text-green-700">{stockData.used} / {stockData.max}</p>
+                    <p className="text-xs text-green-600">+{instRemaining} kalan</p>
+                  </div>
+                </div>
+
                 <div>
-                  <p className="text-xs font-bold text-foreground mb-2">Kaç kod eklensin?</p>
+                  <p className="text-xs font-bold text-foreground mb-2">
+                    Kaç kod eklensin? <span className="font-normal text-muted-foreground">(en fazla {available})</span>
+                  </p>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
@@ -550,7 +620,7 @@ export default function TeacherDashboard() {
                     </Button>
                     <Button
                       className="flex-1 h-9 rounded-lg gap-1.5 font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
-                      disabled={addCodesMutation.isPending}
+                      disabled={addCodesMutation.isPending || available <= 0}
                       onClick={() => addCodesMutation.mutate({ classId: addCodesClass!.id, count: addCodesCount })}
                       data-testid="button-dashboard-add-codes"
                     >
@@ -558,15 +628,6 @@ export default function TeacherDashboard() {
                       {addCodesMutation.isPending ? "Ekleniyor..." : `${addCodesCount} Kod Ekle`}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Yönetici tarafından belirlenen kapasite dahilinde yeni davet kodu üretebilirsiniz.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="py-4 flex items-start gap-3 bg-gray-50 rounded-xl px-4">
-                <Lock className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-bold text-foreground">Kapasite dolu ({used}/{max})</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Daha fazla kod eklemek için yöneticinizden kapasite artırmasını isteyin.</p>
                 </div>
               </div>
             );

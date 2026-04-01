@@ -355,6 +355,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Teacher institution student stock (kurumun toplam öğrenci kodu kapasitesi)
+  app.get("/api/teacher/institution/student-stock", async (req: Request, res: Response) => {
+    const teacherId = getTeacherId(req);
+    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+    const teacher = await storage.getTeacher(teacherId);
+    if (!teacher?.institutionId) return res.status(404).json({ message: "Kurum bulunamadı" });
+    const stock = await storage.getInstitutionStudentStock(teacher.institutionId);
+    res.json(stock);
+  });
+
   // Teacher institution info
   app.get("/api/teacher/institution", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);

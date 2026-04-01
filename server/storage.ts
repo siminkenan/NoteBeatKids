@@ -84,6 +84,7 @@ export interface IStorage {
   findStudent(classId: string, firstName: string, lastName: string): Promise<Student | undefined>;
   createStudent(data: InsertStudent): Promise<Student>;
   countStudents(): Promise<number>;
+  getInstitutionStudentStock(institutionId: string): Promise<{ used: number; max: number; remaining: number }>;
   // Class management
   updateClassMaxStudents(classId: string, maxStudents: number): Promise<Class>;
   addStudentCodesToClass(classId: string, additionalCount: number): Promise<StudentCode[]>;
@@ -438,6 +439,20 @@ export class DatabaseStorage implements IStorage {
   async countStudents(): Promise<number> {
     const result = await db.select({ count: sql<number>`count(*)` }).from(students);
     return Number(result[0]?.count ?? 0);
+  }
+
+  async getInstitutionStudentStock(institutionId: string): Promise<{ used: number; max: number; remaining: number }> {
+    const inst = await db.select({ maxStudents: institutions.maxStudents }).from(institutions).where(eq(institutions.id, institutionId));
+    const max = inst[0]?.maxStudents ?? 0;
+    const teacherRows = await db.select({ id: teachers.id }).from(teachers).where(eq(teachers.institutionId, institutionId));
+    if (teacherRows.length === 0) return { used: 0, max, remaining: max };
+    const teacherIds = teacherRows.map(t => t.id);
+    const classRows = await db.select({ id: classes.id }).from(classes).where(inArray(classes.teacherId, teacherIds));
+    if (classRows.length === 0) return { used: 0, max, remaining: max };
+    const classIds = classRows.map(c => c.id);
+    const result = await db.select({ count: sql<number>`count(*)` }).from(studentCodes).where(inArray(studentCodes.classId, classIds));
+    const used = Number(result[0]?.count ?? 0);
+    return { used, max, remaining: Math.max(0, max - used) };
   }
 
   async updateClassMaxStudents(classId: string, maxStudents: number): Promise<Class> {
