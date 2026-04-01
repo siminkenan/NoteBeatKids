@@ -705,9 +705,12 @@ export class DatabaseStorage implements IStorage {
       INSERT INTO monthly_stats (id, student_id, monthly_stars, monthly_badges_count, last_reset_month, updated_at)
       VALUES (gen_random_uuid(), ${studentId}, ${deltaStars}, ${deltaBadges}, ${currentMonth}, now())
       ON CONFLICT (student_id) DO UPDATE SET
-        monthly_stars = CASE WHEN monthly_stats.last_reset_month = ${currentMonth}
-                             THEN monthly_stats.monthly_stars + ${deltaStars}
-                             ELSE ${deltaStars} END,
+        monthly_stars = LEAST(
+          CASE WHEN monthly_stats.last_reset_month = ${currentMonth}
+               THEN monthly_stats.monthly_stars + ${deltaStars}
+               ELSE ${deltaStars} END,
+          (SELECT COALESCE(SUM(stars_earned), 0) FROM student_progress WHERE student_id = ${studentId})
+        ),
         monthly_badges_count = CASE WHEN monthly_stats.last_reset_month = ${currentMonth}
                                     THEN monthly_stats.monthly_badges_count + ${deltaBadges}
                                     ELSE ${deltaBadges} END,
@@ -727,7 +730,7 @@ export class DatabaseStorage implements IStorage {
         i.name AS institution_name,
         COALESCE(SUM(sp.stars_earned), 0)::int AS total_stars,
         COUNT(CASE WHEN sp.notes_badge IS NOT NULL THEN 1 END)::int AS total_badges,
-        COALESCE(ms.monthly_stars, 0)::int AS monthly_stars,
+        LEAST(COALESCE(ms.monthly_stars, 0), COALESCE(SUM(sp.stars_earned), 0))::int AS monthly_stars,
         COALESCE(ms.monthly_badges_count, 0)::int AS monthly_badges,
         ms.last_reset_month
       FROM students s
