@@ -10,14 +10,21 @@ import { storage } from "./storage";
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
 async function runMigrations() {
-  try {
-    await db.execute(
-      sql`ALTER TABLE classes ADD COLUMN IF NOT EXISTS branch_name text NOT NULL DEFAULT ''`
-    );
-    log("✅ Migration: branch_name sütunu kontrol edildi");
-  } catch (e) {
-    console.error("Migration hatası:", e);
+  const migrations = [
+    sql`ALTER TABLE classes ADD COLUMN IF NOT EXISTS branch_name text NOT NULL DEFAULT ''`,
+    sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_seen_at timestamp`,
+    sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_stars integer NOT NULL DEFAULT 0`,
+    sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS monthly_badges_count integer NOT NULL DEFAULT 0`,
+    sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS last_reset_month varchar(7) NOT NULL DEFAULT ''`,
+  ];
+  for (const m of migrations) {
+    try {
+      await db.execute(m);
+    } catch (e: any) {
+      console.error("Migration hatası:", e?.message ?? e);
+    }
   }
+  log("✅ Migration: tüm sütunlar kontrol edildi");
 }
 
 async function seedDatabase() {
