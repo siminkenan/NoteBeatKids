@@ -77,7 +77,7 @@ export default function Leaderboard() {
     enabled: isReady,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchInterval: 15000,
+    refetchInterval: 40000,
   });
 
   const { data: winners } = useQuery<Winner[]>({

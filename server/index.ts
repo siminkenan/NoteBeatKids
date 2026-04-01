@@ -5,6 +5,7 @@ import { log } from "./app";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { storage } from "./storage";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
@@ -36,6 +37,15 @@ async function main() {
   });
 
   await seedDatabase();
+
+  // Her 40 saniyede bekleyen yıldızları liderlik tablosuna yansıt
+  setInterval(async () => {
+    try {
+      await storage.flushPendingStars();
+    } catch (e) {
+      // sessizce devam et
+    }
+  }, 40_000);
 }
 
 main().catch((err) => {

@@ -164,6 +164,7 @@ export interface IStorage {
   performMonthlyReset(institutionId: string): Promise<{ month: string; winners: MonthlyWinner[] }>;
   getInstitutionIdForStudent(studentId: string): Promise<string | null>;
   getClassIdForStudent(studentId: string): Promise<string | null>;
+  flushPendingStars(): Promise<void>;
   // Seed
   seedData(): Promise<void>;
 }
@@ -605,8 +606,21 @@ export class DatabaseStorage implements IStorage {
       result = inserted[0];
     }
 
+    // Yıldızları pendingStars tamponuna yaz — 40s flush'ta leaderboard'a yansır
+    if (deltaStars > 0) {
+      await db.update(students)
+        .set({ pendingStars: sql`pending_stars + ${deltaStars}` })
+        .where(eq(students.id, studentId));
+    }
     this.incrementMonthlyStats(studentId, deltaStars, deltaBadges).catch(() => {});
     return result;
+  }
+
+  async flushPendingStars(): Promise<void> {
+    // pendingStars artık leaderboard'a yansıdı — sıfırla
+    await db.update(students)
+      .set({ pendingStars: 0 })
+      .where(sql`pending_stars > 0`);
   }
 
   async getClassProgress(classId: string): Promise<Array<Student & { rhythmProgress?: StudentProgress; notesProgress?: StudentProgress; drumProgress?: StudentProgress; melodyProgress?: StudentProgress }>> {
@@ -807,7 +821,7 @@ export class DatabaseStorage implements IStorage {
         s.last_name,
         c.class_code,
         i.name AS institution_name,
-        COALESCE(SUM(sp.stars_earned), 0)::int AS total_stars,
+        GREATEST(0, COALESCE(SUM(sp.stars_earned), 0) - COALESCE(s.pending_stars, 0))::int AS total_stars,
         COUNT(CASE WHEN sp.notes_badge IS NOT NULL THEN 1 END)::int AS total_badges,
         COALESCE(ms.monthly_stars, 0)::int AS monthly_stars,
         COALESCE(ms.monthly_badges_count, 0)::int AS monthly_badges,
@@ -824,7 +838,7 @@ export class DatabaseStorage implements IStorage {
           EXISTS (SELECT 1 FROM student_codes sc WHERE sc.student_id = s.id)
           OR EXISTS (SELECT 1 FROM student_progress sp2 WHERE sp2.student_id = s.id AND sp2.stars_earned > 0)
         )
-      GROUP BY s.id, s.first_name, s.last_name, c.class_code, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
+      GROUP BY s.id, s.first_name, s.last_name, c.class_code, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month, s.pending_stars
     `);
 
     const entries = (rows.rows as any[]).map(row => {

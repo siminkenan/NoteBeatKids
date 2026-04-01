@@ -47,6 +47,7 @@ export const students = pgTable("students", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   lastSeenAt: timestamp("last_seen_at"),
+  pendingStars: integer("pending_stars").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

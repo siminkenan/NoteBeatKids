@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode, Circle, X } from "lucide-react";
+import { Plus, Minus, Users, Calendar, Trash2, LogOut, Copy, Music, BookOpen, QrCode, Circle, X, Key, Lock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import metronomeImgPath from "@assets/metronome-logo.png";
@@ -33,6 +33,8 @@ export default function TeacherDashboard() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [qrClass, setQrClass] = useState<Class | null>(null);
+  const [addCodesClass, setAddCodesClass] = useState<Class | null>(null);
+  const [addCodesCount, setAddCodesCount] = useState(1);
 
   useEffect(() => {
     if (authLoading) return;
@@ -137,6 +139,45 @@ export default function TeacherDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes"] });
       toast({ title: "Sınıf silindi" });
+    },
+  });
+
+  type ClassCodesData = { class: Class; codes: Array<{ id: string; code: string; slotNumber: number; studentId: string | null }> };
+
+  const { data: addCodesData, isLoading: addCodesLoading } = useQuery<ClassCodesData>({
+    queryKey: ["/api/teacher/classes", addCodesClass?.id, "student-codes"],
+    queryFn: async () => {
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/classes/${addCodesClass!.id}/student-codes`, {
+        credentials: "include",
+        headers: teacherAuthHeader(),
+      });
+      if (!res.ok) throw new Error("Yüklenemedi");
+      return res.json();
+    },
+    enabled: !!addCodesClass,
+  });
+
+  const addCodesMutation = useMutation({
+    mutationFn: async ({ classId, count }: { classId: string; count: number }) => {
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/classes/${classId}/student-codes/add`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...teacherAuthHeader() },
+        body: JSON.stringify({ count }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Kod eklenemedi");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes", addCodesClass?.id, "student-codes"] });
+      toast({ title: "Kodlar eklendi!", description: "Yeni öğrenci davet kodları oluşturuldu." });
+      setAddCodesCount(1);
+    },
+    onError: (e: any) => {
+      toast({ title: "Hata", description: e.message, variant: "destructive" });
     },
   });
 
@@ -452,6 +493,16 @@ export default function TeacherDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="rounded-xl text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                          onClick={() => { setAddCodesClass(cls); setAddCodesCount(1); }}
+                          data-testid={`button-add-codes-${cls.id}`}
+                          title="Ek Kod Ekle"
+                        >
+                          <Key className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="rounded-xl text-primary"
                           onClick={() => setQrClass(cls)}
                           data-testid={`button-show-qr-${cls.id}`}
@@ -476,6 +527,96 @@ export default function TeacherDashboard() {
           </div>
         )}
       </main>
+
+      {/* Ek Kod Ekle Dialog */}
+      <Dialog open={!!addCodesClass} onOpenChange={(open) => { if (!open) setAddCodesClass(null); }}>
+        <DialogContent className="rounded-2xl max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-extrabold flex items-center gap-2">
+              <Key className="w-5 h-5 text-indigo-500" />
+              Ek Kod Ekle
+              {addCodesClass && <span className="text-sm font-semibold text-muted-foreground ml-1">— {addCodesClass.name}</span>}
+            </DialogTitle>
+          </DialogHeader>
+
+          {addCodesLoading ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">Yükleniyor...</div>
+          ) : addCodesData ? (() => {
+            const used = addCodesData.codes.length;
+            const max = addCodesData.class.maxStudents;
+            const available = max - used;
+            return available > 0 ? (
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-bold">Kapasite Durumu</p>
+                    <p className="text-lg font-extrabold text-indigo-700">{used} / {max}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground font-bold">Eklenebilir</p>
+                    <p className="text-lg font-extrabold text-green-600">+{available}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground mb-2">Kaç kod eklensin?</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-lg border-indigo-200"
+                      onClick={() => setAddCodesCount(v => Math.max(1, v - 1))}
+                      disabled={addCodesCount <= 1 || addCodesMutation.isPending}
+                      data-testid="button-dashboard-add-count-minus"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={available}
+                      value={addCodesCount}
+                      onChange={e => {
+                        const v = Math.max(1, Math.min(available, Number(e.target.value) || 1));
+                        setAddCodesCount(v);
+                      }}
+                      className="h-9 w-20 text-center font-bold rounded-lg border-indigo-200"
+                      data-testid="input-dashboard-add-code-count"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 rounded-lg border-indigo-200"
+                      onClick={() => setAddCodesCount(v => Math.min(available, v + 1))}
+                      disabled={addCodesCount >= available || addCodesMutation.isPending}
+                      data-testid="button-dashboard-add-count-plus"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      className="flex-1 h-9 rounded-lg gap-1.5 font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                      disabled={addCodesMutation.isPending}
+                      onClick={() => addCodesMutation.mutate({ classId: addCodesClass!.id, count: addCodesCount })}
+                      data-testid="button-dashboard-add-codes"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {addCodesMutation.isPending ? "Ekleniyor..." : `${addCodesCount} Kod Ekle`}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">Yönetici tarafından belirlenen kapasite dahilinde yeni davet kodu üretebilirsiniz.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="py-4 flex items-start gap-3 bg-gray-50 rounded-xl px-4">
+                <Lock className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-foreground">Kapasite dolu ({used}/{max})</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Daha fazla kod eklemek için yöneticinizden kapasite artırmasını isteyin.</p>
+                </div>
+              </div>
+            );
+          })() : null}
+        </DialogContent>
+      </Dialog>
 
       {/* Online Students Dialog */}
       <Dialog open={onlineListOpen} onOpenChange={setOnlineListOpen}>

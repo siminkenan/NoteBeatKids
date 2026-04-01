@@ -1,0 +1,108 @@
+Uygulamadaki mevcut liderlik tablosu sistemini BOZMADAN aşağıdaki güncellemeleri eksiksiz uygula:
+
+--------------------------------------------------
+
+1) MEVCUT YAPIYI KORU
+
+- Aşağıdaki mevcut sistem kesinlikle değiştirilmeyecek:
+  → Okul (kurum) sıralama listesi
+  → Sınıf bazlı öğrenci listesi
+  → Aylık en iyi ilk 3 (top 3) listesi
+
+- Öğrenciler kendi panellerinde liderlik tablosunu görmeye devam edecek
+- Öğretmenler kendi panellerinde liderlik tablosunu görmeye devam edecek
+
+--------------------------------------------------
+
+2) ORTAK KURUM HAVUZU
+
+- Liderlik tablosu KURUM BAZLI çalışacak
+- Aynı kuruma ait:
+  → Tüm öğretmenler
+  → Tüm öğrenciler
+
+  AYNI liderlik verisini görecek
+
+- Bu veri:
+  → Kurumun ortak havuzu olacak
+  → Sınıf filtreleri korunacak (bozulmayacak)
+
+- Farklı kurumlar birbirinin verisini ASLA göremez
+
+--------------------------------------------------
+
+3) ANLIK GÜNCELLEMEYİ KALDIR
+
+- Liderlik tablosu anlık (real-time) güncellenmeyecek
+- Öğrenci yıldız kazandığında:
+  → Veri direkt tabloya yansımasın
+  → Arka planda geçici olarak tutulacak
+
+--------------------------------------------------
+
+4) 40 SANİYELİK YENİLEME SİSTEMİ
+
+- Sistem şu şekilde çalışacak:
+
+  → Her öğrenci için "pendingStars" alanı oluştur
+  → Kazanılan yıldızlar önce buraya eklensin
+
+  → Her 40 saniyede bir:
+      - pendingStars değerleri alınacak
+      - totalStars alanına eklenecek
+      - pendingStars sıfırlanacak
+      - liderlik tablosu yeniden sıralanacak
+
+- Örnek mantık:
+
+  every 40 seconds:
+    for each student in same institution:
+      totalStars += pendingStars
+      pendingStars = 0
+
+--------------------------------------------------
+
+5) FRONTEND DAVRANIŞI
+
+- Öğrenci ve öğretmen panellerinde:
+  → Liderlik tablosu sadece 40 saniyede bir yenilensin
+  → Anlık değişim gösterilmesin
+
+- Tüm paneller AYNI veri kaynağını kullansın (kurum havuzu)
+
+--------------------------------------------------
+
+6) FİLTRELEME (ÖNEMLİ)
+
+- Tüm leaderboard sorgularında:
+  → institutionId zorunlu filtre olsun
+
+- Böylece:
+  → Herkes sadece kendi kurumunun verisini görür
+
+--------------------------------------------------
+
+7) PERFORMANS VE GÜVENLİK
+
+- Gereksiz real-time bağlantılar kaldırılsın
+- Duplicate veri eklenmesi engellensin
+- Negatif veya hatalı yıldız girişleri engellensin
+
+--------------------------------------------------
+
+8) GENEL KURAL
+
+- Mevcut çalışan sistemin:
+  → veri yapısı
+  → sıralama mantığı
+  → top 3 hesaplaması
+
+KESİNLİKLE değiştirilmeyecek
+
+Sadece:
+→ Güncelleme sistemi 40 saniyelik periyoda bağlanacak
+→ Kurum içi ortak veri kullanımı netleştirilecek
+
+--------------------------------------------------
+
+Kod yapısı temiz, modüler ve sürdürülebilir olsun.
