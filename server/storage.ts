@@ -165,7 +165,6 @@ export interface IStorage {
   getInstitutionIdForStudent(studentId: string): Promise<string | null>;
   getClassIdForStudent(studentId: string): Promise<string | null>;
   flushPendingStars(): Promise<void>;
-  getInstitutionStudentStock(institutionId: string): Promise<{ max: number; used: number; remaining: number }>;
   // Seed
   seedData(): Promise<void>;
 }
@@ -622,22 +621,6 @@ export class DatabaseStorage implements IStorage {
     await db.update(students)
       .set({ pendingStars: 0 })
       .where(sql`pending_stars > 0`);
-  }
-
-  async getInstitutionStudentStock(institutionId: string): Promise<{ max: number; used: number; remaining: number }> {
-    const inst = await this.getInstitution(institutionId);
-    const max = inst?.maxStudents ?? 0;
-    // Kuruma ait tüm sınıflardaki toplam öğrenci kodu sayısı
-    const rows = await db.execute(sql`
-      SELECT COUNT(sc.id)::int AS total_used
-      FROM student_codes sc
-      JOIN classes c ON sc.class_id = c.id
-      JOIN teachers t ON c.teacher_id = t.id
-      WHERE t.institution_id = ${institutionId}
-    `);
-    const used = Number((rows.rows[0] as any)?.total_used ?? 0);
-    const remaining = Math.max(0, max - used);
-    return { max, used, remaining };
   }
 
   async getClassProgress(classId: string): Promise<Array<Student & { rhythmProgress?: StudentProgress; notesProgress?: StudentProgress; drumProgress?: StudentProgress; melodyProgress?: StudentProgress }>> {
