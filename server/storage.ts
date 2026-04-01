@@ -150,6 +150,8 @@ export interface IStorage {
   getLastMonthWinners(institutionId: string): Promise<MonthlyWinner[]>;
   incrementMonthlyStats(studentId: string, deltaStars: number, deltaBadges: number): Promise<void>;
   performMonthlyReset(institutionId: string): Promise<{ month: string; winners: MonthlyWinner[] }>;
+  autoCheckMonthlyReset(): Promise<void>;
+  getAllInstitutionIds(): Promise<string[]>;
   getInstitutionIdForStudent(studentId: string): Promise<string | null>;
   getClassIdForStudent(studentId: string): Promise<string | null>;
   flushPendingStars(): Promise<void>;
@@ -826,6 +828,73 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { month: currentMonth, winners: savedWinners };
+  }
+
+  async getAllInstitutionIds(): Promise<string[]> {
+    const rows = await db.execute(sql`SELECT id FROM institutions WHERE is_active = true`);
+    return (rows.rows as any[]).map(r => r.id as string);
+  }
+
+  async autoCheckMonthlyReset(): Promise<void> {
+    const prevMonth = getPreviousMonth();
+
+    // Önceki aya ait monthly_stats olan öğrencileri kuruma göre grupla
+    const statsRows = await db.execute(sql`
+      SELECT
+        ms.student_id,
+        s.first_name,
+        s.last_name,
+        c.class_code,
+        t.institution_id,
+        ms.monthly_stars,
+        ms.monthly_badges_count
+      FROM monthly_stats ms
+      JOIN students s ON s.id = ms.student_id
+      JOIN classes c ON c.id = s.class_id
+      JOIN teachers t ON t.id = c.teacher_id
+      WHERE ms.last_reset_month = ${prevMonth}
+        AND ms.monthly_stars > 0
+      ORDER BY ms.monthly_stars DESC, ms.monthly_badges_count DESC
+    `);
+
+    if ((statsRows.rows as any[]).length === 0) return;
+
+    // Kuruma göre grupla
+    const byInstitution: Record<string, any[]> = {};
+    for (const row of statsRows.rows as any[]) {
+      const iid = row.institution_id as string;
+      if (!byInstitution[iid]) byInstitution[iid] = [];
+      byInstitution[iid].push(row);
+    }
+
+    for (const [institutionId, rows] of Object.entries(byInstitution)) {
+      // Bu kurum için önceki ay zaten kaydedildiyse atla
+      const alreadySaved = await db.execute(sql`
+        SELECT 1 FROM monthly_winners WHERE institution_id = ${institutionId} AND month = ${prevMonth} LIMIT 1
+      `);
+      if ((alreadySaved.rows as any[]).length > 0) continue;
+
+      const top3 = rows.slice(0, 3);
+      for (let i = 0; i < top3.length; i++) {
+        const e = top3[i];
+        await db.insert(monthlyWinners).values({
+          institutionId,
+          month: prevMonth,
+          studentId: e.student_id,
+          firstName: e.first_name,
+          lastName: e.last_name,
+          classCode: e.class_code,
+          score: Number(e.monthly_stars),
+          rank: i + 1,
+        });
+      }
+    }
+
+    // Önceki aya ait monthly_stats sıfırla
+    await db.execute(sql`
+      UPDATE monthly_stats SET monthly_stars = 0, monthly_badges_count = 0, last_reset_month = '', updated_at = now()
+      WHERE last_reset_month = ${prevMonth}
+    `);
   }
 
   async seedData(): Promise<void> {

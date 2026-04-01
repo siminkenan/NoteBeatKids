@@ -48,16 +48,22 @@ const TABS = [
   { key: "monthly" as const, label: "Bu Ay", icon: "📅" },
 ];
 
+function getCurrentMonthLabel() {
+  const months = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  const d = new Date();
+  return `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 const TAB_DESC_STUDENT: Record<string, string> = {
   school:  "Okuldaki tüm öğrenciler • Toplam ⭐ + 🏅",
   class:   "Sınıfındaki öğrenciler • Toplam ⭐ + 🏅",
-  monthly: "Bu ay kazanılan ⭐ sıralaması",
+  monthly: `${getCurrentMonthLabel()} • Bu ay kazanılan ⭐ sıralaması`,
 };
 
 const TAB_DESC_TEACHER: Record<string, string> = {
   school:  "Okuldaki tüm öğrenciler • Toplam ⭐ + 🏅",
   class:   "Oluşturduğun tüm kodlara giren öğrenciler",
-  monthly: "Bu ay kazanılan ⭐ sıralaması",
+  monthly: `${getCurrentMonthLabel()} • Bu ay kazanılan ⭐ sıralaması`,
 };
 
 export default function Leaderboard() {
@@ -211,7 +217,12 @@ export default function Leaderboard() {
             placeholder="İsme göre ara…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/8 border border-white/15 rounded-xl py-2 pl-9 pr-9 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-400/60 transition"
+            className="w-full rounded-xl py-2 pl-9 pr-9 text-sm focus:outline-none transition"
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.18)",
+              color: "#fff",
+            }}
           />
           {search && (
             <button

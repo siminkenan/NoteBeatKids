@@ -46,6 +46,17 @@ async function main() {
       // sessizce devam et
     }
   }, 40_000);
+
+  // Her gün 1 kez önceki ayın şampiyonlarını otomatik kaydet (ay başı sıfırlama)
+  const runAutoMonthlyReset = async () => {
+    try {
+      await storage.autoCheckMonthlyReset();
+    } catch (e) {
+      // sessizce devam et
+    }
+  };
+  await runAutoMonthlyReset(); // sunucu başlangıcında bir kez çalıştır
+  setInterval(runAutoMonthlyReset, 24 * 60 * 60 * 1000); // her 24 saatte bir
 }
 
 main().catch((err) => {
