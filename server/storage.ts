@@ -516,12 +516,6 @@ export class DatabaseStorage implements IStorage {
       result = inserted[0];
     }
 
-    // Yıldızları pendingStars tamponuna yaz — 40s flush'ta leaderboard'a yansır
-    if (deltaStars > 0) {
-      await db.update(students)
-        .set({ pendingStars: sql`pending_stars + ${deltaStars}` })
-        .where(eq(students.id, studentId));
-    }
     this.incrementMonthlyStats(studentId, deltaStars, deltaBadges).catch(() => {});
     return result;
   }
@@ -731,7 +725,7 @@ export class DatabaseStorage implements IStorage {
         s.last_name,
         c.class_code,
         i.name AS institution_name,
-        GREATEST(0, COALESCE(SUM(sp.stars_earned), 0) - COALESCE(s.pending_stars, 0))::int AS total_stars,
+        COALESCE(SUM(sp.stars_earned), 0)::int AS total_stars,
         COUNT(CASE WHEN sp.notes_badge IS NOT NULL THEN 1 END)::int AS total_badges,
         COALESCE(ms.monthly_stars, 0)::int AS monthly_stars,
         COALESCE(ms.monthly_badges_count, 0)::int AS monthly_badges,
@@ -749,7 +743,7 @@ export class DatabaseStorage implements IStorage {
           EXISTS (SELECT 1 FROM student_codes sc WHERE sc.student_id = s.id)
           OR EXISTS (SELECT 1 FROM student_progress sp2 WHERE sp2.student_id = s.id AND sp2.stars_earned > 0)
         )
-      GROUP BY s.id, s.first_name, s.last_name, c.class_code, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month, s.pending_stars
+      GROUP BY s.id, s.first_name, s.last_name, c.class_code, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
     `);
 
     const entries = (rows.rows as any[]).map(row => {
