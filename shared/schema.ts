@@ -35,6 +35,7 @@ export const classes = pgTable("classes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   teacherId: varchar("teacher_id").references(() => teachers.id).notNull(),
   name: text("name").notNull(),
+  branchName: text("branch_name").default("").notNull(),
   classCode: varchar("class_code", { length: 6 }).notNull().unique(),
   maxStudents: integer("max_students").notNull().default(30),
   expiresAt: timestamp("expires_at"),

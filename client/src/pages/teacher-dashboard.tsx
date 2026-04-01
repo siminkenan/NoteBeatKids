@@ -21,6 +21,7 @@ import metronomeImgPath from "@assets/metronome-logo.png";
 import type { Class } from "@shared/schema";
 
 const classSchema = z.object({
+  branchName: z.string().min(1, "Şube adı gerekli"),
   name: z.string().min(1, "Sınıf adı gerekli"),
   maxStudents: z.coerce.number().min(1, "En az 1 olmalı"),
   expiresAt: z.string().optional(),
@@ -67,7 +68,7 @@ export default function TeacherDashboard() {
 
   const form = useForm<ClassForm>({
     resolver: zodResolver(classSchema),
-    defaultValues: { name: "", maxStudents: 30, expiresAt: "" },
+    defaultValues: { branchName: "", name: "", maxStudents: 30, expiresAt: "" },
   });
 
   useEffect(() => {
@@ -354,9 +355,16 @@ export default function TeacherDashboard() {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(d => createClass.mutate(d))} className="space-y-4 pt-2">
+                  <FormField control={form.control} name="branchName" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-bold">1. Kurum Şube Adı</FormLabel>
+                      <FormControl><Input {...field} placeholder="ör. Kadıköy Şubesi" className="rounded-xl" data-testid="input-branch-name" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-bold">Sınıf Adı</FormLabel>
+                      <FormLabel className="font-bold">2. Sınıf Adı</FormLabel>
                       <FormControl><Input {...field} placeholder="ör. 2A Müzik Sınıfı" className="rounded-xl" data-testid="input-class-name" /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -364,7 +372,7 @@ export default function TeacherDashboard() {
                   <FormField control={form.control} name="maxStudents" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="font-bold">
-                        Maksimum Öğrenci
+                        3. Öğrenci Adeti
                         {instData && (
                           <span className="ml-2 text-xs font-normal text-muted-foreground">(Kurum limiti: {instMax})</span>
                         )}

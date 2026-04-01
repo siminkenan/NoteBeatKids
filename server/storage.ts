@@ -22,6 +22,7 @@ export type LeaderboardEntry = {
   firstName: string;
   lastName: string;
   classCode: string;
+  branchName: string;
   institutionName: string;
   totalStars: number;
   totalBadges: number;
@@ -727,6 +728,7 @@ export class DatabaseStorage implements IStorage {
         s.first_name,
         s.last_name,
         c.class_code,
+        c.branch_name,
         i.name AS institution_name,
         COALESCE(SUM(sp.stars_earned), 0)::int AS total_stars,
         COUNT(CASE WHEN sp.notes_badge IS NOT NULL THEN 1 END)::int AS total_badges,
@@ -746,7 +748,7 @@ export class DatabaseStorage implements IStorage {
           EXISTS (SELECT 1 FROM student_codes sc WHERE sc.student_id = s.id)
           OR EXISTS (SELECT 1 FROM student_progress sp2 WHERE sp2.student_id = s.id AND sp2.stars_earned > 0)
         )
-      GROUP BY s.id, s.first_name, s.last_name, c.class_code, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
+      GROUP BY s.id, s.first_name, s.last_name, c.class_code, c.branch_name, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
     `);
 
     const entries = (rows.rows as any[]).map(row => {
@@ -761,6 +763,7 @@ export class DatabaseStorage implements IStorage {
         firstName: row.first_name as string,
         lastName: row.last_name as string,
         classCode: row.class_code as string,
+        branchName: (row.branch_name as string) || "",
         institutionName: row.institution_name as string,
         totalStars,
         totalBadges,
