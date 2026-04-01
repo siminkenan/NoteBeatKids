@@ -744,10 +744,10 @@ export class DatabaseStorage implements IStorage {
       WHERE t.institution_id = ${institutionId}
         ${classId ? sql`AND c.id = ${classId}` : sql``}
         ${teacherId ? sql`AND t.id = ${teacherId}` : sql``}
-        AND (
+        ${!teacherId ? sql`AND (
           EXISTS (SELECT 1 FROM student_codes sc WHERE sc.student_id = s.id)
           OR EXISTS (SELECT 1 FROM student_progress sp2 WHERE sp2.student_id = s.id AND sp2.stars_earned > 0)
-        )
+        )` : sql``}
       GROUP BY s.id, s.first_name, s.last_name, c.class_code, c.branch_name, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
     `);
 
