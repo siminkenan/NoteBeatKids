@@ -922,7 +922,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/leaderboard", async (req: Request, res: Response) => {
     const type = (req.query.type as string) ?? "school";
-    // Session-based auth (new logins) OR query param fallback (localStorage-based student sessions)
     const sessionStudentId = (req.session as any).studentId;
     const qStudentId = req.query.studentId as string | undefined;
     const studentId = sessionStudentId || qStudentId;
@@ -933,17 +932,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       let classId: string | undefined;
       let currentStudentId: string | null = null;
 
-      if (studentId) {
-        currentStudentId = studentId;
-        institutionId = await storage.getInstitutionIdForStudent(studentId);
-        if (type === "class") {
-          classId = (await storage.getClassIdForStudent(studentId)) ?? undefined;
-        }
-      } else if (teacherId) {
+      // Öğretmen JWT varsa her zaman öncelikli kullan — oturum çerezi karışmasını önler
+      if (teacherId) {
         const teacher = await storage.getTeacher(teacherId);
         institutionId = teacher?.institutionId ?? null;
         if (type === "class" && req.query.classId) {
           classId = req.query.classId as string;
+        }
+      } else if (studentId) {
+        currentStudentId = studentId;
+        institutionId = await storage.getInstitutionIdForStudent(studentId);
+        if (type === "class") {
+          classId = (await storage.getClassIdForStudent(studentId)) ?? undefined;
         }
       } else {
         return res.status(401).json({ message: "Not authenticated" });
@@ -969,11 +969,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     try {
       let institutionId: string | null = null;
-      if (studentId) {
-        institutionId = await storage.getInstitutionIdForStudent(studentId);
-      } else if (teacherId) {
+      // Öğretmen JWT varsa her zaman öncelikli kullan
+      if (teacherId) {
         const teacher = await storage.getTeacher(teacherId);
         institutionId = teacher?.institutionId ?? null;
+      } else if (studentId) {
+        institutionId = await storage.getInstitutionIdForStudent(studentId);
       } else {
         return res.status(401).json({ message: "Not authenticated" });
       }

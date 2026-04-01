@@ -78,10 +78,11 @@ export default function Leaderboard() {
 
   // Pass studentId as query param so localStorage-based sessions work even without a server session cookie
   const sid = student?.student?.id ?? null;
+  const tid = teacher?.id ?? null;
   const isReady = !studentLoading && !!(student || teacher);
 
   const { data, isLoading } = useQuery<{ entries: LeaderboardEntry[]; currentStudentId: string | null }>({
-    queryKey: ["/api/leaderboard", tab, sid],
+    queryKey: ["/api/leaderboard", tab, sid, tid],
     queryFn: async () => {
       const params = new URLSearchParams({ type: tab });
       if (sid) params.set("studentId", sid);
@@ -99,7 +100,7 @@ export default function Leaderboard() {
   });
 
   const { data: winners } = useQuery<Winner[]>({
-    queryKey: ["/api/leaderboard/winners", sid],
+    queryKey: ["/api/leaderboard/winners", sid, tid],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (sid) params.set("studentId", sid);
