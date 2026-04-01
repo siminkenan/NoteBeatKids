@@ -515,14 +515,9 @@ export default function TeacherDashboard() {
           ) : addCodesData && stockData ? (() => {
             const classUsed = addCodesData.codes.length;
             const classMax = addCodesData.class.maxStudents;
-            const classAvailable = classMax - classUsed;
-            const instRemaining = stockData.remaining;
-            // Gerçekte eklenebilecek = sınıf kapasitesi VE kurum stoğunun minimumu
-            const available = Math.min(classAvailable, instRemaining);
-            const instExhausted = instRemaining <= 0;
-            const classFull = classAvailable <= 0;
+            const available = stockData.remaining; // sadece kurum stoğuna bakıyoruz
 
-            if (instExhausted) {
+            if (available <= 0) {
               return (
                 <div className="py-4 space-y-3">
                   <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
@@ -548,36 +543,18 @@ export default function TeacherDashboard() {
               );
             }
 
-            if (classFull) {
-              return (
-                <div className="py-4 space-y-3">
-                  <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                    <Lock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-foreground">Sınıf kapasitesi dolu ({classUsed}/{classMax})</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Daha fazla kod eklemek için yöneticinizden sınıf kapasitesini artırmasını isteyin.
-                        Kurum stoğunuz hâlâ mevcut ({instRemaining} kalan).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
             return (
               <div className="space-y-4 pt-2">
-                {/* İki özet satır */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
-                    <p className="text-xs text-muted-foreground font-bold">Bu Sınıf</p>
+                    <p className="text-xs text-muted-foreground font-bold">Bu Sınıf (mevcut)</p>
                     <p className="text-base font-extrabold text-indigo-700">{classUsed} / {classMax}</p>
-                    <p className="text-xs text-indigo-500">Sınıf kapasitesi</p>
+                    <p className="text-xs text-indigo-400">Sınıf kapasite bilgisi</p>
                   </div>
                   <div className="bg-green-50 rounded-xl px-3 py-2.5">
                     <p className="text-xs text-muted-foreground font-bold">Kurum Stoğu</p>
                     <p className="text-base font-extrabold text-green-700">{stockData.used} / {stockData.max}</p>
-                    <p className="text-xs text-green-600">+{instRemaining} kalan</p>
+                    <p className="text-xs text-green-600">+{available} eklenebilir</p>
                   </div>
                 </div>
 
@@ -620,7 +597,7 @@ export default function TeacherDashboard() {
                     </Button>
                     <Button
                       className="flex-1 h-9 rounded-lg gap-1.5 font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
-                      disabled={addCodesMutation.isPending || available <= 0}
+                      disabled={addCodesMutation.isPending}
                       onClick={() => addCodesMutation.mutate({ classId: addCodesClass!.id, count: addCodesCount })}
                       data-testid="button-dashboard-add-codes"
                     >

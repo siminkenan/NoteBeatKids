@@ -468,10 +468,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
       const cls = await storage.getClass(req.params.classId);
       if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
-      const existing = await storage.getStudentCodesByClass(req.params.classId);
-      const available = cls.maxStudents - existing.length;
-      if (available <= 0) return res.status(400).json({ message: "Sınıf kapasitesi dolu. Yöneticinizden kapasite artırmasını isteyin." });
-      const count = Math.min(available, Number(req.body.count) || 1);
+      const teacher = await storage.getTeacher(teacherId);
+      if (!teacher?.institutionId) return res.status(400).json({ message: "Kurum bilgisi bulunamadı." });
+      const stock = await storage.getInstitutionStudentStock(teacher.institutionId);
+      if (stock.remaining <= 0) return res.status(400).json({ message: "Kurum öğrenci stoğu doldu. Yöneticinizden kapasite artırmasını isteyin." });
+      const count = Math.min(stock.remaining, Number(req.body.count) || 1);
       const newCodes = await storage.addStudentCodesToClass(req.params.classId, count);
       res.json({ class: cls, codes: newCodes });
     } catch (e: any) {
