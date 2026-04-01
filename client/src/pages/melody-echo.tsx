@@ -157,8 +157,11 @@ export default function MelodyEcho() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const celebTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrongCountRef = useRef(0);
+  const consecutiveWrongRef = useRef(0);
   const startTimeRef = useRef(Date.now());
   const [pianoScale, setPianoScale] = useState(1);
+  const [showStarPenalty, setShowStarPenalty] = useState(false);
+  const [showBadgeBonus, setShowBadgeBonus] = useState(false);
 
   const sid = student?.student.id ?? "";
   const melody = sid ? getMelodyForStudent(sid, melodyIdx) : STAGE1[0];
@@ -245,11 +248,26 @@ export default function MelodyEcho() {
     if (newSeq[newSeq.length - 1] !== melody[newSeq.length - 1]) {
       playError();
       wrongCountRef.current += 1;
+      consecutiveWrongRef.current += 1;
       setWrongPulse(true);
       setTimeout(() => setWrongPulse(false), 600);
+
+      // Ard arda 2 yanlış → 1 yıldız cezası
+      if (consecutiveWrongRef.current >= 2) {
+        consecutiveWrongRef.current = 0;
+        const penaltyScore = Math.max(0, score - 1);
+        setScore(penaltyScore);
+        setShowStarPenalty(true);
+        setTimeout(() => setShowStarPenalty(false), 1500);
+        saveProgress(melodyIdx, penaltyScore);
+      }
+
       setPhase("wrong");
       return;
     }
+
+    // Doğru nota — ard arda yanlış sayacını sıfırla
+    consecutiveWrongRef.current = 0;
 
     if (newSeq.length === melody.length) {
       const newScore = score + 1;
@@ -265,12 +283,17 @@ export default function MelodyEcho() {
       const isFullComplete = nextIdx >= 300;
 
       if (isFullComplete || isTurnEnd) {
+        // Rozet bonusu: +10 yıldız
+        const badgeScore = newScore + 10;
         const turnNum = Math.ceil(nextIdx / 100);
         const badge: Badge = turnNum >= 3 ? "gold" : turnNum === 2 ? "silver" : "bronze";
         const savedIdx = isFullComplete ? 0 : nextIdx;
+        setScore(badgeScore);
         setMelodyBadge(badge);
         setNextMelodyIdx(savedIdx);
-        saveProgress(savedIdx, newScore, badge);
+        setShowBadgeBonus(true);
+        setTimeout(() => setShowBadgeBonus(false), 3000);
+        saveProgress(savedIdx, badgeScore, badge);
         timers.current.push(setTimeout(() => {
           setShowTurnComplete(badge);
           setPhase("idle");
@@ -301,6 +324,7 @@ export default function MelodyEcho() {
 
   function handleRetry() { setPlayerSeq([]); setStreak(0); startMelody(); }
   function handleSkip() {
+    consecutiveWrongRef.current = 0;
     const nextIdx = melodyIdx + 1;
     if (nextIdx >= 300) {
       setMelodyIdx(0);
@@ -345,8 +369,32 @@ export default function MelodyEcho() {
             data-testid="text-stage">
             Tur {turn} · Bölüm {section} · {qInSection}/25
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-yellow-400 font-extrabold text-sm" data-testid="text-score">⭐ {score}</span>
+          <div className="flex items-center gap-3 relative">
+            <span className="text-yellow-400 font-extrabold text-sm relative" data-testid="text-score">
+              ⭐ {score}
+              <AnimatePresence>
+                {showStarPenalty && (
+                  <motion.span
+                    key="penalty"
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 text-red-400 font-extrabold text-base whitespace-nowrap pointer-events-none"
+                    initial={{ opacity: 1, y: 0 }}
+                    animate={{ opacity: 0, y: -28 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.2 }}
+                  >-1 ⭐</motion.span>
+                )}
+                {showBadgeBonus && (
+                  <motion.span
+                    key="bonus"
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-300 font-extrabold text-base whitespace-nowrap pointer-events-none"
+                    initial={{ opacity: 1, y: 0 }}
+                    animate={{ opacity: 0, y: -28 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.8 }}
+                  >+10 ⭐</motion.span>
+                )}
+              </AnimatePresence>
+            </span>
             <span className="text-white/40 text-xs">🔥 {streak}</span>
           </div>
         </div>
@@ -625,6 +673,7 @@ export default function MelodyEcho() {
               <p className="text-white font-bold text-lg mb-1">
                 Tüm 4 bölümü tamamladın! 🎉
               </p>
+              <p className="text-yellow-300 font-extrabold text-sm mb-2">+10 ⭐ Rozet Bonusu kazandın!</p>
               <p className="text-white/60 text-sm mb-8">
                 {showTurnComplete === "bronze" && "Mükemmel başlangıç! Gümüş rozet için tekrar başlayalım."}
                 {showTurnComplete === "silver" && "İnanılmaz ilerleme! Altın rozet için bir tur daha!"}
