@@ -465,14 +465,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const teacherId = getTeacherId(req);
       if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+      const teacher = await storage.getTeacher(teacherId);
+      if (!teacher?.institutionId) return res.status(403).json({ message: "Kurum bilgisi bulunamadı." });
       const cls = await storage.getClass(req.params.classId);
       if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
+      // Kurum stoğunu kontrol et
+      const stock = await storage.getInstitutionStudentStock(teacher.institutionId);
+      if (stock.remaining <= 0) {
+        return res.status(400).json({
+          message: "Kurum öğrenci stoğu doldu. Daha fazla kod üretmek için yöneticinizden kapasite artırmasını isteyin.",
+          stockExhausted: true,
+        });
+      }
       const existing = await storage.getStudentCodesByClass(req.params.classId);
-      const available = cls.maxStudents - existing.length;
-      if (available <= 0) return res.status(400).json({ message: "Sınıf kapasitesi dolu. Yöneticinizden kapasite artırmasını isteyin." });
-      const count = Math.min(available, Number(req.body.count) || 1);
+      const classAvailable = cls.maxStudents - existing.length;
+      if (classAvailable <= 0) return res.status(400).json({ message: "Sınıf kapasitesi dolu. Yöneticinizden sınıf kapasitesini artırmasını isteyin." });
+      const count = Math.min(classAvailable, stock.remaining, Number(req.body.count) || 1);
       const newCodes = await storage.addStudentCodesToClass(req.params.classId, count);
-      res.json({ class: cls, codes: newCodes });
+      res.json({ class: cls, codes: newCodes, stock: { ...stock, remaining: stock.remaining - count } });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Teacher: get institution student stock
+  app.get("/api/teacher/institution/student-stock", async (req: Request, res: Response) => {
+    try {
+      const teacherId = getTeacherId(req);
+      if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
+      const teacher = await storage.getTeacher(teacherId);
+      if (!teacher?.institutionId) return res.status(404).json({ message: "Kurum bulunamadı." });
+      const stock = await storage.getInstitutionStudentStock(teacher.institutionId);
+      res.json(stock);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

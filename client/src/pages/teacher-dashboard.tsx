@@ -157,6 +157,19 @@ export default function TeacherDashboard() {
     enabled: !!addCodesClass,
   });
 
+  const { data: stockData } = useQuery<{ max: number; used: number; remaining: number }>({
+    queryKey: ["/api/teacher/institution/student-stock"],
+    queryFn: async () => {
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/institution/student-stock`, {
+        credentials: "include",
+        headers: teacherAuthHeader(),
+      });
+      if (!res.ok) throw new Error("Stok bilgisi alınamadı");
+      return res.json();
+    },
+    enabled: !!addCodesClass,
+  });
+
   const addCodesMutation = useMutation({
     mutationFn: async ({ classId, count }: { classId: string; count: number }) => {
       const res = await fetch(`${(import.meta.env.VITE_API_URL || "")}/api/teacher/classes/${classId}/student-codes/add`, {
@@ -173,6 +186,7 @@ export default function TeacherDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/teacher/classes", addCodesClass?.id, "student-codes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teacher/institution/student-stock"] });
       toast({ title: "Kodlar eklendi!", description: "Yeni öğrenci davet kodları oluşturuldu." });
       setAddCodesCount(1);
     },
@@ -539,23 +553,73 @@ export default function TeacherDashboard() {
             </DialogTitle>
           </DialogHeader>
 
-          {addCodesLoading ? (
+          {(addCodesLoading || !stockData) ? (
             <div className="py-8 text-center text-muted-foreground text-sm">Yükleniyor...</div>
           ) : addCodesData ? (() => {
-            const used = addCodesData.codes.length;
-            const max = addCodesData.class.maxStudents;
-            const available = max - used;
-            return available > 0 ? (
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-3">
+            const classUsed = addCodesData.codes.length;
+            const classMax = addCodesData.class.maxStudents;
+            const classAvailable = classMax - classUsed;
+            const instRemaining = stockData.remaining;
+            // Eklenebilir: sınıf kapasitesi ve kurum stoğunun minimumu
+            const available = Math.min(classAvailable, instRemaining);
+            const stockExhausted = instRemaining <= 0;
+            const classFullNoStock = !stockExhausted && classAvailable <= 0;
+
+            return stockExhausted ? (
+              <div className="py-4 space-y-3">
+                <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                  <Lock className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground font-bold">Kapasite Durumu</p>
-                    <p className="text-lg font-extrabold text-indigo-700">{used} / {max}</p>
+                    <p className="text-sm font-bold text-red-700">Kurum öğrenci stoğu doldu</p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      Kurumunuza ait toplam {stockData.max} öğrenci kontenjanı kullanılmıştır.
+                      Daha fazla kod üretmek için yöneticinizden kapasite artırmasını isteyin.
+                    </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground font-bold">Eklenebilir</p>
-                    <p className="text-lg font-extrabold text-green-600">+{available}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Kurum Toplam Stoğu</span>
+                    <span className="font-bold text-foreground">{stockData.used} / {stockData.max}</span>
                   </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div className="bg-red-400 h-1.5 rounded-full" style={{ width: "100%" }} />
+                  </div>
+                </div>
+              </div>
+            ) : classFullNoStock ? (
+              <div className="py-4 flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl px-4">
+                <Lock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-foreground">Bu sınıfın kapasitesi dolu ({classUsed}/{classMax})</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Sınıf kapasitesini artırmak için yöneticinize başvurun. Kurum stoğunuz hâlâ mevcut ({instRemaining} kalan).
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 pt-2">
+                {/* Kurum stoğu özeti */}
+                <div className="bg-indigo-50 rounded-xl px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground font-bold">Kurum Öğrenci Stoğu</p>
+                      <p className="text-lg font-extrabold text-indigo-700">{stockData.used} / {stockData.max}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground font-bold">Stoktan Eklenebilir</p>
+                      <p className="text-lg font-extrabold text-green-600">+{instRemaining}</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-indigo-100 rounded-full h-1.5">
+                    <div
+                      className="bg-indigo-500 h-1.5 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (stockData.used / stockData.max) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Bu sınıfta {classUsed}/{classMax} kod mevcut · Bu işlemde en fazla <span className="font-bold text-indigo-600">{available}</span> kod eklenebilir
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs font-bold text-foreground mb-2">Kaç kod eklensin?</p>
@@ -594,7 +658,7 @@ export default function TeacherDashboard() {
                     </Button>
                     <Button
                       className="flex-1 h-9 rounded-lg gap-1.5 font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
-                      disabled={addCodesMutation.isPending}
+                      disabled={addCodesMutation.isPending || available <= 0}
                       onClick={() => addCodesMutation.mutate({ classId: addCodesClass!.id, count: addCodesCount })}
                       data-testid="button-dashboard-add-codes"
                     >
@@ -602,15 +666,6 @@ export default function TeacherDashboard() {
                       {addCodesMutation.isPending ? "Ekleniyor..." : `${addCodesCount} Kod Ekle`}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Yönetici tarafından belirlenen kapasite dahilinde yeni davet kodu üretebilirsiniz.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="py-4 flex items-start gap-3 bg-gray-50 rounded-xl px-4">
-                <Lock className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-bold text-foreground">Kapasite dolu ({used}/{max})</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Daha fazla kod eklemek için yöneticinizden kapasite artırmasını isteyin.</p>
                 </div>
               </div>
             );
