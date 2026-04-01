@@ -114,17 +114,6 @@ export default function LevelMap() {
     if (!student) navigate("/student/login");
   }, [student]);
 
-  // Ping every 20 seconds while student is on this page
-  useEffect(() => {
-    if (!student) return;
-    const studentId = student.student.id;
-    const API_URL = (import.meta.env.VITE_API_URL || "") as string;
-    const ping = () => fetch(`${API_URL}/api/student/${studentId}/ping`, { method: "POST", credentials: "include" }).catch(() => {});
-    ping();
-    const interval = setInterval(ping, 20000);
-    return () => clearInterval(interval);
-  }, [student?.student.id]);
-
   const { data: progress } = useQuery<StudentProgress[]>({
     queryKey: ["/api/student", student?.student.id, "progress"],
     queryFn: async () => {

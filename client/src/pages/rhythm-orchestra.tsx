@@ -27,13 +27,6 @@ export default function RhythmOrchestra() {
 
   const studentId = student?.student.id;
 
-  useEffect(() => {
-    if (!studentId) return;
-    const API = (import.meta.env.VITE_API_URL || "") as string;
-    const ping = () => fetch(`${API}/api/student/${studentId}/ping`, { method: "POST", credentials: "include" }).catch(() => {});
-    ping(); const t = setInterval(ping, 20000); return () => clearInterval(t);
-  }, [studentId]);
-
   const { data: resources = [] } = useQuery<MaestroResource[]>({
     queryKey: ["/api/student", studentId, "maestro/resources"],
     queryFn: () => fetch(`${(import.meta.env.VITE_API_URL || "")}/api/student/${studentId}/maestro/resources`, { credentials: "include" }).then(r => r.json()),

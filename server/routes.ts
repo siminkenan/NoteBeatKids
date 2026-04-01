@@ -333,12 +333,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(progress);
   });
 
-  // Lightweight heartbeat — öğrenci sayfada aktifken her 20 sn çağrılır
-  app.post("/api/student/:studentId/ping", async (req: Request, res: Response) => {
-    storage.updateStudentLastSeen(req.params.studentId).catch(() => {});
-    res.json({ ok: true });
-  });
-
   app.post("/api/student/:studentId/progress", async (req: Request, res: Response) => {
     try {
       const { appType, ...data } = req.body;
@@ -355,8 +349,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const progress = await storage.upsertProgress(req.params.studentId, appType, finalData);
-      // Track online status (non-blocking)
-      storage.updateStudentLastSeen(req.params.studentId).catch(() => {});
       res.json(progress);
     } catch (e) {
       res.status(500).json({ message: "Server error" });
@@ -475,22 +467,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
-  });
-
-  // Teacher: get online student count for their classes
-  app.get("/api/teacher/online-count", async (req: Request, res: Response) => {
-    const teacherId = getTeacherId(req);
-    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const count = await storage.getOnlineStudentCountByTeacher(teacherId);
-    res.json({ count });
-  });
-
-  // Teacher: get detailed list of online students (name + surname + class code)
-  app.get("/api/teacher/online-students", async (req: Request, res: Response) => {
-    const teacherId = getTeacherId(req);
-    if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const students = await storage.getOnlineStudentsByTeacher(teacherId);
-    res.json(students);
   });
 
   // Admin routes
@@ -651,14 +627,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (typeof maxStudents !== "number" || maxStudents < 1) return res.status(400).json({ message: "Geçersiz değer" });
     const cls = await storage.updateClassMaxStudents(req.params.classId, maxStudents);
     res.json(cls);
-  });
-
-  // Admin: all student codes with online/offline status
-  app.get("/api/admin/online-students", async (req: Request, res: Response) => {
-    const adminId = getAdminId(req);
-    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const data = await storage.getAllStudentCodesWithOnlineStatus();
-    res.json(data);
   });
 
   // Class public info (for students to verify)
@@ -923,7 +891,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       Math.round(watchedSeconds) || 0,
       !!completed,
     );
-    storage.updateStudentLastSeen(req.params.studentId).catch(() => {});
     res.json(prog);
   });
 

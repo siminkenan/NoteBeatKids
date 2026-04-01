@@ -469,13 +469,6 @@ export default function DrumKit() {
     };
   }, [student?.student?.id]);
 
-  useEffect(() => {
-    const sid = student?.student?.id;
-    if (!sid) return;
-    const API = (import.meta.env.VITE_API_URL || "") as string;
-    const ping = () => fetch(`${API}/api/student/${sid}/ping`, { method: "POST", credentials: "include" }).catch(() => {});
-    ping(); const t = setInterval(ping, 20000); return () => clearInterval(t);
-  }, [student?.student?.id]);
 
   /* ── star calculation (prev saved + current session playing time) ── */
   const prevTotalSecs = drumProgress?.timeSpentSeconds ?? 0;

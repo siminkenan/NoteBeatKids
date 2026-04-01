@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy, Pencil, CalendarClock, Circle, Wifi } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy, Pencil, CalendarClock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import type { Institution, Teacher } from "@shared/schema";
@@ -154,19 +154,6 @@ export default function AdminDashboard() {
   const { data: allClasses } = useQuery<AdminClass[]>({
     queryKey: ["/api/admin/classes"],
     enabled: !!admin,
-  });
-
-  type OnlineStudentItem = {
-    id: string; code: string; slotNumber: number; classId: string; className: string;
-    teacherName: string; institutionName: string | null;
-    studentId: string | null; firstName: string | null; lastName: string | null;
-    isOnline: boolean; lastSeenAt: string | null;
-  };
-  const { data: onlineStudents, refetch: refetchOnline } = useQuery<OnlineStudentItem[]>({
-    queryKey: ["/api/admin/online-students"],
-    enabled: !!admin,
-    refetchInterval: 20000,
-    staleTime: 0,
   });
 
   const [editClassMaxOpen, setEditClassMaxOpen] = useState<{ id: string; name: string; current: number } | null>(null);
@@ -407,15 +394,6 @@ export default function AdminDashboard() {
             <TabsTrigger value="institutions" className="rounded-lg font-bold">Kurumlar</TabsTrigger>
             <TabsTrigger value="teachers" className="rounded-lg font-bold">Öğretmenler</TabsTrigger>
             <TabsTrigger value="classes" className="rounded-lg font-bold">Sınıflar</TabsTrigger>
-            <TabsTrigger value="online" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-online">
-              <Circle className={`w-2 h-2 fill-current ${(onlineStudents ?? []).some(s => s.isOnline) ? "text-green-500" : "text-gray-300"}`} />
-              Çevrimiçi
-              {(onlineStudents ?? []).filter(s => s.isOnline).length > 0 && (
-                <span className="bg-green-100 text-green-700 text-xs font-bold px-1.5 py-0.5 rounded-full ml-0.5">
-                  {(onlineStudents ?? []).filter(s => s.isOnline).length}
-                </span>
-              )}
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="institutions">
@@ -805,48 +783,6 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          {/* Online students tab */}
-          <TabsContent value="online">
-            <div className="flex items-center justify-between mb-4 gap-3">
-              <div>
-                <h3 className="text-xl font-extrabold">Çevrimiçi Öğrenciler</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Son 10 dakikada aktif olan öğrenciler yeşil gösterilir. Otomatik yenileme: 30 sn.</p>
-              </div>
-              <Button variant="outline" size="sm" className="rounded-xl gap-1.5 font-bold" onClick={() => refetchOnline()} data-testid="button-refresh-online">
-                <Wifi className="w-4 h-4" />
-                Yenile
-              </Button>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="list-online-students">
-              {(onlineStudents ?? []).length === 0 && (
-                <p className="text-muted-foreground font-semibold col-span-3 py-8 text-center">Öğrenci kodu henüz oluşturulmamış.</p>
-              )}
-              {(onlineStudents ?? [])
-                .sort((a, b) => (b.isOnline ? 1 : 0) - (a.isOnline ? 1 : 0))
-                .map(s => (
-                  <div
-                    key={s.id}
-                    className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${s.isOnline ? "bg-green-50 border-green-200" : "bg-white border-gray-100"}`}
-                    data-testid={`item-online-student-${s.id}`}
-                  >
-                    <Circle className={`w-3 h-3 fill-current flex-shrink-0 ${s.isOnline ? "text-green-500" : "text-gray-300"}`} />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-sm truncate">
-                        {s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : <span className="text-muted-foreground italic">Kullanılmamış</span>}
-                        <code className="ml-2 text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md font-bold">{s.code}</code>
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">{s.className} · {s.teacherName}</p>
-                      {s.lastSeenAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Son görülme: {new Date(s.lastSeenAt).toLocaleTimeString("tr-TR")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </TabsContent>
         </Tabs>
       </main>
 
