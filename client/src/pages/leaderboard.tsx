@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { teacherAuthHeader } from "@/lib/queryClient";
 import { ChevronLeft, Trophy, Crown, Search, X } from "lucide-react";
 
 type LeaderboardEntry = {
@@ -84,7 +85,10 @@ export default function Leaderboard() {
     queryFn: async () => {
       const params = new URLSearchParams({ type: tab });
       if (sid) params.set("studentId", sid);
-      const res = await fetch(`${apiBase}/api/leaderboard?${params}`, { credentials: "include" });
+      const res = await fetch(`${apiBase}/api/leaderboard?${params}`, {
+        credentials: "include",
+        headers: { ...teacherAuthHeader() },
+      });
       if (!res.ok) throw new Error("Yüklenemedi");
       return res.json();
     },
@@ -99,7 +103,10 @@ export default function Leaderboard() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (sid) params.set("studentId", sid);
-      const res = await fetch(`${apiBase}/api/leaderboard/winners?${params}`, { credentials: "include" });
+      const res = await fetch(`${apiBase}/api/leaderboard/winners?${params}`, {
+        credentials: "include",
+        headers: { ...teacherAuthHeader() },
+      });
       if (!res.ok) return [];
       return res.json();
     },
