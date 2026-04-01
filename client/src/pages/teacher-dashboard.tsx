@@ -426,7 +426,12 @@ export default function TeacherDashboard() {
                   <Card className="rounded-2xl hover-elevate cursor-pointer" data-testid={`card-class-${cls.id}`}>
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-lg font-extrabold leading-tight">{cls.name}</CardTitle>
+                        <div className="min-w-0">
+                          {cls.branchName && (
+                            <p className="text-xs font-semibold text-primary/70 mb-0.5 truncate">{cls.branchName}</p>
+                          )}
+                          <CardTitle className="text-lg font-extrabold leading-tight">{cls.name}</CardTitle>
+                        </div>
                         <Badge variant={expired ? "destructive" : "default"} className="shrink-0">
                           {expired ? "Süresi Doldu" : "Aktif"}
                         </Badge>
