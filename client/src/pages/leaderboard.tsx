@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { teacherAuthHeader } from "@/lib/queryClient";
 import { ChevronLeft, Trophy, Crown, Search, X } from "lucide-react";
+import { useLeaderboardSocket } from "@/hooks/useLeaderboardSocket";
 
 type LeaderboardEntry = {
   rank: number;
@@ -74,13 +75,28 @@ export default function Leaderboard() {
   const [tab, setTab] = useState<"school" | "class" | "monthly">("school");
   const [search, setSearch] = useState("");
 
+  // Socket.io ile gelen canlı veriler (school + monthly)
+  const [socketEntries, setSocketEntries] = useState<Record<string, LeaderboardEntry[]>>({});
+
   const apiBase = import.meta.env.VITE_API_URL || "";
 
-  // Pass studentId as query param so localStorage-based sessions work even without a server session cookie
   const sid = student?.student?.id ?? null;
   const tid = teacher?.id ?? null;
+  const institutionId = teacher?.institutionId ?? null;
   const isReady = !studentLoading && !!(student || teacher);
 
+  // Socket.io bağlantısı — kuruma ait odaya girer, anlık liderlik güncellemelerini alır
+  const handleSocketUpdate = useCallback((payload: { type: string; entries: LeaderboardEntry[] }) => {
+    setSocketEntries(prev => ({ ...prev, [payload.type]: payload.entries }));
+  }, []);
+
+  useLeaderboardSocket({
+    institutionId,      // öğretmen için
+    studentId: sid,     // öğrenci için (sunucu kurum ID'sine çevirir)
+    onUpdate: handleSocketUpdate,
+  });
+
+  // HTTP fallback: Socket.io bağlanamadığında veya "class" sekmesi için
   const { data, isLoading } = useQuery<{ entries: LeaderboardEntry[]; currentStudentId: string | null }>({
     queryKey: ["/api/leaderboard", tab, sid, tid],
     queryFn: async () => {
@@ -96,7 +112,7 @@ export default function Leaderboard() {
     enabled: isReady,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchInterval: 180000,
+    refetchInterval: false, // Socket.io push kullandığımız için polling kapalı
   });
 
   const { data: winners } = useQuery<Winner[]>({
@@ -116,7 +132,11 @@ export default function Leaderboard() {
     refetchOnMount: "always",
   });
 
-  const allEntries = data?.entries ?? [];
+  // Socket.io verisi varsa önceliklendir, yoksa HTTP'den al
+  const httpEntries = data?.entries ?? [];
+  const allEntries: LeaderboardEntry[] = (tab === "school" || tab === "monthly")
+    ? (socketEntries[tab] ?? httpEntries)
+    : httpEntries;
   const currentStudentId = data?.currentStudentId ?? student?.student?.id ?? null;
   const starsKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyStars" : "totalStars";
   const badgesKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyBadges" : "totalBadges";

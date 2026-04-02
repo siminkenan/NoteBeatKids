@@ -4,6 +4,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { createServer } from "http";
+import { initSocketIO } from "./socket";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -109,6 +110,9 @@ export async function createApp() {
   });
 
   await registerRoutes(httpServer, app);
+
+  // Socket.io — gerçek zamanlı liderlik güncellemeleri
+  initSocketIO(httpServer);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

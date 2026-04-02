@@ -1,0 +1,122 @@
+Build a scalable, real-time, institution-based leaderboard system for Node.js + Express + Socket.io + PostgreSQL.
+
+GOAL:
+- Minimize DB load for up to 800 concurrent users.
+- Remove polling, use push (WebSocket) updates.
+- Keep existing institution (school) leaderboard isolation.
+- Use server-side caching with TTL 60s.
+- Ensure instant updates when score changes.
+
+TECH STACK:
+- Node.js + Express
+- Socket.io
+- In-memory cache
+- PostgreSQL (existing DB)
+
+-------------------------------------
+1. SERVER SETUP
+-------------------------------------
+- Create Express server
+- Integrate Socket.io
+- Enable CORS
+
+-------------------------------------
+2. DATABASE STRUCTURE
+-------------------------------------
+- Users table:
+
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100),
+  score INT DEFAULT 0,
+  school_id VARCHAR(50)
+);
+
+- Add index for fast queries:
+
+CREATE INDEX idx_users_score_school ON users(score DESC, school_id);
+
+-------------------------------------
+3. LEADERBOARD CACHE
+-------------------------------------
+- Global cache object per school:
+
+let leaderboardCache = {}; // key = schoolId
+
+async function getLeaderboard(schoolId) {
+  const now = Date.now();
+
+  if (leaderboardCache[schoolId] && (now - leaderboardCache[schoolId].lastUpdated < 60000)) {
+    return leaderboardCache[schoolId].data;
+  }
+
+  // Fetch top 10 users for this school
+  const result = await db.query(`
+    SELECT id, name, score
+    FROM users
+    WHERE school_id = $1
+    ORDER BY score DESC
+    LIMIT 10
+  `, [schoolId]);
+
+  leaderboardCache[schoolId] = { data: result.rows, lastUpdated: now };
+
+  return result.rows;
+}
+
+-------------------------------------
+4. SOCKET.IO REAL-TIME
+-------------------------------------
+io.on("connection", async (socket) => {
+  const { schoolId } = socket.handshake.query;
+  socket.join(school_${schoolId});
+
+  // Send cached leaderboard immediately
+  const leaderboard = await getLeaderboard(schoolId);
+  socket.emit("leaderboard:update", leaderboard);
+});
+
+-------------------------------------
+5. SCORE UPDATE
+-------------------------------------
+async function updateScore(userId, newScore) {
+  const { rows } = await db.query(
+    "UPDATE users SET score = $1 WHERE id = $2 RETURNING school_id",
+    [newScore, userId]
+  );
+
+  const schoolId = rows[0].school_id;
+
+  // Clear cache for this school
+  leaderboardCache[schoolId] = null;
+
+  // Get updated leaderboard
+  const updatedLeaderboard = await getLeaderboard(schoolId);
+
+  // Broadcast to all clients in the same school
+  io.to(school_${schoolId}).emit("leaderboard:update", updatedLeaderboard);
+}
+
+-------------------------------------
+6. FRONTEND
+-------------------------------------
+- Connect with schoolId:
+
+const socket = io("YOUR_SERVER_URL", { query: { schoolId: "ABC123" } });
+
+- Listen for updates:
+
+socket.on("leaderboard:update", (data) => {
+  updateUI(data);
+});
+
+- REMOVE all polling (setInterval) completely
+
+-------------------------------------
+7. PERFORMANCE NOTES
+-------------------------------------
+- Only query DB on cache expiration or score updates
+- All updates are pushed to relevant clients
+- Memory usage is minimal
+- Supports 800 concurrent users on Render Standard
+- Optional future scaling: Redis + multi-instance + load balancer

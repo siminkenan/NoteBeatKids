@@ -5,26 +5,8 @@ import bcrypt from "bcryptjs";
 import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
 import crypto from "crypto";
-
-// ── Leaderboard in-memory cache (kuruma göre 60 sn TTL) ──────────────────────
-interface LeaderboardCacheEntry { data: any; expiresAt: number; }
-const leaderboardCache = new Map<string, LeaderboardCacheEntry>();
-
-function getCachedLeaderboard(key: string): any | null {
-  const entry = leaderboardCache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { leaderboardCache.delete(key); return null; }
-  return entry.data;
-}
-function setCachedLeaderboard(key: string, data: any, ttlMs = 60_000) {
-  leaderboardCache.set(key, { data, expiresAt: Date.now() + ttlMs });
-}
-// Bir kurum değiştiğinde önbelleği temizle (yıldız/badge kaydedince çağrılır)
-export function invalidateLeaderboardCache(institutionId: string) {
-  for (const key of leaderboardCache.keys()) {
-    if (key.startsWith(institutionId)) leaderboardCache.delete(key);
-  }
-}
+import { getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache } from "./leaderboardCache";
+import { broadcastLeaderboard } from "./socket";
 
 // ── Token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
 const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
@@ -369,9 +351,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const progress = await storage.upsertProgress(req.params.studentId, appType, finalData);
-      // Liderlik önbelleğini temizle
+      // Önbelleği temizle ve Socket.io ile tüm bağlı kullanıcılara anlık güncelleme gönder
       const instId = await storage.getInstitutionIdForStudent(req.params.studentId);
-      if (instId) invalidateLeaderboardCache(instId);
+      if (instId) {
+        invalidateLeaderboardCache(instId);
+        broadcastLeaderboard(instId).catch(() => {}); // fire-and-forget
+      }
       res.json(progress);
     } catch (e) {
       res.status(500).json({ message: "Server error" });
