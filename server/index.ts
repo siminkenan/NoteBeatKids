@@ -11,11 +11,19 @@ const PORT = parseInt(process.env.PORT || "5000", 10);
 
 async function runMigrations() {
   const migrations = [
+    // Kolon eklemeleri
     sql`ALTER TABLE classes ADD COLUMN IF NOT EXISTS branch_name text NOT NULL DEFAULT ''`,
     sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_seen_at timestamp`,
     sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_stars integer NOT NULL DEFAULT 0`,
     sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS monthly_badges_count integer NOT NULL DEFAULT 0`,
     sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS last_reset_month varchar(7) NOT NULL DEFAULT ''`,
+    // Performans index'leri (800 eş zamanlı kullanıcı için)
+    sql`CREATE INDEX IF NOT EXISTS idx_students_class_id ON students(class_id)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes(teacher_id)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_teachers_institution_id ON teachers(institution_id)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_student_progress_student_id ON student_progress(student_id)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_monthly_stats_student_id ON monthly_stats(student_id)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_student_codes_student_id ON student_codes(student_id)`,
   ];
   for (const m of migrations) {
     try {
@@ -24,7 +32,7 @@ async function runMigrations() {
       console.error("Migration hatası:", e?.message ?? e);
     }
   }
-  log("✅ Migration: tüm sütunlar kontrol edildi");
+  log("✅ Migration: tüm sütunlar ve index'ler kontrol edildi");
 }
 
 async function seedDatabase() {

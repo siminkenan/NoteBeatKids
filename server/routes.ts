@@ -6,6 +6,26 @@ import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
 import crypto from "crypto";
 
+// ── Leaderboard in-memory cache (kuruma göre 60 sn TTL) ──────────────────────
+interface LeaderboardCacheEntry { data: any; expiresAt: number; }
+const leaderboardCache = new Map<string, LeaderboardCacheEntry>();
+
+function getCachedLeaderboard(key: string): any | null {
+  const entry = leaderboardCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { leaderboardCache.delete(key); return null; }
+  return entry.data;
+}
+function setCachedLeaderboard(key: string, data: any, ttlMs = 60_000) {
+  leaderboardCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+// Bir kurum değiştiğinde önbelleği temizle (yıldız/badge kaydedince çağrılır)
+export function invalidateLeaderboardCache(institutionId: string) {
+  for (const key of leaderboardCache.keys()) {
+    if (key.startsWith(institutionId)) leaderboardCache.delete(key);
+  }
+}
+
 // ── Token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
 const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
 
@@ -349,6 +369,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const progress = await storage.upsertProgress(req.params.studentId, appType, finalData);
+      // Liderlik önbelleğini temizle
+      const instId = await storage.getInstitutionIdForStudent(req.params.studentId);
+      if (instId) invalidateLeaderboardCache(instId);
       res.json(progress);
     } catch (e) {
       res.status(500).json({ message: "Server error" });
@@ -953,7 +976,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       // "Sınıf" sekmesinde öğretmen ise kendi tüm sınıflarını filtrele
       const leaderboardTeacherId = (teacherId && type === "class" && !classId) ? teacherId : undefined;
+
+      // Cache key: kurum + tür + sınıf (öğretmen ID class tipinde dahil)
+      const cacheKey = `${institutionId}:${type}:${classId ?? ""}:${leaderboardTeacherId ?? ""}`;
+      const cached = getCachedLeaderboard(cacheKey);
+      if (cached) return res.json({ ...cached, currentStudentId });
+
       const entries = await storage.getLeaderboard(institutionId, type as any, classId, leaderboardTeacherId);
+      const payload = { entries };
+      setCachedLeaderboard(cacheKey, payload);
       res.json({ entries, currentStudentId });
     } catch (e) {
       console.error("Leaderboard error:", e);
