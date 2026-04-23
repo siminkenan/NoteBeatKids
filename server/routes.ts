@@ -7,6 +7,7 @@ import multer from "multer";
 import crypto from "crypto";
 import { getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache } from "./leaderboardCache";
 import { broadcastLeaderboard } from "./socket";
+import { markInstitutionDirty } from "./scoreBuffer";
 
 // ── Token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
 const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
@@ -351,11 +352,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const progress = await storage.upsertProgress(req.params.studentId, appType, finalData);
-      // Önbelleği temizle ve Socket.io ile tüm bağlı kullanıcılara anlık güncelleme gönder
+      // Puan tampona alındı. DB'ye yazma 30 sn sonra toplu yapılacak.
+      // Kurum önbelleğini kirli işaretle → flush sonrası Socket.io ile broadcast edilecek.
       const instId = await storage.getInstitutionIdForStudent(req.params.studentId);
       if (instId) {
         invalidateLeaderboardCache(instId);
-        broadcastLeaderboard(instId).catch(() => {}); // fire-and-forget
+        markInstitutionDirty(instId);
       }
       res.json(progress);
     } catch (e) {

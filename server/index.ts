@@ -6,6 +6,8 @@ import { db } from "./db";
 import * as schema from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { storage } from "./storage";
+import { flushScoreBuffer, consumeDirtyInstitutions, bufferSize } from "./scoreBuffer";
+import { broadcastLeaderboard } from "./socket";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
@@ -65,14 +67,32 @@ async function main() {
   await runMigrations();
   await seedDatabase();
 
-  // Her 40 saniyede bekleyen yıldızları liderlik tablosuna yansıt
+  // ── PUAN TAMPONU FLUSH — her 30 saniyede toplu DB yazma ───────────────────
+  setInterval(async () => {
+    const count = bufferSize();
+    if (count === 0) return;
+    try {
+      log(`📤 Puan tamponu: ${count} kayıt DB'ye yazılıyor...`);
+      await flushScoreBuffer();
+      // Flush sonrası leaderboard Socket.io ile güncelle
+      const dirtyIds = consumeDirtyInstitutions();
+      for (const instId of dirtyIds) {
+        broadcastLeaderboard(instId).catch(() => {});
+      }
+      log(`✅ Puan tamponu temizlendi. ${dirtyIds.length} kurum liderlik tablosu yayınlandı.`);
+    } catch (e) {
+      log(`❌ Puan tamponu flush hatası: ${String(e)}`);
+    }
+  }, 30_000);
+
+  // Eski pending_stars temizleme (artık scoreBuffer kullanılıyor, güvenlik için korundu)
   setInterval(async () => {
     try {
       await storage.flushPendingStars();
     } catch (e) {
       // sessizce devam et
     }
-  }, 40_000);
+  }, 60_000);
 
   // Her gün 1 kez önceki ayın şampiyonlarını otomatik kaydet (ay başı sıfırlama)
   const runAutoMonthlyReset = async () => {

@@ -1,6 +1,7 @@
 import { eq, and, sql, desc, inArray, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
+import { bufferScore, getBufferEntry, getBufferedByStudent, flushScoreBuffer } from "./scoreBuffer";
 import {
   institutions, admins, teachers, classes, students, studentProgress, teacherCodes, studentCodes,
   orchestraSongs, orchestraProgress, maestroResources, maestroViewProgress,
@@ -477,49 +478,80 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getProgressByStudent(studentId: string): Promise<StudentProgress[]> {
-    return db.select().from(studentProgress).where(eq(studentProgress.studentId, studentId));
-  }
-
   async getProgressByStudentAndType(studentId: string, appType: string): Promise<StudentProgress | undefined> {
+    // Önce tamponu kontrol et — DB'ye gitmeden tampondaki güncel veriyi döndür
+    const buffered = getBufferEntry(studentId, appType);
+    if (buffered) {
+      const now = new Date();
+      return {
+        id: buffered.existingId ?? `buf_${studentId}:${appType}`,
+        studentId,
+        appType,
+        level: buffered.data.level ?? 1,
+        starsEarned: buffered.data.starsEarned ?? 0,
+        correctAnswers: buffered.data.correctAnswers ?? 0,
+        wrongAnswers: buffered.data.wrongAnswers ?? 0,
+        timeSpentSeconds: buffered.data.timeSpentSeconds ?? 0,
+        notesBadge: buffered.data.notesBadge ?? null,
+        createdAt: now,
+        updatedAt: now,
+      } as StudentProgress;
+    }
+    // Tamponda yoksa DB'den oku
     const result = await db.select().from(studentProgress).where(
       and(eq(studentProgress.studentId, studentId), eq(studentProgress.appType, appType))
     ).limit(1);
     return result[0];
   }
 
-  async upsertProgress(studentId: string, appType: string, data: Partial<InsertProgress>): Promise<StudentProgress> {
-    const existing = await this.getProgressByStudentAndType(studentId, appType);
-    const oldStars = existing?.starsEarned ?? 0;
-    const newStars = data.starsEarned ?? 0;
-    const deltaStars = Math.max(0, newStars - oldStars);
-    const oldHadBadge = !!existing?.notesBadge;
-    const newHasBadge = !!data.notesBadge;
-    const deltaBadges = (!oldHadBadge && newHasBadge) ? 1 : 0;
+  async getProgressByStudent(studentId: string): Promise<StudentProgress[]> {
+    // DB'deki kayıtları al, ardından tamponda bekleyen güncel değerleri üzerine yaz
+    const dbRows = await db.select().from(studentProgress).where(eq(studentProgress.studentId, studentId));
+    const buffered = getBufferedByStudent(studentId);
 
-    let result: StudentProgress;
-    if (existing) {
-      const updated = await db.update(studentProgress)
-        .set({ ...data, updatedAt: new Date() })
-        .where(eq(studentProgress.id, existing.id))
-        .returning();
-      result = updated[0];
-    } else {
-      const inserted = await db.insert(studentProgress).values({
-        studentId,
-        appType,
-        level: data.level ?? 1,
-        starsEarned: data.starsEarned ?? 0,
-        correctAnswers: data.correctAnswers ?? 0,
-        wrongAnswers: data.wrongAnswers ?? 0,
-        timeSpentSeconds: data.timeSpentSeconds ?? 0,
-        notesBadge: data.notesBadge ?? null,
-      }).returning();
-      result = inserted[0];
+    // DB kayıtlarını tampondaki güncel değerlerle birleştir
+    const dbMap = new Map(dbRows.map(r => [`${r.studentId}:${r.appType}`, r]));
+    for (const [key, entry] of buffered.entries()) {
+      const now = new Date();
+      dbMap.set(key, {
+        id: entry.existingId ?? `buf_${key}`,
+        studentId: entry.studentId,
+        appType: entry.appType,
+        level: entry.data.level ?? 1,
+        starsEarned: entry.data.starsEarned ?? 0,
+        correctAnswers: entry.data.correctAnswers ?? 0,
+        wrongAnswers: entry.data.wrongAnswers ?? 0,
+        timeSpentSeconds: entry.data.timeSpentSeconds ?? 0,
+        notesBadge: entry.data.notesBadge ?? null,
+        createdAt: now,
+        updatedAt: now,
+      } as StudentProgress);
     }
+    return Array.from(dbMap.values());
+  }
 
-    this.incrementMonthlyStats(studentId, deltaStars, deltaBadges).catch(() => {});
-    return result;
+  async upsertProgress(studentId: string, appType: string, data: Partial<InsertProgress>): Promise<StudentProgress> {
+    // Tampondaki mevcut giriş
+    const existingBuffer = getBufferEntry(studentId, appType);
+
+    // DB'de zaten kayıt var mı? (Tampon boşsa DB'ye sor)
+    const dbRecord = existingBuffer
+      ? null
+      : await db.select().from(studentProgress).where(
+          and(eq(studentProgress.studentId, studentId), eq(studentProgress.appType, appType))
+        ).limit(1).then(r => r[0] ?? null);
+
+    // Puanı tampona yaz — DB'ye YAZMA
+    const synthetic = bufferScore({
+      studentId,
+      appType,
+      institutionId: null, // routes.ts'te zaten alınıyor
+      newData: data as any,
+      baselineRecord: dbRecord,
+      existingBufferEntry: existingBuffer,
+    });
+
+    return synthetic;
   }
 
   async flushPendingStars(): Promise<void> {
