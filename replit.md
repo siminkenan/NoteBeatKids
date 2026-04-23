@@ -80,11 +80,15 @@ Preferred communication style: Simple, everyday language.
 
 | Role    | Auth Mechanism                        | Session Storage        |
 |---------|---------------------------------------|------------------------|
-| Admin   | Email + bcrypt password               | Server session         |
-| Teacher | Email + bcrypt password               | Server session         |
+| Admin   | Email + bcrypt password               | Server session + Bearer JWT |
+| Teacher | Teacher code + name                   | Server session + Bearer JWT |
 | Student | First name + Last name + Class code   | `localStorage` (client)|
 
-Protected routes check session on the server; client pages re-fetch `/api/auth/*/me` on mount to restore state after page reload.
+**Auth priority (cross-domain production):** Bearer JWT token is checked FIRST in `getTeacherId` / `getAdminId`. If a valid JWT is in the `Authorization: Bearer ...` header, it takes priority over the session cookie. Session is a fallback for same-origin (Replit dev). This prevents stale cross-domain session cookies from overriding valid JWT tokens (the root cause of "Ek Kod Ekle" errors in production).
+
+Teacher JWT tokens are HMAC-signed (`SHA-256`, `TOKEN_SECRET = SESSION_SECRET env var`), permanent (no expiry). Stored in `localStorage` as `teacherToken`.
+
+Protected routes check `getTeacherId(req)` on the server; client pages re-fetch `/api/auth/*/me` on mount to restore state after page reload.
 
 ---
 
