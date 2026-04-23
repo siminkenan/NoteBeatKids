@@ -36,27 +36,25 @@ function signAdminToken(adminId: string): string { return signToken(adminId, "ad
 function signTeacherToken(teacherId: string): string { return signToken(teacherId, "teacher"); }
 
 function getAdminId(req: Request): string | null {
-  // 1. Session (Replit same-origin)
-  const sessionId = (req.session as any).adminId;
-  if (sessionId) return sessionId;
-  // 2. Bearer token (Render + Vercel cross-domain)
+  // 1. Bearer token (cross-domain Render+Vercel) — checked FIRST so stale session cookies don't override valid JWT
   const auth = req.headers.authorization;
   if (auth?.startsWith("Bearer ")) {
-    return verifyToken(auth.slice(7), "admin");
+    const id = verifyToken(auth.slice(7), "admin");
+    if (id) return id;
   }
-  return null;
+  // 2. Session fallback (same-origin Replit dev)
+  return (req.session as any).adminId ?? null;
 }
 
 function getTeacherId(req: Request): string | null {
-  // 1. Session (Replit same-origin)
-  const sessionId = (req.session as any).teacherId;
-  if (sessionId) return sessionId;
-  // 2. Bearer token (Render + Vercel cross-domain)
+  // 1. Bearer token (cross-domain Render+Vercel) — checked FIRST so stale session cookies don't override valid JWT
   const auth = req.headers.authorization;
   if (auth?.startsWith("Bearer ")) {
-    return verifyToken(auth.slice(7), "teacher");
+    const id = verifyToken(auth.slice(7), "teacher");
+    if (id) return id;
   }
-  return null;
+  // 2. Session fallback (same-origin Replit dev)
+  return (req.session as any).teacherId ?? null;
 }
 
 function getContentType(filename: string): string {
@@ -486,7 +484,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const newCodes = await storage.addStudentCodesToClass(req.params.classId, count);
       res.json({ class: cls, codes: newCodes });
     } catch (e: any) {
-      res.status(500).json({ message: e.message });
+      console.error("[add-codes] Hata:", e?.message, e?.stack);
+      res.status(500).json({ message: e?.message || "Kod eklenirken hata oluştu" });
     }
   });
 

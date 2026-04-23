@@ -467,7 +467,7 @@ export class DatabaseStorage implements IStorage {
 
   async addStudentCodesToClass(classId: string, additionalCount: number): Promise<StudentCode[]> {
     const existing = await db.select().from(studentCodes).where(eq(studentCodes.classId, classId)).orderBy(studentCodes.slotNumber);
-    const maxSlot = existing.length > 0 ? Math.max(...existing.map(c => c.slotNumber)) : 0;
+    const maxSlot = existing.length > 0 ? existing.reduce((max, c) => Math.max(max, c.slotNumber), 0) : 0;
     const rows = [];
     for (let i = 0; i < additionalCount; i++) {
       const code = await this.uniqueStudentCode();
