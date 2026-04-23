@@ -9,5 +9,15 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20,                    // 600 eş zamanlı kullanıcı için yeterli
+  idleTimeoutMillis: 30_000,  // 30 sn boşta bağlantıyı kapat
+  connectionTimeoutMillis: 5_000,
+});
+
+pool.on("error", (err) => {
+  console.error("[db] Beklenmeyen pool hatası:", err.message);
+});
+
 export const db = drizzle(pool, { schema });

@@ -7,11 +7,15 @@
  *
  * Güvenlik: Sunucu yeniden başlarsa buffer boşalır; mevcut DB verisi korunur.
  * Kayıp riski: En fazla 30 saniyelik aktif oyun verisi (kabul edilebilir).
+ *
+ * Performans: 600 eş zamanlı öğrenci için:
+ *   - student_progress: Promise.all ile paralel UPDATE/INSERT
+ *   - monthly_stats: Tek SQL UPSERT ile hepsini birleştir
  */
 
 import { db } from "./db";
 import { studentProgress, monthlyStats } from "@shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { StudentProgress } from "@shared/schema";
 
 // ── Tampon yapısı ────────────────────────────────────────────────────────────
@@ -20,7 +24,6 @@ interface BufferEntry {
   studentId: string;
   appType: string;
   institutionId: string | null;
-  /** Veritabanına yazılacak en son mutlak değerler */
   data: {
     level?: number;
     starsEarned?: number;
@@ -29,30 +32,23 @@ interface BufferEntry {
     timeSpentSeconds?: number;
     notesBadge?: string | null;
   };
-  /** Bir önceki flush'tan bu yana biriken yıldız farkı (monthly_stats için) */
   cumulativeDeltaStars: number;
-  /** Bir önceki flush'tan bu yana biriken rozet farkı (monthly_stats için) */
   cumulativeDeltaBadges: number;
-  /** DB'de daha önce var mıydı? (INSERT mi, UPDATE mi yapılacak?) */
   existingId: string | null;
-  /** Son bilinen DB yıldız değeri (delta hesabı için temel) */
   baselineStars: number;
-  /** Son bilinen DB rozet durumu */
   baselineHadBadge: boolean;
 }
 
 // key: "studentId:appType"
 const buffer = new Map<string, BufferEntry>();
 
-// Puanı değişen kurumların ID'leri (flush sonrası leaderboard yayını için)
+// Puanı değişen kurumların ID'leri
 const dirtyInstitutions = new Set<string>();
 
-/** Puanı tampona yazarken kurum ID'sini kirli olarak işaretle. */
 export function markInstitutionDirty(institutionId: string) {
   dirtyInstitutions.add(institutionId);
 }
 
-/** Kirli kurum listesini al ve temizle (flush sonrası çağrılır). */
 export function consumeDirtyInstitutions(): string[] {
   const ids = Array.from(dirtyInstitutions);
   dirtyInstitutions.clear();
@@ -61,16 +57,14 @@ export function consumeDirtyInstitutions(): string[] {
 
 // ── Yardımcı fonksiyonlar ─────────────────────────────────────────────────────
 
-/** Tampondaki anlık "mevcut" veriyi döndürür (DB sorgusu olmadan). */
-export function getBuffered(studentId: string, appType: string): Partial<BufferEntry["data"]> & { id?: string } | null {
+export function getBuffered(
+  studentId: string,
+  appType: string,
+): (Partial<BufferEntry["data"]> & { id?: string }) | null {
   const entry = buffer.get(`${studentId}:${appType}`);
   return entry ? { ...entry.data, id: entry.existingId ?? undefined } : null;
 }
 
-/**
- * Puanı tampona yaz. DB'ye yazmaz.
- * `baselineRecord` — DB'den ya da önceki tampon girişinden gelen mevcut kayıt.
- */
 export function bufferScore(params: {
   studentId: string;
   appType: string;
@@ -82,7 +76,6 @@ export function bufferScore(params: {
   const { studentId, appType, institutionId, newData, baselineRecord, existingBufferEntry } = params;
   const key = `${studentId}:${appType}`;
 
-  // Delta hesabı: ÖNCEKI durum (tampon öncelikli, yoksa DB)
   const prevStars = existingBufferEntry
     ? (existingBufferEntry.data.starsEarned ?? 0)
     : (baselineRecord?.starsEarned ?? 0);
@@ -94,9 +87,8 @@ export function bufferScore(params: {
   const newHasBadge = !!newData.notesBadge;
 
   const deltaStars = Math.max(0, newStars - prevStars);
-  const deltaBadges = (!prevHadBadge && newHasBadge) ? 1 : 0;
+  const deltaBadges = !prevHadBadge && newHasBadge ? 1 : 0;
 
-  // Eğer bu key için zaten tampon girişi varsa: delta'yı biriktir, veriyi üzerine yaz
   const prevCumulativeDeltaStars = existingBufferEntry?.cumulativeDeltaStars ?? 0;
   const prevCumulativeDeltaBadges = existingBufferEntry?.cumulativeDeltaBadges ?? 0;
 
@@ -114,7 +106,6 @@ export function bufferScore(params: {
 
   buffer.set(key, entry);
 
-  // Anında dönüş için sentetik StudentProgress nesnesi oluştur
   const now = new Date();
   const syntheticRecord: StudentProgress = {
     id: entry.existingId ?? `buf_${key}`,
@@ -133,7 +124,6 @@ export function bufferScore(params: {
   return syntheticRecord;
 }
 
-/** Tampondaki belirli öğrencinin verilerini döndürür (getProgressByStudent için). */
 export function getBufferedByStudent(studentId: string): Map<string, BufferEntry> {
   const result = new Map<string, BufferEntry>();
   for (const [key, entry] of buffer.entries()) {
@@ -147,82 +137,107 @@ export function getBufferedByStudent(studentId: string): Map<string, BufferEntry
 let isFlushing = false;
 
 /**
- * Tampondaki TÜM bekleyen puanları veritabanına tek seferde yazar.
- * Her 30 saniyede bir çağrılır. Eş zamanlı çalışmayı önler.
+ * Tampondaki TÜM bekleyen puanları veritabanına yazar.
+ *
+ * Optimizasyonlar (600 eş zamanlı öğrenci):
+ *   1. student_progress: Promise.all ile paralel UPDATE/INSERT
+ *   2. monthly_stats: TEK SQL batch UPSERT (ON CONFLICT DO UPDATE)
+ *   3. İkisi aynı anda çalışır (birbirini beklemez)
  */
 export async function flushScoreBuffer(): Promise<void> {
   if (isFlushing || buffer.size === 0) return;
   isFlushing = true;
 
-  // Mevcut tamponu kopyala ve hemen temizle (yeni yazılar birikmesine devam eder)
   const snapshot = new Map(buffer);
   buffer.clear();
 
   try {
+    const progressOps: Promise<any>[] = [];
+    const monthlyUpdates: Array<{ studentId: string; deltaStars: number; deltaBadges: number }> = [];
+
     for (const [, entry] of snapshot.entries()) {
       const { studentId, appType, data, existingId, cumulativeDeltaStars, cumulativeDeltaBadges } = entry;
 
-      // 1. studentProgress tablosuna yaz
+      // student_progress güncelleme — hepsini paralel kuyruğa ekle
       if (existingId && !existingId.startsWith("buf_")) {
-        // Mevcut kayıt → UPDATE
-        await db.update(studentProgress)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(studentProgress.id, existingId));
+        progressOps.push(
+          db.update(studentProgress)
+            .set({ ...data, updatedAt: new Date() })
+            .where(eq(studentProgress.id, existingId))
+            .catch((e) => console.error(`[flush] progress UPDATE hatası ${studentId}:`, e?.message))
+        );
       } else {
-        // Yeni kayıt → INSERT (ON CONFLICT yoksay — eş zamanlı insert koruması)
-        await db.insert(studentProgress)
-          .values({
-            studentId,
-            appType,
-            level: data.level ?? 1,
-            starsEarned: data.starsEarned ?? 0,
-            correctAnswers: data.correctAnswers ?? 0,
-            wrongAnswers: data.wrongAnswers ?? 0,
-            timeSpentSeconds: data.timeSpentSeconds ?? 0,
-            notesBadge: data.notesBadge ?? null,
-          })
-          .onConflictDoNothing();
+        progressOps.push(
+          db.insert(studentProgress)
+            .values({
+              studentId,
+              appType,
+              level: data.level ?? 1,
+              starsEarned: data.starsEarned ?? 0,
+              correctAnswers: data.correctAnswers ?? 0,
+              wrongAnswers: data.wrongAnswers ?? 0,
+              timeSpentSeconds: data.timeSpentSeconds ?? 0,
+              notesBadge: data.notesBadge ?? null,
+            })
+            .onConflictDoNothing()
+            .catch((e) => console.error(`[flush] progress INSERT hatası ${studentId}:`, e?.message))
+        );
       }
 
-      // 2. monthly_stats güncelle (sadece değişim varsa)
+      // monthly_stats toplu güncelleme listesine ekle
       if (cumulativeDeltaStars > 0 || cumulativeDeltaBadges > 0) {
-        await incrementMonthlyStatsBatch(studentId, cumulativeDeltaStars, cumulativeDeltaBadges);
+        monthlyUpdates.push({ studentId, deltaStars: cumulativeDeltaStars, deltaBadges: cumulativeDeltaBadges });
       }
     }
+
+    // 1. student_progress: tümünü PARALEL çalıştır
+    const progressPromise = Promise.all(progressOps);
+
+    // 2. monthly_stats: TEK SQL UPSERT (batch)
+    const monthlyPromise = monthlyUpdates.length > 0
+      ? batchUpsertMonthlyStats(monthlyUpdates)
+      : Promise.resolve();
+
+    // İkisini aynı anda çalıştır
+    await Promise.all([progressPromise, monthlyPromise]);
+
   } finally {
     isFlushing = false;
   }
 }
 
-/** monthly_stats tablosunu atomik olarak günceller. */
-async function incrementMonthlyStatsBatch(studentId: string, deltaStars: number, deltaBadges: number): Promise<void> {
-  try {
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const existing = await db.select().from(monthlyStats)
-      .where(eq(monthlyStats.studentId, studentId))
-      .limit(1);
+/**
+ * Tüm monthly_stats güncellemelerini tek bir SQL UPSERT ile yazar.
+ * monthly_stats(student_id) UNIQUE kısıtlaması sayesinde güvenlidir.
+ */
+async function batchUpsertMonthlyStats(
+  updates: Array<{ studentId: string; deltaStars: number; deltaBadges: number }>
+): Promise<void> {
+  if (updates.length === 0) return;
+  const currentMonth = new Date().toISOString().slice(0, 7);
 
-    if (existing.length > 0) {
-      await db.update(monthlyStats)
-        .set({
-          monthlyStars: sql`monthly_stars + ${deltaStars}`,
-          monthlyBadgesCount: sql`monthly_badges_count + ${deltaBadges}`,
-        })
-        .where(eq(monthlyStats.studentId, studentId));
-    } else {
-      await db.insert(monthlyStats)
-        .values({ studentId, monthlyStars: deltaStars, monthlyBadgesCount: deltaBadges, lastResetMonth: currentMonth })
-        .onConflictDoNothing();
-    }
-  } catch (_) {}
+  try {
+    // Drizzle'ın raw sql helper'ı ile tek UPSERT
+    const valueFragments = updates.map(
+      (u) => sql`(${u.studentId}, ${u.deltaStars}, ${u.deltaBadges}, ${currentMonth})`
+    );
+
+    await db.execute(sql`
+      INSERT INTO monthly_stats (student_id, monthly_stars, monthly_badges_count, last_reset_month)
+      VALUES ${sql.join(valueFragments, sql`, `)}
+      ON CONFLICT (student_id) DO UPDATE SET
+        monthly_stars        = monthly_stats.monthly_stars        + EXCLUDED.monthly_stars,
+        monthly_badges_count = monthly_stats.monthly_badges_count + EXCLUDED.monthly_badges_count
+    `);
+  } catch (e: any) {
+    console.error("[flush] monthly_stats batch UPSERT hatası:", e?.message);
+  }
 }
 
-/** Tamponda bekleyen entry sayısı (izleme için). */
 export function bufferSize(): number {
   return buffer.size;
 }
 
-/** Belirli key için tamponu doğrudan döndür (upsertProgress'te kullanılır). */
 export function getBufferEntry(studentId: string, appType: string): BufferEntry | null {
   return buffer.get(`${studentId}:${appType}`) ?? null;
 }
