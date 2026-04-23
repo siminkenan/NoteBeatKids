@@ -482,7 +482,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (stock.remaining <= 0) return res.status(400).json({ message: "Kurum öğrenci stoğu doldu. Yöneticinizden kapasite artırmasını isteyin." });
       const count = Math.min(stock.remaining, Number(req.body.count) || 1);
       const newCodes = await storage.addStudentCodesToClass(req.params.classId, count);
-      res.json({ class: cls, codes: newCodes });
+      // Sınıfın max_students'ını eklenen kod sayısı kadar artır
+      // (aksi hâlde yeni kodlara sahip öğrenciler "Sınıf kapasitesi dolu" hatası alır)
+      const updatedCls = await storage.updateClassMaxStudents(cls.id, cls.maxStudents + count);
+      res.json({ class: updatedCls, codes: newCodes });
     } catch (e: any) {
       console.error("[add-codes] Hata:", e?.message, e?.stack);
       res.status(500).json({ message: e?.message || "Kod eklenirken hata oluştu" });
