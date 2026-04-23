@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache } from "./leaderboardCache";
 import { broadcastLeaderboard } from "./socket";
 import { markInstitutionDirty } from "./scoreBuffer";
+import { scoreRateLimit } from "./rateLimit";
 
 // ── Token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
 const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
@@ -334,7 +335,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(progress);
   });
 
-  app.post("/api/student/:studentId/progress", async (req: Request, res: Response) => {
+  app.post("/api/student/:studentId/progress", scoreRateLimit, async (req: Request, res: Response) => {
     try {
       const { appType, ...data } = req.body;
 
@@ -765,7 +766,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Student: save orchestra game result
-  app.post("/api/student/:studentId/orchestra/progress", async (req: Request, res: Response) => {
+  app.post("/api/student/:studentId/orchestra/progress", scoreRateLimit, async (req: Request, res: Response) => {
     const student = await storage.getStudent(req.params.studentId);
     if (!student) return res.status(404).json({ message: "Student not found" });
     const { songId, mode, laneMode, accuracy, perfectCount, goodCount, missCount } = req.body;
@@ -909,7 +910,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Student: update watch progress
-  app.post("/api/student/:studentId/maestro/progress", async (req: Request, res: Response) => {
+  app.post("/api/student/:studentId/maestro/progress", scoreRateLimit, async (req: Request, res: Response) => {
     const student = await storage.getStudent(req.params.studentId);
     if (!student) return res.status(404).json({ message: "Student not found" });
     const { resourceId, watchedSeconds, completed } = req.body;

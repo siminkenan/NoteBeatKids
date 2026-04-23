@@ -1,0 +1,182 @@
+31"}
+You are a senior Node.js (Express.js) backend engineer.
+
+I have an existing backend on Replit using Express.js and Neon PostgreSQL.
+DO NOT break or rewrite my system.
+ONLY ADD a secure admin authentication and device management layer.
+
+---
+
+IMPORTANT CONTEXT:
+
+- Admin login already exists (DO NOT change password logic)
+- I use Neon PostgreSQL
+- I want:
+  1) JWT session (1 hour)
+  2) Trusted device system (DB-based)
+  3) Admin can VIEW and REMOVE trusted devices
+
+---
+
+TASK 1: JWT SESSION
+
+- After successful login → generate JWT
+- Expire in 1 hour (3600s)
+- Create middleware: verifyToken
+- Protect all admin routes
+- If expired → return 401
+
+Use .env:
+JWT_SECRET=your_secret
+
+---
+
+TASK 2: DATABASE (Neon)
+
+CREATE TABLE IF NOT EXISTS trusted_devices (
+  id SERIAL PRIMARY KEY,
+  device_id TEXT UNIQUE NOT NULL,
+  user_type TEXT NOT NULL,
+  device_name TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  last_login TIMESTAMP DEFAULT NOW()
+);
+
+---
+
+TASK 3: DEVICE IDENTIFICATION
+
+- Read device ID from header:
+  x-device-id
+
+- If missing:
+  - generate UUID
+  - send it back in response
+  - client stores it (localStorage)
+
+- Also capture:
+  - user-agent (device info)
+
+---
+
+TASK 4: LOGIN FLOW
+
+AFTER password verification:
+
+1. Read device_id
+2. Query DB:
+
+SELECT * FROM trusted_devices WHERE device_id = $1;
+
+---
+
+IF DEVICE EXISTS:
+- UPDATE last_login
+- Generate JWT
+- Return success
+
+---
+
+IF DEVICE DOES NOT EXIST:
+
+IF SECURITY_MODE = false:
+- Insert new device:
+
+INSERT INTO trusted_devices (device_id, user_type, device_name)
+VALUES ($1, 'admin', $2);
+
+- Generate JWT
+- Return success
+
+---
+
+IF SECURITY_MODE = true:
+- Return 403 Forbidden
+- message: "Unrecognized device"
+
+---
+
+TASK 5: DEVICE MANAGEMENT (ADMIN PANEL)
+
+Create protected routes:
+
+1) GET /admin/devices
+- Return all trusted devices
+- Include:
+  device_id
+  device_name
+  created_at
+  last_login
+
+---
+
+2) DELETE /admin/devices/:deviceId
+- Remove device from DB:
+
+DELETE FROM trusted_devices WHERE device_id = $1;
+
+- If deleted:
+  return success
+
+---
+
+IMPORTANT:
+- After deletion, that device can NO LONGER login
+
+---
+
+TASK 6: OPTIONAL (RECOMMENDED)
+
+Prevent deleting current device:
+- Compare current device_id
+- If same → block delete
+
+---
+
+TASK 7: SECURITY RULES
+
+- Protect all admin routes with verifyToken
+- Do NOT expose DB directly
+- Use parameterized queries
+
+---
+
+TASK 8: FILE STRUCTURE
+
+Create:
+
+/middleware/auth.js → JWT verify
+/services/deviceService.js → DB logic
+/routes/adminDevices.js → device endpoints
+
+---
+
+TASK 9: SAFETY
+
+- DO NOT change existing login logic
+- ONLY extend it
+- Keep system stable
+- Use async/await
+- Add try/catch everywhere
+
+---
+
+TASK 10: OUTPUT
+
+- Show created files
+- Show updated login route
+- Show how to call device endpoints
+
+---
+
+GOAL:
+
+- Same admin password
+- Only trusted devices can login
+- Devices stored in Neon DB
+- Admin can see all devices
+- Admin can remove any device
+- Sessions expire in 1 hour
+- Fully secure system
+
+Write clean, production-ready c

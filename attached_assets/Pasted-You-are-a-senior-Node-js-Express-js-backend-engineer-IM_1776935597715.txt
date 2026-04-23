@@ -1,0 +1,154 @@
+You are a senior Node.js (Express.js) backend engineer.
+
+IMPORTANT RULES:
+- Do NOT break or rewrite existing system architecture.
+- Do NOT change authentication logic.
+- Do NOT modify admin system under any condition.
+- Do NOT duplicate logic between systems.
+- Only optimize performance, scalability, and stability.
+
+---
+
+SYSTEM STACK:
+- Node.js (Express.js) backend
+- Neon PostgreSQL database
+- Frontend on Vercel
+- Hybrid architecture: RAM cache + DB sync system
+
+---
+
+SCALABILITY GOAL:
+System must support:
+- 600 concurrent active students (real-time usage)
+- 6000 total registered students
+- Classroom-based game system with scores, stars, sessions
+- Institution-based leaderboard system
+
+---
+
+CRITICAL ARCHITECTURE RULE:
+There must be ONLY ONE source of truth per data type:
+
+- Score cache = SINGLE in-memory store
+- Leaderboard cache = derived from score cache ONLY
+- Database = persistent storage only
+- NO duplicate caching systems
+
+---
+
+ADMIN SYSTEM PROTECTION (ABSOLUTE RULE):
+- Admin authentication logic MUST NOT be modified
+- Admin JWT/session system MUST remain unchanged
+- Admin database schema MUST NOT be modified
+- Admin must NOT use or depend on cache or batching layers
+- Admin must always use direct DB access
+- Admin system must remain fully isolated and stable
+
+---
+
+CURRENT PROBLEMS TO SOLVE:
+1. Reduce excessive database writes causing Neon overload
+2. Prevent memory instability under concurrent users
+3. Optimize leaderboard performance
+4. Prevent race conditions in score updates
+5. Eliminate redundant polling or repeated queries
+6. Ensure system stability for real-time classroom games
+7. Maintain consistency between cache and database
+
+---
+
+UNIFIED SCORE SYSTEM (IMPORTANT - SINGLE SYSTEM ONLY):
+
+- When a student earns points:
+  - DO NOT write immediately to database
+  - Update ONLY one in-memory structure:
+
+  scoreCache = {
+    [userId]: {
+      totalScore,
+      institutionId
+    }
+  }
+
+- This is the ONLY score storage in memory.
+
+---
+
+BATCH DATABASE WRITE SYSTEM:
+
+- Every 30 seconds:
+  - Flush scoreCache to PostgreSQL in ONE batch operation
+  - Use UPSERT to prevent duplication
+  - After successful write → clear ONLY score updates (not structure)
+
+- Ensure:
+  - no duplicate writes
+  - no race condition
+  - atomic batch update logic
+
+---
+
+LEADERBOARD SYSTEM (DERIVED ONLY):
+
+- DO NOT query database for leaderboard on every request
+- DO NOT create separate leaderboard cache system
+
+Instead:
+- leaderboard MUST be generated from scoreCache only
+- Recalculate leaderboard every 30 seconds from scoreCache
+- Filter leaderboard by institutionId
+
+Result:
+leaderboardCache = derived output (NOT a separate storage system)
+
+---
+
+API BEHAVIOR (DO NOT CHANGE ENDPOINTS):
+
+- Existing endpoints must remain unchanged
+- Leaderboard endpoint must return leaderboardCache
+- Score endpoints must update scoreCache only
+- No new API structure should break frontend
+
+---
+
+DATABASE OPTIMIZATION:
+
+- Ensure connection pooling is enabled (pg Pool / Neon recommended)
+- NEVER open DB connection per request
+- Reuse connections
+- Use indexed fields:
+  - student_id
+  - class_id
+  - institution_id
+
+---
+
+SESSION SAFETY:
+
+- If server restarts:
+  - reload scores from database into scoreCache
+  - rebuild leaderboardCache from recovered data
+  - ensure no data loss
+
+---
+
+RATE LIMITING:
+
+- Add basic request throttling per user/session
+- Prevent score spam / API abuse
+- Protect backend from overload
+
+---
+
+OPTIONAL (ONLY IF SAFE):
+- WebSocket can be used for real-time updates instead of polling
+
+---
+
+FINAL GOAL:
+- No performance lag under 600 active students
+- Stable Neon database usage for 6000 students
+- No memory leaks or crashes
+- Fast leaderboard responses
+- Fully stable admin system (untouched)

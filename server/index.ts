@@ -85,15 +85,6 @@ async function main() {
     }
   }, 30_000);
 
-  // Eski pending_stars temizleme (artık scoreBuffer kullanılıyor, güvenlik için korundu)
-  setInterval(async () => {
-    try {
-      await storage.flushPendingStars();
-    } catch (e) {
-      // sessizce devam et
-    }
-  }, 60_000);
-
   // Her gün 1 kez önceki ayın şampiyonlarını otomatik kaydet (ay başı sıfırlama)
   const runAutoMonthlyReset = async () => {
     try {
