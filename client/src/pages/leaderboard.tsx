@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { teacherAuthHeader } from "@/lib/queryClient";
-import { ChevronLeft, Trophy, Crown, Search, X } from "lucide-react";
+import { ChevronLeft, Crown, Search, X } from "lucide-react";
 import { useLeaderboardSocket } from "@/hooks/useLeaderboardSocket";
+import notebeatLogo from "@assets/notebeat-logo.png";
 
 type LeaderboardEntry = {
   rank: number;
@@ -48,7 +49,6 @@ function formatMonth(m: string) {
 const TABS = [
   { key: "school"  as const, label: "Okul",  icon: "🏫" },
   { key: "class"   as const, label: "Sınıf", icon: "🎓" },
-  { key: "monthly" as const, label: "Bu Ay", icon: "📅" },
 ];
 
 function getCurrentMonthLabel() {
@@ -60,22 +60,56 @@ function getCurrentMonthLabel() {
 const TAB_DESC_STUDENT: Record<string, string> = {
   school:  "Okuldaki tüm öğrenciler • Toplam ⭐ + 🏅",
   class:   "Sınıfındaki öğrenciler • Toplam ⭐ + 🏅",
-  monthly: `${getCurrentMonthLabel()} • Bu ay kazanılan ⭐ sıralaması`,
 };
 
 const TAB_DESC_TEACHER: Record<string, string> = {
   school:  "Okuldaki tüm öğrenciler • Toplam ⭐ + 🏅",
   class:   "Oluşturduğun tüm kodlara giren öğrenciler",
-  monthly: `${getCurrentMonthLabel()} • Bu ay kazanılan ⭐ sıralaması`,
 };
+
+/* NoteBeat Kids kupa SVG bileşeni */
+function NbkTrophy() {
+  return (
+    <motion.div
+      initial={{ scale: 0.7, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 200, damping: 12 }}
+      className="flex flex-col items-center justify-center flex-shrink-0"
+      style={{ width: 64, minWidth: 64 }}
+    >
+      <div
+        style={{
+          fontSize: 48,
+          filter: "drop-shadow(0 0 12px rgba(251,191,36,0.9)) drop-shadow(0 0 24px rgba(251,191,36,0.5))",
+          lineHeight: 1,
+        }}
+      >
+        🏆
+      </div>
+      <span
+        style={{
+          fontSize: 9,
+          fontWeight: 800,
+          background: "linear-gradient(90deg,#fbbf24,#f97316)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          letterSpacing: "0.05em",
+          marginTop: 2,
+          whiteSpace: "nowrap",
+        }}
+      >
+        NBK BİRİNCİSİ
+      </span>
+    </motion.div>
+  );
+}
 
 export default function Leaderboard() {
   const [, navigate] = useLocation();
   const { student, teacher, studentLoading } = useAuth();
-  const [tab, setTab] = useState<"school" | "class" | "monthly">("school");
+  const [tab, setTab] = useState<"school" | "class">("school");
   const [search, setSearch] = useState("");
 
-  // Socket.io ile gelen canlı veriler (school + monthly)
   const [socketEntries, setSocketEntries] = useState<Record<string, LeaderboardEntry[]>>({});
 
   const apiBase = import.meta.env.VITE_API_URL || "";
@@ -85,18 +119,16 @@ export default function Leaderboard() {
   const institutionId = teacher?.institutionId ?? null;
   const isReady = !studentLoading && !!(student || teacher);
 
-  // Socket.io bağlantısı — kuruma ait odaya girer, anlık liderlik güncellemelerini alır
   const handleSocketUpdate = useCallback((payload: { type: string; entries: LeaderboardEntry[] }) => {
     setSocketEntries(prev => ({ ...prev, [payload.type]: payload.entries }));
   }, []);
 
   useLeaderboardSocket({
-    institutionId,      // öğretmen için
-    studentId: sid,     // öğrenci için (sunucu kurum ID'sine çevirir)
+    institutionId,
+    studentId: sid,
     onUpdate: handleSocketUpdate,
   });
 
-  // HTTP fallback: Socket.io bağlanamadığında veya "class" sekmesi için
   const { data, isLoading } = useQuery<{ entries: LeaderboardEntry[]; currentStudentId: string | null }>({
     queryKey: ["/api/leaderboard", tab, sid, tid],
     queryFn: async () => {
@@ -112,7 +144,7 @@ export default function Leaderboard() {
     enabled: isReady,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchInterval: false, // Socket.io push kullandığımız için polling kapalı
+    refetchInterval: false,
   });
 
   const { data: winners } = useQuery<Winner[]>({
@@ -132,14 +164,13 @@ export default function Leaderboard() {
     refetchOnMount: "always",
   });
 
-  // Socket.io verisi varsa önceliklendir, yoksa HTTP'den al
   const httpEntries = data?.entries ?? [];
-  const allEntries: LeaderboardEntry[] = (tab === "school" || tab === "monthly")
+  const allEntries: LeaderboardEntry[] = tab === "school"
     ? (socketEntries[tab] ?? httpEntries)
     : httpEntries;
   const currentStudentId = data?.currentStudentId ?? student?.student?.id ?? null;
-  const starsKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyStars" : "totalStars";
-  const badgesKey: keyof LeaderboardEntry = tab === "monthly" ? "monthlyBadges" : "totalBadges";
+  const starsKey: keyof LeaderboardEntry = "totalStars";
+  const badgesKey: keyof LeaderboardEntry = "totalBadges";
 
   const TAB_DESC = teacher ? TAB_DESC_TEACHER : TAB_DESC_STUDENT;
 
@@ -155,21 +186,31 @@ export default function Leaderboard() {
       <div className="max-w-lg md:max-w-2xl mx-auto px-4 py-6 pb-12">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <button
-            data-testid="button-back"
-            onClick={() => navigate(student ? "/student/home" : "/teacher/dashboard")}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <Trophy size={24} className="text-yellow-400" />
-              <h1 className="text-xl font-extrabold text-white">Liderlik Tablosu</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <button
+              data-testid="button-back"
+              onClick={() => navigate(student ? "/student/home" : "/teacher/dashboard")}
+              className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🏆</span>
+                <h1 className="text-xl font-extrabold text-white">Liderlik Tablosu</h1>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5 ml-8">{TAB_DESC[tab]}</p>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5 ml-8">{TAB_DESC[tab]}</p>
           </div>
+          {/* NoteBeat Kids logosu — sağ üst */}
+          <img
+            src={notebeatLogo}
+            alt="NoteBeat Kids"
+            data-testid="img-notebeat-logo"
+            className="h-12 w-auto object-contain flex-shrink-0"
+            style={{ filter: "drop-shadow(0 0 8px rgba(251,191,36,0.4))" }}
+          />
         </div>
 
         {/* My rank banner (students only) */}
@@ -271,7 +312,7 @@ export default function Leaderboard() {
           </div>
         ) : entries.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
-            <Trophy size={48} className="mx-auto mb-3 opacity-30" />
+            <span className="text-5xl block mb-3 opacity-30">🏆</span>
             {searchLower ? (
               <>
                 <p className="font-bold">Sonuç bulunamadı</p>
@@ -290,6 +331,7 @@ export default function Leaderboard() {
               const isMe = entry.studentId === currentStudentId;
               const stars = (entry as any)[starsKey] as number;
               const isTop3 = entry.rank <= 3;
+              const isFirst = entry.rank === 1 && tab === "school";
 
               return (
                 <motion.div
@@ -304,8 +346,11 @@ export default function Leaderboard() {
                       : isTop3
                       ? `bg-gradient-to-r ${RANK_STYLE[entry.rank - 1]}`
                       : "border-white/8 bg-white/5"
-                  }`}
+                  } ${isFirst ? "border-yellow-400/70 shadow-lg shadow-yellow-400/10" : ""}`}
                 >
+                  {/* Kupa — sadece okul listesinde 1. sıraya */}
+                  {isFirst && <NbkTrophy />}
+
                   {/* Rank */}
                   <div className="w-8 text-center flex-shrink-0">
                     {isTop3
@@ -316,7 +361,7 @@ export default function Leaderboard() {
 
                   {/* Name + class */}
                   <div className="flex-1 min-w-0">
-                    <p className={`font-bold text-sm truncate leading-tight ${isMe ? "text-purple-200" : "text-white"}`}>
+                    <p className={`font-bold text-sm truncate leading-tight ${isMe ? "text-purple-200" : isFirst ? "text-yellow-100" : "text-white"}`}>
                       {entry.firstName} {entry.lastName}
                       {isMe && <span className="text-purple-400 text-xs ml-1.5 font-semibold">(Sen)</span>}
                     </p>
