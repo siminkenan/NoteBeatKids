@@ -53,7 +53,7 @@ export default defineConfig(async () => {
             "vendor-react":  ["react", "react-dom"],
             "vendor-motion": ["framer-motion"],
             "vendor-query":  ["@tanstack/react-query"],
-            "vendor-ui":     ["@radix-ui/react-dialog", "@radix-ui/react-tooltip", "@radix-ui/react-select"],
+            "vendor-ui":     ["@radix-ui/react-dialog", "@radix-ui/react-tooltip"],
           },
         },
       },
