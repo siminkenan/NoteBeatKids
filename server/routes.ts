@@ -304,7 +304,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
 
       } else {
-        // ── Legacy class code flow ────────────────────────────────────────
+        // ── Legacy class code flow (akıllı tahta / sınıf kartı) ──────────
+        // NOT: Bu akış kapasite kontrolü YAPILMAZ — sınıf her zaman giriş kabul eder.
+        // Bu akışla giriş yapan öğrenciler liderlik tablosuna dahil EDİLMEZ.
         const cls = await storage.getClassByCode(classCode);
         if (!cls) return res.status(404).json({ message: "Sınıf bulunamadı. Kodu kontrol edin." });
         if (cls.expiresAt && new Date(cls.expiresAt) < new Date()) {
@@ -312,10 +314,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
         let student = await storage.findStudent(cls.id, firstName, lastName);
         if (!student) {
-          const studentCount = (await storage.getStudentsByClass(cls.id)).length;
-          if (studentCount >= cls.maxStudents) {
-            return res.status(403).json({ message: "Sınıf kapasitesi dolu." });
-          }
+          // Kapasite kontrolü yok: akıllı tahta / sınıf kartı akışında sınır uygulanmaz
           student = await storage.createStudent({ classId: cls.id, firstName, lastName });
         }
         (req.session as any).studentId = student.id;
