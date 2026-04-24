@@ -1,10 +1,15 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { LiteModeProvider } from "./lib/liteMode";
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <LiteModeProvider>
+    <App />
+  </LiteModeProvider>
+);
 
-// Hide splash after first React paint
+// Splash ekranını React ilk render'dan sonra gizle
 requestAnimationFrame(() => {
   requestAnimationFrame(() => {
     const splash = document.getElementById("splash");

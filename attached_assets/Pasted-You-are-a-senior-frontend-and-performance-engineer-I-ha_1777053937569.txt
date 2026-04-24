@@ -1,0 +1,143 @@
+You are a senior frontend and performance engineer.
+
+I have an existing production web application used by students on tablets.
+
+IMPORTANT RULES:
+- DO NOT change UI design
+- DO NOT change layout, colors, spacing, or structure
+- DO NOT break existing features
+- The app must look EXACTLY the same
+- Only improve compatibility and performance
+
+---
+
+TARGET DEVICES:
+- Old iPads (iOS 12 Safari, e.g. iPad Mini 2)
+- Low-end Android tablets (Android 8–10, 2GB–4GB RAM)
+- Modern devices must continue to work perfectly
+
+---
+
+MAIN GOAL:
+1) Make the app OPEN and WORK on old devices (compatibility)
+2) Make the app RUN SMOOTHLY on low-end devices (lite performance mode)
+
+---
+
+TASK 1: JAVASCRIPT COMPATIBILITY
+
+- Convert all modern JavaScript (ES6+) to ES5
+- Configure Babel with @babel/preset-env
+- Target:
+  - iOS 12 Safari
+  - Android 8 Chrome
+
+- Add required polyfills:
+  - core-js
+  - regenerator-runtime
+  - Promise
+  - fetch
+  - Array methods (map, includes, etc.)
+
+- Replace unsupported syntax:
+  - optional chaining (?.)
+  - nullish coalescing (??)
+
+---
+
+TASK 2: DIFFERENTIAL LOADING (CRITICAL)
+
+- Serve modern bundle to modern browsers
+- Serve legacy bundle ONLY to old devices
+
+This ensures:
+- Modern devices stay fast
+- Old devices stay compatible
+
+---
+
+TASK 3: CSS COMPATIBILITY
+
+- Add autoprefixer
+- Ensure compatibility with older Safari
+- Fix flexbox issues if needed
+
+---
+
+TASK 4: LITE MODE SYSTEM (AUTOMATIC)
+
+Create an automatic Lite Mode for low-performance devices.
+
+DEVICE DETECTION:
+Detect low-end devices using:
+- Low memory (if available)
+- Old user agents (iOS 12, Android 8–9)
+- Weak CPU indicators
+
+When detected → enable Lite Mode automatically
+
+---
+
+TASK 5: PERFORMANCE OPTIMIZATION (IN LITE MODE ONLY)
+
+- Reduce animation FPS to 30
+- Disable or simplify heavy animations
+- Reduce re-render frequency
+- Simplify game loops if present
+- Avoid heavy JavaScript loops
+
+---
+
+TASK 6: DATA & NETWORK OPTIMIZATION
+
+- Prevent duplicate API calls
+- Add caching (React Query / SWR or similar)
+- Use lazy loading for pages and data
+- Reduce payload sizes
+
+---
+
+TASK 7: IMAGE OPTIMIZATION
+
+- Use WebP format where possible
+- Enable lazy loading for images
+- Load lower-resolution images in Lite Mode
+
+---
+
+TASK 8: SAFE FALLBACK MODE
+
+If device is extremely weak:
+- Disable non-critical features
+- Keep core functionality working
+- Maintain same UI visually
+
+---
+
+TASK 9: BUILD OPTIMIZATION
+
+- Minimize bundle size
+- Enable gzip or brotli compression
+- Remove unused dependencies
+
+---
+
+CONSTRAINTS:
+- NO UI/UX changes
+- NO redesign
+- NO feature removal
+- FULL backward compatibility
+
+---
+
+FINAL RESULT:
+
+- App must open on old devices (like iPad Mini 2)
+- App must run smoothly on low-end tablets
+- App must remain fast on modern devices
+- UI must remain identical
+
+---
+
+IMPORTANT:
+Apply all changes incrementally and safely without breaking the system.
