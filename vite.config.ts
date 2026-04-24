@@ -38,8 +38,25 @@ export default defineConfig(async () => {
     },
     root: path.resolve(import.meta.dirname, "client"),
     build: {
+      // 'safari12' hedefi: esbuild'in optional chaining (?.), nullish coalescing (??)
+      // ve diğer modern söz dizimlerini eski tarayıcılar için transpile etmesini sağlar.
+      // iOS 12 Safari + Android 8 Chrome bu sayede çalışır.
+      target: "safari12",
       outDir: path.resolve(import.meta.dirname, "dist/public"),
       emptyOutDir: true,
+      rollupOptions: {
+        output: {
+          // Büyük paketleri ayrı chunk'lara böl:
+          // - İlk yükleme daha hızlı (sadece gereken parça yüklenir)
+          // - Tarayıcı cache'i daha verimli kullanır
+          manualChunks: {
+            "vendor-react":  ["react", "react-dom"],
+            "vendor-motion": ["framer-motion"],
+            "vendor-query":  ["@tanstack/react-query"],
+            "vendor-ui":     ["@radix-ui/react-dialog", "@radix-ui/react-tooltip", "@radix-ui/react-select"],
+          },
+        },
+      },
     },
   };
 });
