@@ -22,6 +22,7 @@ export type LeaderboardEntry = {
   studentId: string;
   firstName: string;
   lastName: string;
+  className: string;
   classCode: string;
   branchName: string;
   institutionName: string;
@@ -760,6 +761,7 @@ export class DatabaseStorage implements IStorage {
         s.id AS student_id,
         s.first_name,
         s.last_name,
+        c.name AS class_name,
         c.class_code,
         c.branch_name,
         i.name AS institution_name,
@@ -778,7 +780,7 @@ export class DatabaseStorage implements IStorage {
         ${classId ? sql`AND c.id = ${classId}` : sql``}
         ${teacherId ? sql`AND t.id = ${teacherId}` : sql``}
         AND EXISTS (SELECT 1 FROM student_codes sc WHERE sc.student_id = s.id)
-      GROUP BY s.id, s.first_name, s.last_name, c.class_code, c.branch_name, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
+      GROUP BY s.id, s.first_name, s.last_name, c.name, c.class_code, c.branch_name, i.name, ms.monthly_stars, ms.monthly_badges_count, ms.last_reset_month
     `);
 
     const entries = (rows.rows as any[]).map(row => {
@@ -792,6 +794,7 @@ export class DatabaseStorage implements IStorage {
         studentId: row.student_id as string,
         firstName: row.first_name as string,
         lastName: row.last_name as string,
+        className: (row.class_name as string) || "",
         classCode: row.class_code as string,
         branchName: (row.branch_name as string) || "",
         institutionName: row.institution_name as string,

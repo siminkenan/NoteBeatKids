@@ -13,6 +13,7 @@ type LeaderboardEntry = {
   studentId: string;
   firstName: string;
   lastName: string;
+  className: string;
   classCode: string;
   branchName: string;
   institutionName: string;
@@ -223,7 +224,10 @@ export default function Leaderboard() {
             <span className="text-2xl">{myEntry.rank <= 3 ? MEDAL[myEntry.rank - 1] : `#${myEntry.rank}`}</span>
             <div className="flex-1 min-w-0">
               <p className="text-white font-extrabold text-sm truncate">{myEntry.firstName} {myEntry.lastName} <span className="text-purple-300">(Sen)</span></p>
-              <p className="text-xs text-gray-400">{myEntry.classCode}{myEntry.branchName && ` · ${myEntry.branchName}`}</p>
+              <p className="text-xs text-gray-400">
+                {myEntry.className || myEntry.classCode}
+                {myEntry.branchName && <span> · {myEntry.branchName}</span>}
+              </p>
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-yellow-300 font-extrabold text-lg leading-tight">⭐ {(myEntry as any)[starsKey]}</p>
@@ -366,7 +370,7 @@ export default function Leaderboard() {
                       {isMe && <span className="text-purple-400 text-xs ml-1.5 font-semibold">(Sen)</span>}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
-                      {entry.classCode}
+                      {entry.className || entry.classCode}
                       {entry.branchName && <span className="ml-1.5 text-gray-600">· {entry.branchName}</span>}
                     </p>
                   </div>
