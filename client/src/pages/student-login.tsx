@@ -64,6 +64,12 @@ function removeSavedStudent(student: SavedStudent) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
+const isIOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+const isStandalone =
+  ("standalone" in window.navigator && (window.navigator as any).standalone) ||
+  window.matchMedia("(display-mode: standalone)").matches;
+
 export default function StudentLogin() {
   const [, navigate] = useLocation();
   const { setStudent } = useAuth();
@@ -74,10 +80,37 @@ export default function StudentLogin() {
   const [showScanner, setShowScanner] = useState(false);
   const scannerRef = useRef<any>(null);
   const scannerInitRef = useRef(false);
+  const [canInstall, setCanInstall] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const deferredPromptRef = useRef<any>(null);
 
   useEffect(() => {
     setSavedStudents(loadSaved());
   }, []);
+
+  useEffect(() => {
+    if (isStandalone) return;
+    if (isIOS) { setCanInstall(true); return; }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      deferredPromptRef.current = e;
+      setCanInstall(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler as any);
+    return () => window.removeEventListener("beforeinstallprompt", handler as any);
+  }, []);
+
+  async function handleInstallClick() {
+    if (isIOS) { setShowInstallModal(true); return; }
+    if (deferredPromptRef.current) {
+      deferredPromptRef.current.prompt();
+      await deferredPromptRef.current.userChoice;
+      deferredPromptRef.current = null;
+      setCanInstall(false);
+    } else {
+      setShowInstallModal(true);
+    }
+  }
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -169,6 +202,70 @@ export default function StudentLogin() {
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 40%, #fda085 100%)" }}
     >
+      {/* Install button — top right */}
+      {canInstall && !isStandalone && (
+        <motion.button
+          data-testid="button-install-pwa-student"
+          className="absolute z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold cursor-pointer select-none"
+          style={{
+            right: "12px", top: "12px",
+            background: "rgba(255,255,255,0.22)",
+            color: "white",
+            border: "1.5px solid rgba(255,255,255,0.45)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+          }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          whileHover={{ scale: 1.07, background: "rgba(255,255,255,0.32)" } as any}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleInstallClick}
+          title={T.installTitle}
+        >
+          <span style={{ fontSize: "16px" }}>📲</span>
+          <span>{T.installBtn}</span>
+        </motion.button>
+      )}
+
+      {/* Install modal */}
+      <AnimatePresence>
+        {showInstallModal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.55)" }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setShowInstallModal(false)}
+          >
+            <motion.div
+              className="w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+              style={{ background: "linear-gradient(135deg,#667eea,#764ba2)" }}
+              initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-extrabold text-white">{T.installTitle}</h3>
+                <button onClick={() => setShowInstallModal(false)} className="text-white/70 hover:text-white text-xl">✕</button>
+              </div>
+              <p className="text-sm text-white/80 mb-4">{T.installBody}</p>
+              {isIOS && (
+                <ol className="text-sm text-white space-y-1 mb-4">
+                  <li>{T.iosStep1}</li>
+                  <li>{T.iosStep2}</li>
+                  <li>{T.iosStep3}</li>
+                </ol>
+              )}
+              <button
+                onClick={() => setShowInstallModal(false)}
+                className="w-full py-2 rounded-xl font-bold text-white"
+                style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.4)" }}
+              >
+                {T.closeBtn}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute inset-0 pointer-events-none select-none">
         {/* Fa (bass) clef — top left */}
         <motion.span
