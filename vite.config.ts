@@ -51,7 +51,7 @@ export default defineConfig(async () => {
           // Fonksiyon formu: Rollup'un modül ID'lerine göre chunk ataması yapar.
           // String-obje formu bazen boş chunk üretir (vendor-react 0 kB sorunu);
           // fonksiyon formu bu hatayı giderir.
-          manualChunks(id) {
+          manualChunks(id: string) {
             if (!id.includes("/node_modules/")) return;
 
             // React çekirdeği — her zaman ayrı chunk
