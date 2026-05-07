@@ -5,6 +5,13 @@
  * Redis yok   → tek instance'da in-memory çalışır (geliştirme ortamı)
  *
  * Odalar: her kurum için `inst:{institutionId}` odası
+ *
+ * Bellek sızıntısı önlemleri:
+ *  - Her bağlantıda `disconnected` bayrağı — timer'ların bağlantı kapandıktan
+ *    sonra yeniden oluşturulmasını önler
+ *  - Bağlantı kesilince tüm timer'lar ve referanslar temizlenir
+ *  - Periyodik boşta bağlantı taraması — orphaned socket'ları tespit eder
+ *  - Async DB çağrısı bağlantı kesilmişse sonuç kullanılmaz
  */
 
 import { Server as SocketIOServer } from "socket.io";
@@ -19,19 +26,34 @@ let io: SocketIOServer | null = null;
 // Boşta kalan socket'ları kapat (30 dk)
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
-export async function initSocketIO(httpServer: HttpServer) {
+// Periyodik stale socket tarama aralığı (5 dk)
+const STALE_SWEEP_MS = 5 * 60 * 1000;
+
+export async function initSocketIO(httpServer: HttpServer): Promise<SocketIOServer> {
   io = new SocketIOServer(httpServer, {
     cors: {
       origin: (origin, callback) => {
-        if (
-          !origin ||
-          origin.endsWith(".vercel.app") ||
-          origin.endsWith(".onrender.com") ||
-          origin.includes("localhost") ||
-          origin.includes("replit.dev")
-        ) {
+        if (!origin) return callback(null, true); // server-to-server
+        const allowedOrigins = (process.env.FRONTEND_URL || "")
+          .split(",")
+          .map((o) => o.trim())
+          .filter(Boolean);
+
+        const isProduction = process.env.NODE_ENV === "production";
+
+        if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
           return callback(null, true);
         }
+        // Geliştirme ortamında esnek — üretimde sadece explicit origin'ler
+        if (!isProduction && (origin.includes("localhost") || origin.includes("replit.dev"))) {
+          return callback(null, true);
+        }
+        // Üretimde FRONTEND_URL listesinde olmayan origin'lere izin vermiyoruz
+        // ancak .onrender.com backend'in kendi socket client'ı için gerekebilir
+        if (origin.endsWith(".onrender.com") || origin.endsWith(".vercel.app")) {
+          return callback(null, true);
+        }
+        log(`Socket CORS reddedildi: ${origin}`, "warn");
         return callback(new Error(`Socket CORS blocked: ${origin}`));
       },
       credentials: true,
@@ -41,6 +63,8 @@ export async function initSocketIO(httpServer: HttpServer) {
     pingInterval: 25_000,
     connectTimeout: 10_000,
     transports: ["websocket", "polling"],
+    // Bağlantı başına maksimum buffer boyutu (100KB) — bellek sızıntısı önlemi
+    maxHttpBufferSize: 100_000,
   });
 
   // ── Redis Adapter (çoklu instance ölçekleme) ──────────────────────────────
@@ -50,6 +74,7 @@ export async function initSocketIO(httpServer: HttpServer) {
       // Pub/Sub için iki ayrı bağlantı gerekli
       const pubClient = redis.duplicate();
       const subClient = redis.duplicate();
+      // duplicate() lazyConnect=true miras alır — connect() ile açıkça başlat
       await Promise.all([pubClient.connect(), subClient.connect()]);
       io.adapter(createAdapter(pubClient, subClient));
       log("✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)");
@@ -62,14 +87,24 @@ export async function initSocketIO(httpServer: HttpServer) {
 
   // ── Bağlantı yönetimi ─────────────────────────────────────────────────────
   io.on("connection", async (socket) => {
+    let disconnected = false; // bellek sızıntısı önlemi — post-disconnect timer'ları engelle
+
     let institutionId = socket.handshake.query.institutionId as string;
 
     // Öğrenciler için studentId → institutionId çözümle
     if (!institutionId) {
       const studentId = socket.handshake.query.studentId as string;
       if (studentId) {
-        const resolved = await storage.getInstitutionIdForStudent(studentId).catch(() => null);
-        if (resolved) institutionId = resolved;
+        try {
+          const resolved = await storage.getInstitutionIdForStudent(studentId);
+          // Async çözümleme tamamlanmadan bağlantı kesildiyse devam etme
+          if (disconnected) return;
+          if (resolved) institutionId = resolved;
+        } catch {
+          // Hata durumunda bağlantıyı kapat
+          if (!disconnected) socket.disconnect();
+          return;
+        }
       }
     }
 
@@ -81,28 +116,38 @@ export async function initSocketIO(httpServer: HttpServer) {
     // Kuruma ait odaya katıl
     socket.join(`inst:${institutionId}`);
 
-    // Boşta kalma zamanlayıcısı
-    let idleTimer = setTimeout(() => {
-      socket.disconnect(true);
+    // ── Boşta kalma zamanlayıcısı ─────────────────────────────────────────
+    let idleTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      if (!disconnected) socket.disconnect(true);
     }, IDLE_TIMEOUT_MS);
 
-    socket.on("ping_keep_alive", () => {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => socket.disconnect(true), IDLE_TIMEOUT_MS);
+    const resetIdleTimer = () => {
+      if (disconnected) return; // bağlantı zaten kapanmış — timer yenileme
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (!disconnected) socket.disconnect(true);
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    socket.on("ping_keep_alive", resetIdleTimer);
+
+    socket.on("disconnect", (reason) => {
+      disconnected = true;
+      if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+      log(`Socket disconnect: ${socket.id} — ${reason}`, "debug");
     });
 
-    socket.on("disconnect", () => {
-      clearTimeout(idleTimer);
-    });
-
-    // Bağlanınca mevcut listeyi hemen gönder (önbellekten)
+    // Bağlanınca mevcut listeyi hemen gönder (in-memory önbellekten)
+    // Socket.io broadcast olayları Redis adapter üzerinden yayılır
     try {
       const types: Array<"school" | "monthly"> = ["school", "monthly"];
       for (const type of types) {
+        if (disconnected) break;
         const cacheKey = `${institutionId}:${type}::`;
         let cached = getCachedLeaderboard(cacheKey);
         if (!cached) {
           const entries = await storage.getLeaderboard(institutionId, type);
+          if (disconnected) break; // async tamamlanmadan kesildi
           cached = { entries };
           setCachedLeaderboard(cacheKey, cached);
         }
@@ -112,7 +157,39 @@ export async function initSocketIO(httpServer: HttpServer) {
     } catch (_) {}
   });
 
+  // ── Periyodik stale socket taraması ──────────────────────────────────────
+  const staleTimer = setInterval(() => {
+    if (!io) { clearInterval(staleTimer); return; }
+    const sockets = io.sockets.sockets;
+    let total = 0;
+    let disconnectedCount = 0;
+    for (const [, s] of Array.from(sockets)) {
+      total++;
+      if (!s.connected) disconnectedCount++;
+    }
+    if (process.env.NODE_ENV === "production" && total > 0) {
+      log(`📊 Socket.io: ${total} bağlantı (${disconnectedCount} bağlantısız)`, "monitor");
+    }
+  }, STALE_SWEEP_MS);
+
+  staleTimer.unref(); // Node.js'in kapanmasını engelleme
+
   return io;
+}
+
+/**
+ * Graceful shutdown için Socket.io sunucusunu kapat.
+ * Tüm bağlantılara disconnect bildirimi gönderir.
+ */
+export async function closeSocketIO(): Promise<void> {
+  if (!io) return;
+  return new Promise((resolve) => {
+    io!.close(() => {
+      log("✅ Socket.io kapatıldı");
+      io = null;
+      resolve();
+    });
+  });
 }
 
 /** Yıldız değişince kurumun tüm bağlı kullanıcılarına anlık gönder */
