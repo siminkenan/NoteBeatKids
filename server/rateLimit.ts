@@ -1,12 +1,11 @@
 /**
  * RATE LİMİTER
  * ──────────────────────────────────────────────────────────────────────────────
- * Puan spam'ini ve API istismarını önler.
+ * Redis varsa: Redis-backed (çoklu Render instance'da da çalışır)
+ * Redis yoksa: in-memory Map (tek instance için yeterli)
  *
- * - Redis varsa: Redis-backed (çoklu Render instance'da da çalışır)
- * - Redis yoksa: in-memory Map (tek instance için yeterli)
- *
- * Kural: Her studentId için 60 saniyede en fazla MAX_REQUESTS istek.
+ * ÖNEMLI: Express 4 async middleware sorununu önlemek için
+ * dışarı verilen `scoreRateLimit` senkron bir wrapper'dır.
  */
 
 import type { Request, Response, NextFunction } from "express";
@@ -22,27 +21,24 @@ const memStore = new Map<string, RateEntry>();
 
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of memStore.entries()) {
+  for (const [key, entry] of Array.from(memStore.entries())) {
     if (now >= entry.resetAt) memStore.delete(key);
   }
-}, 5 * 60_000);
+}, 5 * 60_000).unref();
 
 // ── Redis-backed limiter ──────────────────────────────────────────────────────
 async function checkRedisLimit(studentId: string): Promise<{ allowed: boolean; retryAfter?: number }> {
   const key = `rl:score:${studentId}`;
   try {
     const count = await redis!.incr(key);
-    if (count === 1) {
-      await redis!.expire(key, WINDOW_SEC);
-    }
+    if (count === 1) await redis!.expire(key, WINDOW_SEC);
     if (count > MAX_REQUESTS) {
       const ttl = await redis!.ttl(key);
       return { allowed: false, retryAfter: ttl > 0 ? ttl : WINDOW_SEC };
     }
     return { allowed: true };
   } catch {
-    // Redis hata verirse geçir (graceful degradation)
-    return { allowed: true };
+    return { allowed: true }; // Redis hata verirse geçir
   }
 }
 
@@ -61,13 +57,10 @@ function checkMemLimit(studentId: string): { allowed: boolean; retryAfter?: numb
   return { allowed: true };
 }
 
-/**
- * Express middleware: req.params.studentId bazlı rate limiting.
- * Yalnızca puan yazma endpoint'lerine ekle.
- */
-export async function scoreRateLimit(req: Request, res: Response, next: NextFunction) {
-  const studentId = req.params.studentId;
-  if (!studentId) return next();
+// ── Async iç fonksiyon ────────────────────────────────────────────────────────
+async function _scoreRateLimitAsync(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const studentId = req.params.studentId as string;
+  if (!studentId) { next(); return; }
 
   const result = redis
     ? await checkRedisLimit(studentId)
@@ -75,8 +68,16 @@ export async function scoreRateLimit(req: Request, res: Response, next: NextFunc
 
   if (!result.allowed) {
     res.setHeader("Retry-After", String(result.retryAfter ?? WINDOW_SEC));
-    return res.status(429).json({ message: "Çok fazla istek. Lütfen biraz bekleyin." });
+    res.status(429).json({ message: "Çok fazla istek. Lütfen biraz bekleyin." });
+    return;
   }
-
   next();
+}
+
+/**
+ * Express middleware (senkron wrapper — Express 4 uyumlu).
+ * Yalnızca puan yazma endpoint'lerine ekle.
+ */
+export function scoreRateLimit(req: Request, res: Response, next: NextFunction): void {
+  _scoreRateLimitAsync(req, res, next).catch(next);
 }

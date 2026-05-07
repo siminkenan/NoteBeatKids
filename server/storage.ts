@@ -2,6 +2,28 @@ import { eq, and, sql, desc, inArray, isNotNull } from "drizzle-orm";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
 import { bufferScore, getBufferEntry, getBufferedByStudent, flushScoreBuffer } from "./scoreBuffer";
+import { redis } from "./redis";
+
+// ── Basit Redis cache yardımcıları (storage içinde kullanılır) ────────────────
+const CACHE_TTL = 300; // 5 dakika
+
+async function cacheGet<T>(key: string): Promise<T | null> {
+  if (!redis) return null;
+  try {
+    const v = await redis.get(key);
+    return v ? (JSON.parse(v) as T) : null;
+  } catch { return null; }
+}
+
+async function cacheSet(key: string, value: unknown, ttl = CACHE_TTL): Promise<void> {
+  if (!redis) return;
+  try { await redis.set(key, JSON.stringify(value), "EX", ttl); } catch {}
+}
+
+async function cacheDel(...keys: string[]): Promise<void> {
+  if (!redis || !keys.length) return;
+  try { await redis.del(...keys); } catch {}
+}
 import {
   institutions, admins, teachers, classes, students, studentProgress, teacherCodes, studentCodes,
   orchestraSongs, orchestraProgress, maestroResources, maestroViewProgress,
@@ -281,7 +303,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async findStudentCodeByValue(code: string): Promise<StudentCode | undefined> {
+    const key = `sc:${code.toUpperCase()}`;
+    const cached = await cacheGet<StudentCode>(key);
+    if (cached) return cached;
     const result = await db.select().from(studentCodes).where(eq(studentCodes.code, code.toUpperCase())).limit(1);
+    if (result[0]) await cacheSet(key, result[0]);
     return result[0];
   }
 
@@ -289,6 +315,8 @@ export class DatabaseStorage implements IStorage {
     await db.update(studentCodes)
       .set({ studentId })
       .where(eq(studentCodes.code, code.toUpperCase()));
+    // Cache'i güncelle: öğrenci atandıktan sonra eski kayıt geçersiz
+    await cacheDel(`sc:${code.toUpperCase()}`);
   }
 
   async findStudentCodeByStudentId(studentId: string): Promise<StudentCode | undefined> {
@@ -315,7 +343,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTeacher(id: string): Promise<Teacher | undefined> {
+    const key = `teacher:${id}`;
+    const cached = await cacheGet<Teacher>(key);
+    if (cached) return cached;
     const result = await db.select().from(teachers).where(eq(teachers.id, id)).limit(1);
+    if (result[0]) await cacheSet(key, result[0]);
     return result[0];
   }
 
@@ -350,6 +382,7 @@ export class DatabaseStorage implements IStorage {
         teacherName: teachers.name,
         teacherEmail: teachers.email,
         institutionName: institutions.name,
+        branchName: classes.branchName,
       })
       .from(classes)
       .leftJoin(teachers, eq(classes.teacherId, teachers.id))
@@ -381,7 +414,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClassByCode(code: string): Promise<Class | undefined> {
+    const key = `cls:code:${code.toUpperCase()}`;
+    const cached = await cacheGet<Class>(key);
+    if (cached) return cached;
     const result = await db.select().from(classes).where(eq(classes.classCode, code.toUpperCase())).limit(1);
+    if (result[0]) await cacheSet(key, result[0]);
     return result[0];
   }
 
@@ -512,7 +549,7 @@ export class DatabaseStorage implements IStorage {
 
     // DB kayıtlarını tampondaki güncel değerlerle birleştir
     const dbMap = new Map(dbRows.map(r => [`${r.studentId}:${r.appType}`, r]));
-    for (const [key, entry] of buffered.entries()) {
+    for (const [key, entry] of Array.from(buffered.entries())) {
       const now = new Date();
       dbMap.set(key, {
         id: entry.existingId ?? `buf_${key}`,
@@ -692,7 +729,7 @@ export class DatabaseStorage implements IStorage {
           students: studentRows,
         });
       }
-      result.push({ id: teacher.id, name: teacher.name, email: teacher.email, classes: classResults });
+      result.push({ id: teacher.id, name: teacher.name, email: teacher.email ?? "", classes: classResults });
     }
     return { teachers: result };
   }

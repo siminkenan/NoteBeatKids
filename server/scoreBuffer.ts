@@ -117,7 +117,6 @@ export function bufferScore(params: {
     wrongAnswers: newData.wrongAnswers ?? baselineRecord?.wrongAnswers ?? 0,
     timeSpentSeconds: newData.timeSpentSeconds ?? baselineRecord?.timeSpentSeconds ?? 0,
     notesBadge: newData.notesBadge ?? baselineRecord?.notesBadge ?? null,
-    createdAt: baselineRecord?.createdAt ?? now,
     updatedAt: now,
   };
 
@@ -126,7 +125,7 @@ export function bufferScore(params: {
 
 export function getBufferedByStudent(studentId: string): Map<string, BufferEntry> {
   const result = new Map<string, BufferEntry>();
-  for (const [key, entry] of buffer.entries()) {
+  for (const [key, entry] of Array.from(buffer.entries())) {
     if (entry.studentId === studentId) result.set(key, entry);
   }
   return result;
@@ -155,7 +154,7 @@ export async function flushScoreBuffer(): Promise<void> {
     const progressOps: Promise<any>[] = [];
     const monthlyUpdates: Array<{ studentId: string; deltaStars: number; deltaBadges: number }> = [];
 
-    for (const [, entry] of snapshot.entries()) {
+    for (const [, entry] of Array.from(snapshot.entries())) {
       const { studentId, appType, data, existingId, cumulativeDeltaStars, cumulativeDeltaBadges } = entry;
 
       // student_progress güncelleme — hepsini paralel kuyruğa ekle

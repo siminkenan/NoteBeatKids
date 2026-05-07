@@ -4,57 +4,52 @@ import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
-import crypto from "crypto";
+import {
+  signAccessToken, signRefreshToken, storeRefreshToken,
+  invalidateRefreshToken, invalidateAllRefreshTokens,
+  verifyAccessToken, verifyRefreshToken,
+  signLegacyToken, verifyLegacyToken,
+  extractBearerToken,
+} from "./auth";
 import { getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache } from "./leaderboardCache";
 import { broadcastLeaderboard } from "./socket";
 import { markInstitutionDirty } from "./scoreBuffer";
 import { scoreRateLimit } from "./rateLimit";
 
-// ── Token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
-const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
+// ── Kısa isimler (geriye dönük uyumluluk) ──────────────────────────────────────
+const signAdminToken   = (id: string) => signLegacyToken(id, "admin");
+const signTeacherToken = (id: string) => signLegacyToken(id, "teacher");
 
-function signToken(id: string, prefix: string): string {
-  const payload = Buffer.from(`${prefix}:${id}`).toString("base64url");
-  const sig = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
-  return `${payload}.${sig}`;
-}
-
-function verifyToken(token: string, prefix: string): string | null {
-  try {
-    const [payload, sig] = token.split(".");
-    if (!payload || !sig) return null;
-    const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
-    if (sig !== expected) return null;
-    const decoded = Buffer.from(payload, "base64url").toString();
-    if (!decoded.startsWith(`${prefix}:`)) return null;
-    return decoded.slice(prefix.length + 1);
-  } catch {
-    return null;
-  }
-}
-
-function signAdminToken(adminId: string): string { return signToken(adminId, "admin"); }
-function signTeacherToken(teacherId: string): string { return signToken(teacherId, "teacher"); }
-
+/**
+ * Admin ID'yi çöz.
+ * Öncelik sırası (üstten alta):
+ *   1. Yeni JWT access token (15 dk ömürlü)
+ *   2. Eski HMAC token (sonsuz ömürlü, geriye dönük uyumluluk)
+ *   3. Session (aynı origin Replit dev ortamı)
+ */
 function getAdminId(req: Request): string | null {
-  // 1. Bearer token (cross-domain Render+Vercel) — checked FIRST so stale session cookies don't override valid JWT
-  const auth = req.headers.authorization;
-  if (auth?.startsWith("Bearer ")) {
-    const id = verifyToken(auth.slice(7), "admin");
-    if (id) return id;
+  const token = extractBearerToken(req.headers.authorization);
+  if (token) {
+    return (
+      verifyAccessToken(token, "admin") ||
+      verifyLegacyToken(token, "admin")
+    );
   }
-  // 2. Session fallback (same-origin Replit dev)
   return (req.session as any).adminId ?? null;
 }
 
+/**
+ * Teacher ID'yi çöz.
+ * Öncelik sırası aynı şekilde: JWT → HMAC → Session
+ */
 function getTeacherId(req: Request): string | null {
-  // 1. Bearer token (cross-domain Render+Vercel) — checked FIRST so stale session cookies don't override valid JWT
-  const auth = req.headers.authorization;
-  if (auth?.startsWith("Bearer ")) {
-    const id = verifyToken(auth.slice(7), "teacher");
-    if (id) return id;
+  const token = extractBearerToken(req.headers.authorization);
+  if (token) {
+    return (
+      verifyAccessToken(token, "teacher") ||
+      verifyLegacyToken(token, "teacher")
+    );
   }
-  // 2. Session fallback (same-origin Replit dev)
   return (req.session as any).teacherId ?? null;
 }
 
@@ -159,18 +154,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         admin = existing;
       }
 
-      (req.session as any).adminId = admin!.id;
-      const token = signAdminToken(String(admin!.id));
+      const adminId = String(admin!.id);
+      // Yeni JWT tokenlar
+      const accessToken  = signAccessToken(adminId, "admin");
+      const refreshToken = signRefreshToken(adminId, "admin");
+      await storeRefreshToken(refreshToken);
+      // Eski HMAC token (geriye dönük uyumluluk)
+      const token = signAdminToken(adminId);
+      (req.session as any).adminId = adminId;
       req.session.save((err) => {
         if (err) return res.status(500).json({ message: "Session error" });
-        res.json({ id: admin!.id, name: admin!.name, email: admin!.email, role: "admin", token });
+        res.json({
+          id: admin!.id, name: admin!.name, email: admin!.email, role: "admin",
+          token, accessToken, refreshToken,
+        });
       });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
     }
   });
 
-  app.post("/api/auth/admin/logout", (req: Request, res: Response) => {
+  app.post("/api/auth/admin/logout", async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
+    if (refreshToken) await invalidateRefreshToken(refreshToken);
     req.session.destroy(() => res.json({ ok: true }));
   });
 
@@ -180,6 +186,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const admin = await storage.getAdminByEmail(ADMIN_EMAIL);
     if (!admin) return res.status(401).json({ message: "Not found" });
     res.json({ id: admin.id, name: admin.name, email: admin.email, role: "admin" });
+  });
+
+  // Admin: refresh token → yeni access + refresh token çifti
+  app.post("/api/auth/admin/refresh", async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ message: "refreshToken gerekli" });
+    const adminId = await verifyRefreshToken(refreshToken, "admin");
+    if (!adminId) return res.status(401).json({ message: "Geçersiz veya süresi dolmuş refresh token" });
+    await invalidateRefreshToken(refreshToken); // rotation: eski token'ı geçersiz kıl
+    const newAccess  = signAccessToken(adminId, "admin");
+    const newRefresh = signRefreshToken(adminId, "admin");
+    await storeRefreshToken(newRefresh);
+    res.json({ accessToken: newAccess, refreshToken: newRefresh });
   });
 
   // Teacher auth — ad + soyad + kurum kodu
@@ -205,24 +224,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         if (existingTeacher.name.toLowerCase() !== fullName.toLowerCase()) {
           return res.status(403).json({ message: `Bu kod "${existingTeacher.name}" adına kayıtlıdır. Lütfen kayıt sırasında girdiğiniz adı kullanın.` });
         }
-        (req.session as any).teacherId = existingTeacher.id;
         const { password: _, ...safe } = existingTeacher;
-        const teacherToken = signTeacherToken(existingTeacher.id);
+        const teacherToken  = signTeacherToken(existingTeacher.id);
+        const accessToken   = signAccessToken(existingTeacher.id, "teacher");
+        const refreshToken  = signRefreshToken(existingTeacher.id, "teacher");
+        await storeRefreshToken(refreshToken);
+        (req.session as any).teacherId = existingTeacher.id;
         return req.session.save((err) => {
           if (err) return res.status(500).json({ message: "Session error" });
-          res.json({ ...safe, role: "teacher", teacherToken });
+          res.json({ ...safe, role: "teacher", teacherToken, accessToken, refreshToken });
         });
       }
 
       // Code is unused — register new teacher
       const teacher = await storage.createTeacherByCode({ name: fullName, institutionId: institution.id });
       await storage.linkTeacherToCode(codeRecord.id, teacher.id);
-      (req.session as any).teacherId = teacher.id;
       const { password: _, ...safeTeacher } = teacher;
-      const teacherToken = signTeacherToken(teacher.id);
+      const teacherToken  = signTeacherToken(teacher.id);
+      const accessToken   = signAccessToken(teacher.id, "teacher");
+      const refreshToken  = signRefreshToken(teacher.id, "teacher");
+      await storeRefreshToken(refreshToken);
+      (req.session as any).teacherId = teacher.id;
       req.session.save((err) => {
         if (err) return res.status(500).json({ message: "Session error" });
-        res.json({ ...safeTeacher, role: "teacher", teacherToken });
+        res.json({ ...safeTeacher, role: "teacher", teacherToken, accessToken, refreshToken });
       });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
@@ -231,7 +256,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Public endpoint to verify an individual teacher code
   app.get("/api/institution/by-teacher-code/:code", async (req: Request, res: Response) => {
-    const codeRecord = await storage.findTeacherCodeByValue(req.params.code.toUpperCase());
+    const codeRecord = await storage.findTeacherCodeByValue(String(req.params.code).toUpperCase());
     if (!codeRecord) return res.status(404).json({ message: "Geçersiz kod" });
     const inst = await storage.getInstitution(codeRecord.institutionId);
     if (!inst) return res.status(404).json({ message: "Kurum bulunamadı" });
@@ -239,7 +264,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ id: inst.id, name: inst.name, isActive: inst.isActive, codeStatus: status });
   });
 
-  app.post("/api/auth/teacher/logout", (req: Request, res: Response) => {
+  app.post("/api/auth/teacher/logout", async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
+    if (refreshToken) await invalidateRefreshToken(refreshToken);
     req.session.destroy(() => res.json({ ok: true }));
   });
 
@@ -250,6 +277,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!teacher) return res.status(401).json({ message: "Not found" });
     const { password: _, ...safeTeacher } = teacher;
     res.json({ ...safeTeacher, role: "teacher" });
+  });
+
+  // Teacher: refresh token → yeni access + refresh token çifti
+  app.post("/api/auth/teacher/refresh", async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ message: "refreshToken gerekli" });
+    const teacherId = await verifyRefreshToken(refreshToken, "teacher");
+    if (!teacherId) return res.status(401).json({ message: "Geçersiz veya süresi dolmuş refresh token" });
+    await invalidateRefreshToken(refreshToken); // rotation
+    const newAccess  = signAccessToken(teacherId, "teacher");
+    const newRefresh = signRefreshToken(teacherId, "teacher");
+    await storeRefreshToken(newRefresh);
+    res.json({ accessToken: newAccess, refreshToken: newRefresh });
   });
 
   // Student login (no session, stored client-side)
@@ -298,10 +338,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           student = existing;
         }
 
-        (req.session as any).studentId = student!.id;
-        req.session.save(() => {
-          res.json({ student, class: { id: cls!.id, name: cls!.name, classCode: cls!.classCode } });
-        });
+        // Session kullanılmıyor — frontend localStorage'da saklar
+        res.json({ student, class: { id: cls!.id, name: cls!.name, classCode: cls!.classCode } });
 
       } else {
         // ── Legacy class code flow (akıllı tahta / sınıf kartı) ──────────
@@ -317,10 +355,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           // Kapasite kontrolü yok: akıllı tahta / sınıf kartı akışında sınır uygulanmaz
           student = await storage.createStudent({ classId: cls.id, firstName, lastName });
         }
-        (req.session as any).studentId = student.id;
-        req.session.save(() => {
-          res.json({ student, class: { id: cls.id, name: cls.name, classCode: cls.classCode } });
-        });
+        // Session kullanılmıyor — frontend localStorage'da saklar
+        res.json({ student, class: { id: cls.id, name: cls.name, classCode: cls.classCode } });
       }
     } catch (e) {
       console.error("Student login error:", e);
@@ -330,7 +366,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Student progress
   app.get("/api/student/:studentId/progress", async (req: Request, res: Response) => {
-    const progress = await storage.getProgressByStudent(req.params.studentId);
+    const progress = await storage.getProgressByStudent(req.params.studentId as string);
     res.json(progress);
   });
 
@@ -341,7 +377,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Drum kit: accumulate time and derive stars (1 star per 3 minutes)
       let finalData = { ...data };
       if (appType === "drum_kit") {
-        const existing = await storage.getProgressByStudentAndType(req.params.studentId, "drum_kit");
+        const existing = await storage.getProgressByStudentAndType(req.params.studentId as string, "drum_kit");
         const prevTime = existing?.timeSpentSeconds ?? 0;
         const sessionTime = Number(data.timeSpentSeconds ?? 0);
         const totalTime = prevTime + sessionTime;
@@ -349,10 +385,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         finalData = { ...data, timeSpentSeconds: totalTime, starsEarned: newStars };
       }
 
-      const progress = await storage.upsertProgress(req.params.studentId, appType, finalData);
+      const progress = await storage.upsertProgress(req.params.studentId as string, appType, finalData);
       // Puan tampona alındı. DB'ye yazma 30 sn sonra toplu yapılacak.
       // Kurum önbelleğini kirli işaretle → flush sonrası Socket.io ile broadcast edilecek.
-      const instId = await storage.getInstitutionIdForStudent(req.params.studentId);
+      const instId = await storage.getInstitutionIdForStudent(req.params.studentId as string);
       if (instId) {
         invalidateLeaderboardCache(instId);
         markInstitutionDirty(instId);
@@ -429,27 +465,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/teacher/classes/:classId", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const cls = await storage.getClass(req.params.classId);
+    const cls = await storage.getClass(req.params.classId as string);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
-    await storage.deleteClass(req.params.classId);
+    await storage.deleteClass(req.params.classId as string);
     res.json({ ok: true });
   });
 
   app.get("/api/teacher/classes/:classId/student-codes", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const cls = await storage.getClass(req.params.classId);
+    const cls = await storage.getClass(req.params.classId as string);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
-    const codes = await storage.getStudentCodesByClass(req.params.classId);
+    const codes = await storage.getStudentCodesByClass(req.params.classId as string);
     res.json({ class: cls, codes });
   });
 
   app.post("/api/teacher/classes/:classId/student-codes/generate", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const cls = await storage.getClass(req.params.classId);
+    const cls = await storage.getClass(req.params.classId as string);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
-    const existing = await storage.getStudentCodesByClass(req.params.classId);
+    const existing = await storage.getStudentCodesByClass(req.params.classId as string);
     if (existing.length > 0) return res.json({ class: cls, codes: existing });
     const teacher = await storage.getTeacher(teacherId);
     let instMaxStudents = cls.maxStudents;
@@ -457,16 +493,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const inst = await storage.getInstitution(teacher.institutionId);
       if (inst?.maxStudents) instMaxStudents = Math.min(cls.maxStudents, inst.maxStudents);
     }
-    const codes = await storage.generateStudentCodesForClass(req.params.classId, instMaxStudents);
+    const codes = await storage.generateStudentCodesForClass(req.params.classId as string, instMaxStudents);
     res.json({ class: cls, codes });
   });
 
   app.get("/api/teacher/classes/:classId/students", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const cls = await storage.getClass(req.params.classId);
+    const cls = await storage.getClass(req.params.classId as string);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
-    const data = await storage.getClassProgress(req.params.classId);
+    const data = await storage.getClassProgress(req.params.classId as string);
     res.json({ class: cls, students: data });
   });
 
@@ -474,14 +510,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const teacherId = getTeacherId(req);
       if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-      const cls = await storage.getClass(req.params.classId);
+      const cls = await storage.getClass(req.params.classId as string);
       if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
       const teacher = await storage.getTeacher(teacherId);
       if (!teacher?.institutionId) return res.status(400).json({ message: "Kurum bilgisi bulunamadı." });
       const stock = await storage.getInstitutionStudentStock(teacher.institutionId);
       if (stock.remaining <= 0) return res.status(400).json({ message: "Kurum öğrenci stoğu doldu. Yöneticinizden kapasite artırmasını isteyin." });
       const count = Math.min(stock.remaining, Number(req.body.count) || 1);
-      const newCodes = await storage.addStudentCodesToClass(req.params.classId, count);
+      const newCodes = await storage.addStudentCodesToClass(req.params.classId as string, count);
       // Sınıfın max_students'ını eklenen kod sayısı kadar artır
       // (aksi hâlde yeni kodlara sahip öğrenciler "Sınıf kapasitesi dolu" hatası alır)
       const updatedCls = await storage.updateClassMaxStudents(cls.id, cls.maxStudents + count);
@@ -507,9 +543,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/institutions", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const list = await storage.getInstitutions();
-    // Return institutions with computed isExpired flag; isActive is admin-controlled only
-    res.json(list.map(inst => ({ ...inst, isExpired: isLicenseExpired(inst) })));
+    const page  = Math.max(1, Number(req.query.page)  || 0);
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 0));
+    const list  = await storage.getInstitutions();
+    const mapped = list.map(inst => ({ ...inst, isExpired: isLicenseExpired(inst) }));
+    // Pagination (opt-in: only when ?page= provided)
+    if (page && limit) {
+      const start = (page - 1) * limit;
+      const slice = mapped.slice(start, start + limit);
+      res.setHeader("X-Total-Count", String(mapped.length));
+      res.setHeader("X-Page",  String(page));
+      res.setHeader("X-Pages", String(Math.ceil(mapped.length / limit)));
+      return res.json(slice);
+    }
+    res.json(mapped);
   });
 
   app.post("/api/admin/institutions", async (req: Request, res: Response) => {
@@ -535,36 +582,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/admin/institutions/:id", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const current = await storage.getInstitution(req.params.id);
+    const current = await storage.getInstitution(req.params.id as string);
     if (!current) return res.status(404).json({ message: "Institution not found" });
     const wasExpired = isLicenseExpired(current);
     const newLicenseEnd = req.body.licenseEnd ? new Date(req.body.licenseEnd) : null;
     const isRenewal = wasExpired && newLicenseEnd && newLicenseEnd > new Date();
     if (isRenewal) {
-      await storage.resetInstitutionQuota(req.params.id);
+      await storage.resetInstitutionQuota(req.params.id as string);
     }
     // Admin controls isActive directly; if a new future licenseEnd is provided, default isActive to true
     const updates: any = { ...req.body };
     if (newLicenseEnd) updates.licenseEnd = newLicenseEnd;
     if (isRenewal && updates.isActive === undefined) updates.isActive = true;
-    const inst = await storage.updateInstitution(req.params.id, updates);
+    const inst = await storage.updateInstitution(req.params.id as string, updates);
+    if (!inst) return res.status(404).json({ message: "Institution not found" });
     res.json({ ...inst, isExpired: isLicenseExpired(inst), quotaReset: isRenewal });
   });
 
   app.post("/api/admin/institutions/:id/reset-quota", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    await storage.resetInstitutionQuota(req.params.id);
+    await storage.resetInstitutionQuota(req.params.id as string);
     res.json({ ok: true });
   });
 
   app.delete("/api/admin/institutions/:id", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const inst = await storage.getInstitution(req.params.id);
+    const inst = await storage.getInstitution(req.params.id as string);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
     try {
-      await storage.deleteInstitution(req.params.id);
+      await storage.deleteInstitution(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) {
       console.error("deleteInstitution error:", e);
@@ -575,9 +623,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/institutions/:id/details", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const inst = await storage.getInstitution(req.params.id);
+    const inst = await storage.getInstitution(req.params.id as string);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
-    const details = await storage.getInstitutionDetails(req.params.id);
+    const details = await storage.getInstitutionDetails(req.params.id as string);
     const effectiveInst = { ...inst, isExpired: isLicenseExpired(inst) };
     res.json({ institution: effectiveInst, ...details });
   });
@@ -585,27 +633,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/institutions/:id/teacher-codes", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const codes = await storage.getTeacherCodesByInstitution(req.params.id);
+    const codes = await storage.getTeacherCodesByInstitution(req.params.id as string);
     res.json(codes);
   });
 
   app.post("/api/admin/institutions/:id/teacher-codes/generate", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const inst = await storage.getInstitution(req.params.id);
+    const inst = await storage.getInstitution(req.params.id as string);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
     const count = Math.min(Number(req.body.count) || 1, 100);
-    const existingCodes = await storage.getTeacherCodesByInstitution(req.params.id);
+    const existingCodes = await storage.getTeacherCodesByInstitution(req.params.id as string);
     const maxSlot = existingCodes.reduce((m, c) => Math.max(m, c.slotNumber), 0);
-    const newCodes = await storage.generateTeacherCodesForInstitution(req.params.id, count, maxSlot + 1);
+    const newCodes = await storage.generateTeacherCodesForInstitution(req.params.id as string, count, maxSlot + 1);
     res.json(newCodes);
   });
 
   app.get("/api/admin/teachers", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const list = await storage.getTeachers();
-    res.json(list.map(({ password: _, ...t }) => t));
+    const page  = Math.max(1, Number(req.query.page)  || 0);
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 0));
+    const list  = await storage.getTeachers();
+    const safe  = list.map(({ password: _, ...t }) => t);
+    if (page && limit) {
+      const start = (page - 1) * limit;
+      res.setHeader("X-Total-Count", String(safe.length));
+      res.setHeader("X-Page",  String(page));
+      res.setHeader("X-Pages", String(Math.ceil(safe.length / limit)));
+      return res.json(safe.slice(start, start + limit));
+    }
+    res.json(safe);
   });
 
   app.post("/api/admin/teachers", async (req: Request, res: Response) => {
@@ -633,7 +691,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/classes", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const list = await storage.getAllClasses();
+    const page  = Math.max(1, Number(req.query.page)  || 0);
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 0));
+    const list  = await storage.getAllClasses();
+    if (page && limit) {
+      const start = (page - 1) * limit;
+      res.setHeader("X-Total-Count", String(list.length));
+      res.setHeader("X-Page",  String(page));
+      res.setHeader("X-Pages", String(Math.ceil(list.length / limit)));
+      return res.json(list.slice(start, start + limit));
+    }
     res.json(list);
   });
 
@@ -641,9 +708,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/admin/classes/:classId", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const cls = await storage.getClass(req.params.classId);
+    const cls = await storage.getClass(req.params.classId as string);
     if (!cls) return res.status(404).json({ message: "Class not found" });
-    await storage.deleteClass(req.params.classId);
+    await storage.deleteClass(req.params.classId as string);
     res.json({ ok: true });
   });
 
@@ -653,20 +720,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const { maxStudents } = req.body;
     if (typeof maxStudents !== "number" || maxStudents < 1) return res.status(400).json({ message: "Geçersiz değer" });
-    const cls = await storage.updateClassMaxStudents(req.params.classId, maxStudents);
+    const cls = await storage.updateClassMaxStudents(req.params.classId as string, maxStudents);
     res.json(cls);
   });
 
   // Class public info (for students to verify)
   app.get("/api/class/:code", async (req: Request, res: Response) => {
-    const cls = await storage.getClassByCode(req.params.code);
+    const cls = await storage.getClassByCode(req.params.code as string);
     if (!cls) return res.status(404).json({ message: "Class not found" });
     res.json({ id: cls.id, name: cls.name, classCode: cls.classCode });
   });
 
   // Serve uploaded audio files
   app.get("/api/orchestra/audio/:filename", async (req: Request, res: Response) => {
-    const song = await storage.getOrchestraSongByStoredFilename(req.params.filename);
+    const song = await storage.getOrchestraSongByStoredFilename(req.params.filename as string);
     if (!song || !song.fileData) return res.status(404).json({ message: "File not found" });
     const buf = Buffer.from(song.fileData, "base64");
     res.set("Content-Type", getContentType(song.originalFilename));
@@ -720,10 +787,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/teacher/orchestra/songs/:id", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const song = await storage.getOrchestraSong(req.params.id);
+    const song = await storage.getOrchestraSong(req.params.id as string);
     if (!song) return res.status(404).json({ message: "Song not found" });
     if (song.teacherId !== teacherId) return res.status(403).json({ message: "Not authorized" });
-    await storage.deleteOrchestraSong(req.params.id);
+    await storage.deleteOrchestraSong(req.params.id as string);
     res.json({ ok: true });
   });
 
@@ -731,7 +798,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/teacher/orchestra/songs/:id", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const song = await storage.getOrchestraSong(req.params.id);
+    const song = await storage.getOrchestraSong(req.params.id as string);
     if (!song) return res.status(404).json({ message: "Song not found" });
     if (song.teacherId !== teacherId) return res.status(403).json({ message: "Not authorized" });
 
@@ -739,7 +806,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const name = req.body.name || song.name;
     const patterns = generateRhythmPattern(bpm);
 
-    const updated = await storage.updateOrchestraSong(req.params.id, {
+    const updated = await storage.updateOrchestraSong(req.params.id as string, {
       bpm,
       name,
       rhythmPatternOriginal: JSON.stringify(patterns.original),
@@ -758,7 +825,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Student: get songs available for their class (no server session — student passes their own ID)
   app.get("/api/student/:studentId/orchestra/songs", async (req: Request, res: Response) => {
-    const student = await storage.getStudent(req.params.studentId);
+    const student = await storage.getStudent(req.params.studentId as string);
     if (!student) return res.status(404).json({ message: "Student not found" });
     const songs = await storage.getOrchestraSongsByClass(student.classId);
     res.json(songs);
@@ -766,13 +833,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Student: save orchestra game result
   app.post("/api/student/:studentId/orchestra/progress", scoreRateLimit, async (req: Request, res: Response) => {
-    const student = await storage.getStudent(req.params.studentId);
+    const student = await storage.getStudent(req.params.studentId as string);
     if (!student) return res.status(404).json({ message: "Student not found" });
     const { songId, mode, laneMode, accuracy, perfectCount, goodCount, missCount } = req.body;
     if (!songId) return res.status(400).json({ message: "songId required" });
 
     const prog = await storage.createOrchestraProgress({
-      studentId: req.params.studentId,
+      studentId: req.params.studentId as string,
       songId,
       mode: mode || "original",
       laneMode: laneMode || "full",
@@ -788,7 +855,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Serve Maestro files (video/photo) — with Range support for video streaming
   app.get("/api/maestro/file/:filename", async (req: Request, res: Response) => {
-    const resource = await storage.getMaestroResourceByStoredFilename(req.params.filename);
+    const resource = await storage.getMaestroResourceByStoredFilename(req.params.filename as string);
     if (!resource || !resource.fileData) return res.status(404).json({ message: "File not found" });
     const buf = Buffer.from(resource.fileData, "base64");
     const contentType = getContentType(resource.originalFilename);
@@ -885,10 +952,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/teacher/maestro/resources/:id", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const resource = await storage.getMaestroResource(req.params.id);
+    const resource = await storage.getMaestroResource(req.params.id as string);
     if (!resource) return res.status(404).json({ message: "Resource not found" });
     if (resource.teacherId !== teacherId) return res.status(403).json({ message: "Not authorized" });
-    await storage.deleteMaestroResource(req.params.id);
+    await storage.deleteMaestroResource(req.params.id as string);
     res.json({ ok: true });
   });
 
@@ -902,7 +969,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Student: get resources for their class
   app.get("/api/student/:studentId/maestro/resources", async (req: Request, res: Response) => {
-    const student = await storage.getStudent(req.params.studentId);
+    const student = await storage.getStudent(req.params.studentId as string);
     if (!student) return res.status(404).json({ message: "Student not found" });
     const resources = await storage.getMaestroResourcesByClass(student.classId);
     res.json(resources);
@@ -910,12 +977,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Student: update watch progress
   app.post("/api/student/:studentId/maestro/progress", scoreRateLimit, async (req: Request, res: Response) => {
-    const student = await storage.getStudent(req.params.studentId);
+    const student = await storage.getStudent(req.params.studentId as string);
     if (!student) return res.status(404).json({ message: "Student not found" });
     const { resourceId, watchedSeconds, completed } = req.body;
     if (!resourceId) return res.status(400).json({ message: "resourceId required" });
     const prog = await storage.upsertMaestroViewProgress(
-      req.params.studentId, resourceId,
+      req.params.studentId as string, resourceId,
       Math.round(watchedSeconds) || 0,
       !!completed,
     );
@@ -924,9 +991,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Student: get own watch progress
   app.get("/api/student/:studentId/maestro/progress", async (req: Request, res: Response) => {
-    const student = await storage.getStudent(req.params.studentId);
+    const student = await storage.getStudent(req.params.studentId as string);
     if (!student) return res.status(404).json({ message: "Student not found" });
-    const prog = await storage.getMaestroViewProgressByStudent(req.params.studentId);
+    const prog = await storage.getMaestroViewProgressByStudent(req.params.studentId as string);
     res.json(prog);
   });
 
@@ -934,9 +1001,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/leaderboard", async (req: Request, res: Response) => {
     const type = (req.query.type as string) ?? "school";
-    const sessionStudentId = (req.session as any).studentId;
-    const qStudentId = req.query.studentId as string | undefined;
-    const studentId = sessionStudentId || qStudentId;
+    const studentId = req.query.studentId as string | undefined;
     const teacherId = getTeacherId(req);
 
     try {
@@ -982,9 +1047,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get("/api/leaderboard/winners", async (req: Request, res: Response) => {
-    const sessionStudentId = (req.session as any).studentId;
-    const qStudentId = req.query.studentId as string | undefined;
-    const studentId = sessionStudentId || qStudentId;
+    const studentId = req.query.studentId as string | undefined;
     const teacherId = getTeacherId(req);
 
     try {
