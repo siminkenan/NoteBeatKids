@@ -112,14 +112,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logoutTeacher = async () => {
-    await fetch(`${API_BASE}/api/auth/teacher/logout`, { method: "POST", credentials: "include" });
+    const refreshToken = localStorage.getItem("teacherRefreshToken");
+    try {
+      await fetch(`${API_BASE}/api/auth/teacher/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {}
     localStorage.removeItem("teacherToken");
+    localStorage.removeItem("teacherRefreshToken");
     setTeacherState(null);
   };
 
   const logoutAdmin = async () => {
-    await fetch(`${API_BASE}/api/auth/admin/logout`, { method: "POST", credentials: "include" });
+    const refreshToken = localStorage.getItem("adminRefreshToken");
+    try {
+      await fetch(`${API_BASE}/api/auth/admin/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {}
     localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminRefreshToken");
     setAdminState(null);
   };
 
