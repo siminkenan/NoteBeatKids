@@ -87,8 +87,9 @@ export async function createApp() {
   // ── Güvenlik başlıkları ────────────────────────────────────────────────────
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Vite HMR / inline script için kapalı
+      contentSecurityPolicy: false,      // Vite HMR / inline script için kapalı
       crossOriginEmbedderPolicy: false,
+      frameguard: false,                 // Replit preview iframe'i için devre dışı
     })
   );
 
