@@ -2,7 +2,6 @@ import express, { type Request, type Response, type NextFunction } from "express
 import type { IncomingMessage, ServerResponse } from "http";
 import cors from "cors";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
 import helmet from "helmet";
 import compression from "compression";
 import { registerRoutes } from "./routes";
@@ -10,6 +9,7 @@ import { createServer } from "http";
 import { initSocketIO } from "./socket";
 import { log } from "./logger";
 import rateLimit from "express-rate-limit";
+import { validateEnv } from "./env";
 
 export { log };
 
@@ -19,7 +19,7 @@ declare module "http" {
   }
 }
 
-/** Auth endpoint rate limiter — Redis'siz, hafıza-içi (yeterli tek instance için) */
+/** Auth endpoint rate limiter — in-memory (tek instance için yeterli, düşük yük) */
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 dakika
   max: 30,                   // 15 dk'da en fazla 30 giriş denemesi
@@ -29,9 +29,60 @@ export const authRateLimit = rateLimit({
   skip: (req) => process.env.NODE_ENV !== "production",
 });
 
+// ── CORS yardımcısı ────────────────────────────────────────────────────────────
+
+/**
+ * İzin verilen origin'leri belirler.
+ *
+ * Üretim: Sadece FRONTEND_URL ortam değişkeninde listelenen origin'ler.
+ *         Ek olarak aynı backend'in kendi alt alan adları (.onrender.com) izin verilir.
+ * Geliştirme: localhost ve Replit geliştirme URL'leri de geçer.
+ *
+ * FRONTEND_URL = "https://notebeatkids.vercel.app,https://notebeatkids.com"
+ * gibi virgülle ayrılmış olabilir.
+ */
+function buildCorsChecker() {
+  const isProduction = process.env.NODE_ENV === "production";
+  const allowedOrigins = (process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  return function isAllowed(origin: string | undefined): boolean {
+    if (!origin) return true; // server-to-server / cURL
+
+    // Açık liste önce kontrol edilir
+    if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) return true;
+
+    if (!isProduction) {
+      // Geliştirme: esnek
+      if (
+        origin.includes("localhost") ||
+        origin.includes("replit.dev") ||
+        origin.includes("replit.app") ||
+        origin.endsWith(".onrender.com") ||
+        origin.endsWith(".vercel.app")
+      ) return true;
+    } else {
+      // Üretim: yalnızca aynı Render projesinin alt alan adına izin ver
+      // (backend → frontend aynı .onrender.com altındaysa)
+      if (origin.endsWith(".onrender.com") || origin.endsWith(".vercel.app")) {
+        // FRONTEND_URL boşsa bu açığı kabul et; doluysa sadece listeden geçsin
+        if (allowedOrigins.length === 0) return true;
+      }
+    }
+
+    return false;
+  };
+}
+
 export async function createApp() {
+  // Ortam değişkenleri doğrulama — eksikse process.exit(1)
+  validateEnv();
+
   const app = express();
   const httpServer = createServer(app);
+  const isOriginAllowed = buildCorsChecker();
 
   // ── Güvenlik başlıkları ────────────────────────────────────────────────────
   app.use(
@@ -48,25 +99,11 @@ export async function createApp() {
   app.set("trust proxy", 1);
 
   // ── CORS ──────────────────────────────────────────────────────────────────
-  const allowedOrigins = (process.env.FRONTEND_URL || "")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
-
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-        if (
-          allowedOrigins.length === 0 ||
-          allowedOrigins.includes(origin) ||
-          origin.endsWith(".vercel.app") ||
-          origin.endsWith(".onrender.com") ||
-          origin.includes("localhost") ||
-          origin.includes("replit.dev")
-        ) {
-          return callback(null, true);
-        }
+        if (isOriginAllowed(origin)) return callback(null, true);
+        log(`CORS reddedildi: ${origin}`, "warn");
         return callback(new Error(`CORS blocked: ${origin}`));
       },
       credentials: true,
@@ -77,35 +114,33 @@ export async function createApp() {
   app.use(
     express.json({
       limit: "10mb",
-      verify: (req: IncomingMessage, _res: ServerResponse, buf: Buffer) => { (req as any).rawBody = buf; },
+      verify: (req: IncomingMessage, _res: ServerResponse, buf: Buffer) => {
+        (req as any).rawBody = buf;
+      },
     })
   );
   app.use(express.urlencoded({ extended: false }));
 
-  // ── Session ───────────────────────────────────────────────────────────────
+  // ── Session (in-memory — SADECE geliştirme/fallback) ─────────────────────
+  // JWT tokenlar ana auth mekanizmasıdır. Bu session yalnızca aynı-origin
+  // geliştirme ortamı ve geriye dönük uyumluluk için tutulmaktadır.
+  // Production PostgreSQL session store KULLANILMIYOR (stateless JWT mimarisi).
   const isProduction = process.env.NODE_ENV === "production";
-  const sessionConfig: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "notebeat-kids-secret-2024",
-    resave: false,
-    saveUninitialized: false,
-    proxy: isProduction,
-    cookie: {
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    },
-  };
-
-  if (isProduction && process.env.DATABASE_URL) {
-    const PgSession = connectPgSimple(session);
-    sessionConfig.store = new PgSession({
-      conString: process.env.DATABASE_URL,
-      tableName: "session",
-      createTableIfMissing: true,
-    });
-  }
-
-  app.use(session(sessionConfig));
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "notebeat-kids-secret-2024",
+      resave: false,
+      saveUninitialized: false,
+      proxy: isProduction,
+      cookie: {
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 gün
+        httpOnly: true,
+      },
+      // Store: in-memory (varsayılan) — PostgreSQL store kullanılmıyor
+    })
+  );
 
   // ── İstek loglama ─────────────────────────────────────────────────────────
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -146,14 +181,16 @@ export async function createApp() {
     // Redis kontrolü
     try {
       const { redis } = await import("./redis");
-      if (redis && redis.status === "ready") {
-        checks.redis = "ok";
-      } else {
-        checks.redis = redis ? redis.status : "disabled";
-      }
+      checks.redis = (redis && redis.status === "ready") ? "ok" : (redis ? redis.status : "disabled");
     } catch {
       checks.redis = "disabled";
     }
+    // Pool istatistikleri
+    try {
+      const { poolStats } = await import("./db");
+      const stats = poolStats();
+      checks.dbPool = `total=${stats.total} idle=${stats.idle} waiting=${stats.waiting}`;
+    } catch {}
 
     const allOk = checks.db === "ok";
     res.status(allOk ? 200 : 503).json({ status: allOk ? "ready" : "degraded", checks });
@@ -163,7 +200,7 @@ export async function createApp() {
   await registerRoutes(httpServer, app);
 
   // ── Socket.io ─────────────────────────────────────────────────────────────
-  initSocketIO(httpServer);
+  await initSocketIO(httpServer);
 
   // ── Global hata yakalayıcı ────────────────────────────────────────────────
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
