@@ -70,6 +70,7 @@ export interface IStorage {
   // Admin
   getAdminByEmail(email: string): Promise<Admin | undefined>;
   createAdmin(data: { email: string; password: string }): Promise<Admin>;
+  updateAdminPassword(id: string, hashedPassword: string): Promise<void>;
   // Institutions
   getInstitutions(): Promise<Institution[]>;
   getInstitution(id: string): Promise<Institution | undefined>;
@@ -193,6 +194,10 @@ export class DatabaseStorage implements IStorage {
   async createAdmin(data: { email: string; password: string }): Promise<Admin> {
     const result = await db.insert(admins).values({ email: data.email, password: data.password }).returning();
     return result[0];
+  }
+
+  async updateAdminPassword(id: string, hashedPassword: string): Promise<void> {
+    await db.update(admins).set({ password: hashedPassword }).where(eq(admins.id, id));
   }
 
   async getInstitutions(): Promise<Institution[]> {
