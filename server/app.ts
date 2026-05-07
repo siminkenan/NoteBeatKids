@@ -29,47 +29,8 @@ export const authRateLimit = rateLimit({
   skip: (req) => process.env.NODE_ENV !== "production",
 });
 
-// ── CORS yardımcısı ────────────────────────────────────────────────────────────
-
-/**
- * İzin verilen origin'leri belirler.
- *
- * Üretim: Sadece FRONTEND_URL ortam değişkeninde listelenen origin'ler.
- *         Ek olarak aynı backend'in kendi alt alan adları (.onrender.com) izin verilir.
- * Geliştirme: localhost ve Replit geliştirme URL'leri de geçer.
- *
- * FRONTEND_URL = "https://notebeatkids.vercel.app,https://notebeatkids.com"
- * gibi virgülle ayrılmış olabilir.
- */
-function buildCorsChecker() {
-  const isProduction = process.env.NODE_ENV === "production";
-  const allowedOrigins = (process.env.FRONTEND_URL || "")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
-
-  return function isAllowed(origin: string | undefined): boolean {
-    if (!origin) return true; // server-to-server / cURL
-
-    // Açık liste her zaman önce kontrol edilir
-    if (allowedOrigins.includes(origin)) return true;
-
-    // Render ve Vercel alt alan adları her zaman izin verilir
-    // (FRONTEND_URL ayarından bağımsız — kendi deployment URL'lerimiz)
-    if (origin.endsWith(".onrender.com") || origin.endsWith(".vercel.app")) return true;
-
-    if (!isProduction) {
-      // Geliştirme: esnek
-      if (
-        origin.includes("localhost") ||
-        origin.includes("replit.dev") ||
-        origin.includes("replit.app")
-      ) return true;
-    }
-
-    return false;
-  };
-}
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Tüm origin'lere izin ver — JWT Bearer token ile auth zaten güvende.
 
 export async function createApp() {
   // Ortam değişkenleri doğrulama — eksikse process.exit(1)
@@ -77,7 +38,6 @@ export async function createApp() {
 
   const app = express();
   const httpServer = createServer(app);
-  const isOriginAllowed = buildCorsChecker();
 
   // ── Güvenlik başlıkları ────────────────────────────────────────────────────
   app.use(
@@ -94,17 +54,8 @@ export async function createApp() {
   // ── Proxy güveni (Render, Replit, Vercel) ─────────────────────────────────
   app.set("trust proxy", 1);
 
-  // ── CORS ──────────────────────────────────────────────────────────────────
-  app.use(
-    cors({
-      origin: (origin, callback) => {
-        if (isOriginAllowed(origin)) return callback(null, true);
-        log(`CORS reddedildi: ${origin}`, "warn");
-        return callback(new Error(`CORS blocked: ${origin}`));
-      },
-      credentials: true,
-    })
-  );
+  // ── CORS — tüm origin'lere izin ver ───────────────────────────────────────
+  app.use(cors({ origin: true, credentials: true }));
 
   // ── Body parser ───────────────────────────────────────────────────────────
   app.use(
