@@ -2,6 +2,7 @@
   "buildCommand": "npx vite build",
   "outputDirectory": "dist/public",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/:path*", "destination": "https://notebeatkids.onrender.com/api/:path*" },
+    { "source": "/(.*)",       "destination": "/index.html" }
   ]
 }

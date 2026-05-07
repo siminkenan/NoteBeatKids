@@ -33,9 +33,16 @@ export default function AdminLogin() {
       setAdmin(admin);
       navigate("/admin/dashboard");
     } catch (e: any) {
+      const msg: string = e?.message ?? "";
+      const isNetwork = msg.startsWith("TypeError") || msg.includes("fetch") || msg.includes("Failed to fetch") || msg.includes("NetworkError");
+      const isNotJson = msg.includes("JSON") || msg.includes("Unexpected token");
       toast({
-        title: "Erişim reddedildi",
-        description: "Şifre hatalı. Lütfen tekrar deneyin.",
+        title: isNetwork ? "Sunucuya ulaşılamıyor" : "Erişim reddedildi",
+        description: isNetwork
+          ? "Render sunucusu uyanık olmayabilir. 30 saniye bekleyip tekrar deneyin."
+          : isNotJson
+          ? "API proxy yapılandırması eksik. Vercel → Settings → Environment'ta VITE_API_URL ayarlayın."
+          : "Şifre hatalı. Lütfen tekrar deneyin.",
         variant: "destructive",
       });
     } finally {
