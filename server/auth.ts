@@ -9,14 +9,16 @@
  *   JWT_ACCESS_SECRET   — access token imzalama anahtarı
  *   JWT_REFRESH_SECRET  — refresh token imzalama anahtarı
  *   ACCESS_TOKEN_TTL    — ör: "15m" (varsayılan)
+ *
+ * Üretim notu: Redis silme işlemleri SCAN + pipeline kullanır (KEYS değil).
  */
 
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { redis } from "./redis";
+import { redis, redisScan } from "./redis";
 
 // ── Sır anahtarları ───────────────────────────────────────────────────────────
-const BASE_SECRET  = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
+const BASE_SECRET    = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
 const ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET  || BASE_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || BASE_SECRET + "-refresh";
 const ACCESS_TTL     = (process.env.ACCESS_TOKEN_TTL || "15m") as string;
@@ -89,7 +91,12 @@ export async function storeRefreshToken(token: string): Promise<void> {
   try {
     const payload = jwt.decode(token) as TokenPayload | null;
     if (!payload?.jti || !payload?.sub || !payload?.role) return;
-    await redis.set(`rt:${payload.role}:${payload.sub}:${payload.jti}`, "1", "EX", REFRESH_TTL_S);
+    await redis.set(
+      `rt:${payload.role}:${payload.sub}:${payload.jti}`,
+      "1",
+      "EX",
+      REFRESH_TTL_S
+    );
   } catch {}
 }
 
@@ -103,12 +110,19 @@ export async function invalidateRefreshToken(token: string): Promise<void> {
   } catch {}
 }
 
-/** Kullanıcının TÜM refresh token'larını geçersiz kıl (tüm cihazlardan çıkış) */
+/**
+ * Kullanıcının TÜM refresh token'larını geçersiz kıl (tüm cihazlardan çıkış).
+ * SCAN kullanır — KEYS'in üretim ortamında Redis'i bloklamasını önler.
+ * Pipeline ile toplu silme yapar — tek network round-trip.
+ */
 export async function invalidateAllRefreshTokens(id: string, role: TokenRole): Promise<void> {
   if (!redis) return;
   try {
-    const keys = await redis.keys(`rt:${role}:${id}:*`);
-    if (keys.length) await redis.del(...keys);
+    const keys = await redisScan(`rt:${role}:${id}:*`);
+    if (!keys.length) return;
+    const pipeline = redis.pipeline();
+    for (const k of keys) pipeline.del(k);
+    await pipeline.exec();
   } catch {}
 }
 

@@ -11,7 +11,10 @@ import {
   signLegacyToken, verifyLegacyToken,
   extractBearerToken,
 } from "./auth";
-import { getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache } from "./leaderboardCache";
+import {
+  getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache,
+  getCachedLeaderboardAsync, setCachedLeaderboardAsync,
+} from "./leaderboardCache";
 import { broadcastLeaderboard } from "./socket";
 import { markInstitutionDirty } from "./scoreBuffer";
 import { scoreRateLimit } from "./rateLimit";
@@ -1033,12 +1036,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       // Cache key: kurum + tür + sınıf (öğretmen ID class tipinde dahil)
       const cacheKey = `${institutionId}:${type}:${classId ?? ""}:${leaderboardTeacherId ?? ""}`;
-      const cached = getCachedLeaderboard(cacheKey);
-      if (cached) return res.json({ ...cached, currentStudentId });
+      // Async versiyon: Redis önce (çok instance paylaşımı), in-memory fallback
+      const cached = await getCachedLeaderboardAsync(cacheKey);
+      if (cached) return res.json({ ...(cached as object), currentStudentId });
 
       const entries = await storage.getLeaderboard(institutionId, type as any, classId, leaderboardTeacherId);
       const payload = { entries };
-      setCachedLeaderboard(cacheKey, payload);
+      await setCachedLeaderboardAsync(cacheKey, payload);
       res.json({ entries, currentStudentId });
     } catch (e) {
       console.error("Leaderboard error:", e);

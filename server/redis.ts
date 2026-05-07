@@ -7,6 +7,9 @@
  *
  * Kural: Redis bağlanamasa bile uygulama ÇÖKMEZ.
  * Her yerde `redis` null olabilir; null ise in-memory fallback kullan.
+ *
+ * Üretim notu: KEYS komutu O(N) ve Redis'i bloklar — tüm toplu silme işlemleri
+ * SCAN + pipeline kullanır.
  */
 
 import Redis from "ioredis";
@@ -34,15 +37,28 @@ if (redisUrl) {
     connectTimeout: 5_000,
     lazyConnect: true,
     tls: redisUrl.startsWith("rediss://") ? {} : undefined,
+    // Yeniden bağlanma stratejisi — sonsuz döngüyü önle
+    retryStrategy: (times) => {
+      if (times > 5) return null; // 5 denemeden sonra vazgeç
+      return Math.min(times * 200, 2_000); // 200ms → 2s backoff
+    },
   });
 
   redis.on("connect", () => {
     console.log("[redis] ✅ Bağlantı kuruldu");
   });
 
+  redis.on("ready", () => {
+    console.log("[redis] ✅ Hazır");
+  });
+
   redis.on("error", (err) => {
-    // Sadece ilk hatayı logla — sonraki sessiz
+    // Tekrarlayan hataları bastır — sadece konsola yaz
     console.error("[redis] ⚠️  Bağlantı hatası (uygulama çalışmaya devam eder):", err.message);
+  });
+
+  redis.on("close", () => {
+    console.warn("[redis] ℹ️  Bağlantı kapandı");
   });
 
   // Bağlantıyı başlat (lazy — hata olsa da uygulama patlamaz)
@@ -54,7 +70,44 @@ if (redisUrl) {
 export { redis };
 export default redis;
 
-/** Önbellek yardımcıları — null-safe */
+// ── SCAN tabanlı anahtar arama (KEYS'in üretim-güvenli alternatifi) ───────────
+
+/**
+ * Bir desene uyan tüm anahtarları SCAN ile listeler.
+ * KEYS'ten farklı olarak Redis'i bloklamaz — O(N) ama non-blocking.
+ */
+export async function redisScan(pattern: string): Promise<string[]> {
+  if (!redis) return [];
+  const keys: string[] = [];
+  let cursor = "0";
+  try {
+    do {
+      const [nextCursor, batch] = await redis.scan(cursor, "MATCH", pattern, "COUNT", "100");
+      keys.push(...batch);
+      cursor = nextCursor;
+    } while (cursor !== "0");
+  } catch {
+    return [];
+  }
+  return keys;
+}
+
+/**
+ * Bir desene uyan anahtarları toplu sil (pipeline — atomik, tek round-trip).
+ */
+export async function cacheDelPatternScan(pattern: string): Promise<void> {
+  if (!redis) return;
+  try {
+    const keys = await redisScan(pattern);
+    if (!keys.length) return;
+    const pipeline = redis.pipeline();
+    for (const k of keys) pipeline.del(k);
+    await pipeline.exec();
+  } catch {}
+}
+
+// ── Null-safe önbellek yardımcıları ───────────────────────────────────────────
+
 export async function cacheGet<T = unknown>(key: string): Promise<T | null> {
   if (!redis) return null;
   try {
@@ -79,10 +132,7 @@ export async function cacheDel(key: string): Promise<void> {
   } catch {}
 }
 
+/** @deprecated SCAN tabanlı cacheDelPatternScan kullanın */
 export async function cacheDelPattern(pattern: string): Promise<void> {
-  if (!redis) return;
-  try {
-    const keys = await redis.keys(pattern);
-    if (keys.length) await redis.del(...keys);
-  } catch {}
+  return cacheDelPatternScan(pattern);
 }

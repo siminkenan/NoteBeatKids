@@ -1,22 +1,27 @@
 import "dotenv/config";
+import { validateEnv } from "./env";
 import { createApp } from "./app";
 import { serveStatic } from "./static";
 import { log } from "./logger";
-import { pool } from "./db";
+import { pool, poolStats } from "./db";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { storage } from "./storage";
 import { flushScoreBuffer, consumeDirtyInstitutions, bufferSize } from "./scoreBuffer";
-import { broadcastLeaderboard } from "./socket";
+import { broadcastLeaderboard, closeSocketIO } from "./socket";
 import { redis } from "./redis";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
+// ── Ortam değişkenleri erken doğrulama ────────────────────────────────────────
+// createApp() içinde de çağrılır; ancak burada daha önce çalışır (DB import'tan önce)
+validateEnv();
+
 // ── Beklenmedik hata yakalama ─────────────────────────────────────────────────
 process.on("uncaughtException", (err) => {
   log(`❌ uncaughtException: ${err.message}\n${err.stack}`, "fatal");
-  // Uygulamayı öldürme — sadece logla (Render yeniden başlatır)
+  // Uygulamayı öldürme — sadece logla (Render otomatik yeniden başlatır)
 });
 
 process.on("unhandledRejection", (reason) => {
@@ -24,31 +29,45 @@ process.on("unhandledRejection", (reason) => {
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
-async function gracefulShutdown(signal: string, httpServer: import("http").Server, io?: import("socket.io").Server) {
+async function gracefulShutdown(signal: string, httpServer: import("http").Server) {
   log(`🛑 ${signal} alındı — kapatılıyor...`);
 
-  // 1. Yeni bağlantıları reddet
+  // 1. Yeni HTTP bağlantılarını reddet
   httpServer.close(async () => {
     log("✅ HTTP sunucusu kapatıldı");
   });
 
-  // 2. Kalan puanları flush et
+  // 2. Socket.io bağlantılarını temiz kapat
   try {
-    if (bufferSize() > 0) {
-      log(`📤 ${bufferSize()} bekleyen puan DB'ye yazılıyor...`);
+    await closeSocketIO();
+  } catch (e) {
+    log(`⚠️  Socket.io kapatma hatası: ${String(e)}`);
+  }
+
+  // 3. Kalan puanları flush et
+  try {
+    const pending = bufferSize();
+    if (pending > 0) {
+      log(`📤 ${pending} bekleyen puan DB'ye yazılıyor...`);
       await flushScoreBuffer();
+      log("✅ Puan tamponu temizlendi");
     }
   } catch (e) {
     log(`⚠️  Puan tamponu flush hatası: ${String(e)}`);
   }
 
-  // 3. Redis kapat
+  // 4. Redis kapat
   if (redis) {
     try { await redis.quit(); log("✅ Redis bağlantısı kapatıldı"); } catch {}
   }
 
-  // 4. DB pool kapat
-  try { await pool.end(); log("✅ DB pool kapatıldı"); } catch {}
+  // 5. DB pool kapat
+  try {
+    const stats = poolStats();
+    log(`📊 DB pool kapanıyor: ${stats.total} bağlantı (${stats.idle} boşta)`);
+    await pool.end();
+    log("✅ DB pool kapatıldı");
+  } catch {}
 
   log("👋 Sunucu düzgün kapatıldı");
   process.exit(0);
@@ -87,6 +106,8 @@ async function seedDatabase() {
 }
 
 async function main() {
+  log(`🚀 NoteBeat Kids başlatılıyor (${process.env.NODE_ENV || "development"})...`);
+
   const { app, httpServer } = await createApp();
 
   if (process.env.NODE_ENV === "production") {
@@ -108,7 +129,12 @@ async function main() {
     setInterval(() => {
       const mem = process.memoryUsage();
       const mb = (n: number) => `${Math.round(n / 1024 / 1024)}MB`;
-      log(`📊 Bellek: RSS=${mb(mem.rss)} Heap=${mb(mem.heapUsed)}/${mb(mem.heapTotal)}`, "monitor");
+      const pool = poolStats();
+      log(
+        `📊 Bellek: RSS=${mb(mem.rss)} Heap=${mb(mem.heapUsed)}/${mb(mem.heapTotal)} | ` +
+        `DB Pool: total=${pool.total} idle=${pool.idle} waiting=${pool.waiting}`,
+        "monitor"
+      );
     }, 5 * 60_000); // Her 5 dakikada bir
   }
 
@@ -142,6 +168,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  log(`❌ Fatal server error: ${err?.message ?? err}`, "fatal");
+  log(`❌ Fatal server error: ${err?.message ?? err}\n${err?.stack ?? ""}`, "fatal");
   process.exit(1);
 });
