@@ -1,0 +1,193 @@
+You are a senior Node.js, Express, PostgreSQL, Redis, Socket.io and DevOps engineer.
+
+I have an existing production project called **Note Beat Kids**.
+
+Current stack:
+
+* Node.js + Express backend
+* PostgreSQL on Neon
+* React + Vite frontend
+* Socket.io realtime features
+* Render hosting
+
+Infrastructure target:
+
+* Render high/pro package
+* Neon high/scale package
+* Redis / Upstash Redis
+* Multiple Render instances
+
+Goal:
+Refactor the existing system safely so it can realistically support:
+
+* 50,000 registered students
+* 10,000 concurrent active users
+* Stable production usage without full crashes
+
+IMPORTANT:
+Do NOT rewrite the whole project.
+Do NOT remove existing business logic.
+Do NOT break existing student, teacher, admin or game flows.
+Make changes incrementally and safely.
+Before changing files, inspect the current structure and identify existing auth, database, socket and API files.
+
+MAIN TASKS:
+
+1. Remove express-session completely
+
+* Replace it with JWT authentication.
+* Use short-lived access tokens.
+* Use refresh tokens securely.
+* Store refresh tokens hashed in PostgreSQL or httpOnly secure cookies.
+* Add login, refresh, logout and auth middleware.
+* Protect admin, teacher and student routes.
+
+2. Make backend stateless
+
+* Remove all in-memory user/session state.
+* Make the app safe for multiple Render instances.
+* Do not rely on local memory for important user/game/session data.
+
+3. Neon PostgreSQL optimization
+
+* Use pg Pool correctly.
+* Make it PgBouncer-compatible.
+* Add safe connection pool settings from environment variables.
+* Avoid SELECT *.
+* Add pagination to all list endpoints.
+* Add indexes for commonly used columns:
+
+  * user_id
+  * student_id
+  * teacher_id
+  * class_id
+  * school_id
+  * email
+  * code
+  * created_at
+* Prevent N+1 queries.
+* Add retry handling for temporary database failures.
+
+4. Redis / Upstash integration
+
+* Add Redis as a required production dependency.
+* Use Redis for:
+
+  * rate limiting
+  * user/profile cache
+  * frequently accessed data
+  * Socket.io adapter
+  * temporary realtime state
+* Add TTL to all cached data.
+* Create a reusable redis/cache service.
+* If Redis is unavailable, degrade gracefully without crashing.
+
+5. Socket.io scaling
+
+* Add @socket.io/redis-adapter.
+* Use rooms, not global broadcasts.
+* Rooms should be per user, per class or per school where needed.
+* Limit multiple socket connections per user.
+* Disconnect idle sockets.
+* Make Socket.io work correctly across multiple Render instances.
+
+6. Rate limiting and security
+
+* Add Redis-backed rate limiting.
+* Protect login, registration, code activation and score/star endpoints.
+* Add stricter limits for auth endpoints.
+* Add normal limits for game endpoints.
+* Add helmet and compression.
+* Validate request bodies.
+* Never expose secrets in logs.
+
+7. Stability and error handling
+
+* Add global Express error handler.
+* Add async error wrapper where needed.
+* Add graceful shutdown:
+
+  * close HTTP server
+  * close Socket.io
+  * close PostgreSQL pool
+  * close Redis connection
+* Add process handlers for:
+
+  * uncaughtException
+  * unhandledRejection
+  * SIGTERM
+  * SIGINT
+* The server must not crash because of one bad request.
+
+8. Monitoring and logs
+
+* Add pino logger.
+* Log:
+
+  * request duration
+  * error rate
+  * active socket count
+  * database connection problems
+  * memory usage
+* Add a /health endpoint.
+* Add a /ready endpoint that checks PostgreSQL and Redis.
+
+9. Deployment environment variables
+   Add or update environment variable support for:
+
+DATABASE_URL=
+DIRECT_DATABASE_URL=
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=30d
+REDIS_URL=
+REDIS_TOKEN=
+NODE_ENV=production
+FRONTEND_URL=
+CORS_ORIGIN=
+DB_POOL_MAX=
+DB_POOL_IDLE_TIMEOUT=
+DB_POOL_CONNECTION_TIMEOUT=
+
+10. Render + Neon production compatibility
+
+* Ensure the app supports multiple Render instances.
+* Ensure database pooling works with Neon Scale.
+* Ensure Redis adapter works in production.
+* Ensure CORS works with the frontend domain.
+* Ensure secure cookies work correctly behind Render proxy.
+* Add app.set('trust proxy', 1) if needed.
+
+Required npm packages:
+
+* jsonwebtoken
+* bcryptjs
+* cookie-parser
+* ioredis or @upstash/redis
+* @socket.io/redis-adapter
+* helmet
+* compression
+* pino
+* pino-http
+* express-rate-limit
+* rate-limit-redis
+* zod
+
+Output requirements:
+
+1. First inspect the existing project.
+2. Then apply changes file by file.
+3. Do not delete working features.
+4. Show what files you changed.
+5. Show exact commands to install packages.
+6. Run build/tests if available.
+7. Fix TypeScript or runtime errors.
+8. Leave the project deploy-ready for Render + Neon + Redis.
+
+Final success condition:
+The current Note Beat Kids system must remain working, but become production-ready for:
+
+* 50,000 registered users
+* around 10,000 concurrent active users
+  with Render high/pro package, Neon scale package, Redis enabled, and multiple backend instances.
