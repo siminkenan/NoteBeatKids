@@ -122,26 +122,26 @@ export async function createApp() {
   );
   app.use(express.urlencoded({ extended: false }));
 
-  // ── Session (in-memory — SADECE geliştirme/fallback) ─────────────────────
-  // JWT tokenlar ana auth mekanizmasıdır. Bu session yalnızca aynı-origin
-  // geliştirme ortamı ve geriye dönük uyumluluk için tutulmaktadır.
-  // Production PostgreSQL session store KULLANILMIYOR (stateless JWT mimarisi).
+  // ── Session (SADECE geliştirme — production'da devre dışı) ───────────────
+  // Production'da tüm auth JWT Bearer token ile yapılır — session gerekmez.
+  // Geliştirmede Replit aynı-origin fallback için tutulur.
   const isProduction = process.env.NODE_ENV === "production";
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "notebeat-kids-secret-2024",
-      resave: false,
-      saveUninitialized: false,
-      proxy: isProduction,
-      cookie: {
-        secure: isProduction,
-        sameSite: isProduction ? "none" : "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 gün
-        httpOnly: true,
-      },
-      // Store: in-memory (varsayılan) — PostgreSQL store kullanılmıyor
-    })
-  );
+  if (!isProduction) {
+    app.use(
+      session({
+        secret: process.env.SESSION_SECRET || "notebeat-kids-secret-2024",
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+          secure: false,
+          sameSite: "lax",
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 gün
+          httpOnly: true,
+        },
+        // Store: in-memory (varsayılan) — dev-only, production'da kullanılmıyor
+      })
+    );
+  }
 
   // ── İstek loglama ─────────────────────────────────────────────────────────
   app.use((req: Request, res: Response, next: NextFunction) => {
