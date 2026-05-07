@@ -20,7 +20,7 @@ function suppressPostcssFromWarning(): Plugin {
 }
 
 export default defineConfig(async () => {
-  const plugins: Plugin[] = [suppressPostcssFromWarning(), react()];
+  const plugins: Plugin[] = [suppressPostcssFromWarning(), ...(react() as Plugin[])];
 
   return {
     plugins,

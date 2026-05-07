@@ -20,7 +20,7 @@ const pool = new Pool({
   allowExitOnIdle: false,
 });
 
-pool.on("error", (err) => {
+pool.on("error", (err: Error) => {
   logger.error({ err: err.message }, "[db] Beklenmeyen pool hatası");
 });
 

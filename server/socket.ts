@@ -106,7 +106,8 @@ export async function initSocketIO(httpServer: HttpServer) {
           cached = { entries };
           setCachedLeaderboard(cacheKey, cached);
         }
-        socket.emit("leaderboard:update", { type, entries: cached.entries });
+        const entries = (cached as { entries: unknown[] }).entries;
+        socket.emit("leaderboard:update", { type, entries });
       }
     } catch (_) {}
   });

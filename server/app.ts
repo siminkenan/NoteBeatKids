@@ -1,4 +1,5 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
+import type { IncomingMessage, ServerResponse } from "http";
 import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -76,7 +77,7 @@ export async function createApp() {
   app.use(
     express.json({
       limit: "10mb",
-      verify: (req, _res, buf) => { req.rawBody = buf; },
+      verify: (req: IncomingMessage, _res: ServerResponse, buf: Buffer) => { (req as any).rawBody = buf; },
     })
   );
   app.use(express.urlencoded({ extended: false }));
@@ -107,14 +108,14 @@ export async function createApp() {
   app.use(session(sessionConfig));
 
   // ── İstek loglama ─────────────────────────────────────────────────────────
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
     const path = req.path;
-    let capturedJson: Record<string, any> | undefined;
-    const origJson = res.json;
-    res.json = function (body, ...args) {
-      capturedJson = body;
-      return origJson.apply(res, [body, ...args]);
+    let capturedJson: Record<string, unknown> | undefined;
+    const origJson = res.json.bind(res) as Response["json"];
+    res.json = function (body: unknown) {
+      capturedJson = body as Record<string, unknown>;
+      return origJson(body);
     };
     res.on("finish", () => {
       const duration = Date.now() - start;
@@ -128,16 +129,16 @@ export async function createApp() {
   });
 
   // ── Sağlık / Hazırlık endpoint'leri ──────────────────────────────────────
-  app.get("/health", (_req, res) => {
+  app.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", uptime: process.uptime(), ts: new Date().toISOString() });
   });
 
-  app.get("/ready", async (_req, res) => {
+  app.get("/ready", async (_req: Request, res: Response) => {
     const checks: Record<string, string> = {};
     // DB kontrolü
     try {
-      const { db } = await import("./db");
-      await db.execute({ sql: "SELECT 1", params: [] } as any);
+      const { pool } = await import("./db");
+      await pool.query("SELECT 1");
       checks.db = "ok";
     } catch (e: any) {
       checks.db = `error: ${e?.message}`;
