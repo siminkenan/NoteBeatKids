@@ -14,10 +14,6 @@ import { redis } from "./redis";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
-// ── Ortam değişkenleri erken doğrulama ────────────────────────────────────────
-// createApp() içinde de çağrılır; ancak burada daha önce çalışır (DB import'tan önce)
-validateEnv();
-
 // ── Beklenmedik hata yakalama ─────────────────────────────────────────────────
 process.on("uncaughtException", (err) => {
   log(`❌ uncaughtException: ${err.message}\n${err.stack}`, "fatal");
