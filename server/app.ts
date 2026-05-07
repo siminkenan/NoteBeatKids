@@ -51,25 +51,20 @@ function buildCorsChecker() {
   return function isAllowed(origin: string | undefined): boolean {
     if (!origin) return true; // server-to-server / cURL
 
-    // Açık liste önce kontrol edilir
-    if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) return true;
+    // Açık liste her zaman önce kontrol edilir
+    if (allowedOrigins.includes(origin)) return true;
+
+    // Render ve Vercel alt alan adları her zaman izin verilir
+    // (FRONTEND_URL ayarından bağımsız — kendi deployment URL'lerimiz)
+    if (origin.endsWith(".onrender.com") || origin.endsWith(".vercel.app")) return true;
 
     if (!isProduction) {
       // Geliştirme: esnek
       if (
         origin.includes("localhost") ||
         origin.includes("replit.dev") ||
-        origin.includes("replit.app") ||
-        origin.endsWith(".onrender.com") ||
-        origin.endsWith(".vercel.app")
+        origin.includes("replit.app")
       ) return true;
-    } else {
-      // Üretim: yalnızca aynı Render projesinin alt alan adına izin ver
-      // (backend → frontend aynı .onrender.com altındaysa)
-      if (origin.endsWith(".onrender.com") || origin.endsWith(".vercel.app")) {
-        // FRONTEND_URL boşsa bu açığı kabul et; doluysa sadece listeden geçsin
-        if (allowedOrigins.length === 0) return true;
-      }
     }
 
     return false;
