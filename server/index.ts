@@ -1,52 +1,88 @@
 import "dotenv/config";
 import { createApp } from "./app";
 import { serveStatic } from "./static";
-import { log } from "./app";
+import { log } from "./logger";
+import { pool } from "./db";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { storage } from "./storage";
 import { flushScoreBuffer, consumeDirtyInstitutions, bufferSize } from "./scoreBuffer";
 import { broadcastLeaderboard } from "./socket";
+import { redis } from "./redis";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
+// ── Beklenmedik hata yakalama ─────────────────────────────────────────────────
+process.on("uncaughtException", (err) => {
+  log(`❌ uncaughtException: ${err.message}\n${err.stack}`, "fatal");
+  // Uygulamayı öldürme — sadece logla (Render yeniden başlatır)
+});
+
+process.on("unhandledRejection", (reason) => {
+  log(`⚠️  unhandledRejection: ${String(reason)}`, "warn");
+});
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+async function gracefulShutdown(signal: string, httpServer: import("http").Server, io?: import("socket.io").Server) {
+  log(`🛑 ${signal} alındı — kapatılıyor...`);
+
+  // 1. Yeni bağlantıları reddet
+  httpServer.close(async () => {
+    log("✅ HTTP sunucusu kapatıldı");
+  });
+
+  // 2. Kalan puanları flush et
+  try {
+    if (bufferSize() > 0) {
+      log(`📤 ${bufferSize()} bekleyen puan DB'ye yazılıyor...`);
+      await flushScoreBuffer();
+    }
+  } catch (e) {
+    log(`⚠️  Puan tamponu flush hatası: ${String(e)}`);
+  }
+
+  // 3. Redis kapat
+  if (redis) {
+    try { await redis.quit(); log("✅ Redis bağlantısı kapatıldı"); } catch {}
+  }
+
+  // 4. DB pool kapat
+  try { await pool.end(); log("✅ DB pool kapatıldı"); } catch {}
+
+  log("👋 Sunucu düzgün kapatıldı");
+  process.exit(0);
+}
+
 async function runMigrations() {
   const migrations = [
-    // Kolon eklemeleri
     sql`ALTER TABLE classes ADD COLUMN IF NOT EXISTS branch_name text NOT NULL DEFAULT ''`,
     sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_seen_at timestamp`,
     sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_stars integer NOT NULL DEFAULT 0`,
     sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS monthly_badges_count integer NOT NULL DEFAULT 0`,
     sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS last_reset_month varchar(7) NOT NULL DEFAULT ''`,
-    // Performans index'leri (800 eş zamanlı kullanıcı için)
+    // Performans index'leri
     sql`CREATE INDEX IF NOT EXISTS idx_students_class_id ON students(class_id)`,
     sql`CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes(teacher_id)`,
     sql`CREATE INDEX IF NOT EXISTS idx_teachers_institution_id ON teachers(institution_id)`,
     sql`CREATE INDEX IF NOT EXISTS idx_student_progress_student_id ON student_progress(student_id)`,
     sql`CREATE INDEX IF NOT EXISTS idx_monthly_stats_student_id ON monthly_stats(student_id)`,
     sql`CREATE INDEX IF NOT EXISTS idx_student_codes_student_id ON student_codes(student_id)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_student_codes_code ON student_codes(code)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_classes_class_code ON classes(class_code)`,
   ];
   for (const m of migrations) {
-    try {
-      await db.execute(m);
-    } catch (e: any) {
-      console.error("Migration hatası:", e?.message ?? e);
+    try { await db.execute(m); } catch (e: any) {
+      log(`Migration hatası: ${e?.message ?? e}`, "warn");
     }
   }
   log("✅ Migration: tüm sütunlar ve index'ler kontrol edildi");
 }
 
 async function seedDatabase() {
-  // Admin artık ilk girişte otomatik oluşturuluyor.
-  // Eski "admin@notebeatkids.com" kaydı varsa temizle (tek seferlik migrasyon).
   try {
-    await db
-      .delete(schema.admins)
-      .where(eq(schema.admins.email, "admin@notebeatkids.com"));
-  } catch (_) {
-    // Tablo yoksa veya kayıt yoksa devam et
-  }
+    await db.delete(schema.admins).where(eq(schema.admins.email, "admin@notebeatkids.com"));
+  } catch (_) {}
   log("✅ Admin seed skipped — created on first login");
 }
 
@@ -67,14 +103,22 @@ async function main() {
   await runMigrations();
   await seedDatabase();
 
-  // ── PUAN TAMPONU FLUSH — her 30 saniyede toplu DB yazma ───────────────────
+  // ── Bellek kullanımı izleme ───────────────────────────────────────────────
+  if (process.env.NODE_ENV === "production") {
+    setInterval(() => {
+      const mem = process.memoryUsage();
+      const mb = (n: number) => `${Math.round(n / 1024 / 1024)}MB`;
+      log(`📊 Bellek: RSS=${mb(mem.rss)} Heap=${mb(mem.heapUsed)}/${mb(mem.heapTotal)}`, "monitor");
+    }, 5 * 60_000); // Her 5 dakikada bir
+  }
+
+  // ── Puan tamponu flush — her 30 saniyede toplu DB yazma ───────────────────
   setInterval(async () => {
     const count = bufferSize();
     if (count === 0) return;
     try {
       log(`📤 Puan tamponu: ${count} kayıt DB'ye yazılıyor...`);
       await flushScoreBuffer();
-      // Flush sonrası leaderboard Socket.io ile güncelle
       const dirtyIds = consumeDirtyInstitutions();
       for (const instId of dirtyIds) {
         broadcastLeaderboard(instId).catch(() => {});
@@ -85,19 +129,19 @@ async function main() {
     }
   }, 30_000);
 
-  // Her gün 1 kez önceki ayın şampiyonlarını otomatik kaydet (ay başı sıfırlama)
+  // ── Otomatik aylık sıfırlama ──────────────────────────────────────────────
   const runAutoMonthlyReset = async () => {
-    try {
-      await storage.autoCheckMonthlyReset();
-    } catch (e) {
-      // sessizce devam et
-    }
+    try { await storage.autoCheckMonthlyReset(); } catch (_) {}
   };
-  await runAutoMonthlyReset(); // sunucu başlangıcında bir kez çalıştır
-  setInterval(runAutoMonthlyReset, 24 * 60 * 60 * 1000); // her 24 saatte bir
+  await runAutoMonthlyReset();
+  setInterval(runAutoMonthlyReset, 24 * 60 * 60 * 1000);
+
+  // ── Graceful shutdown kayıt ───────────────────────────────────────────────
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM", httpServer));
+  process.on("SIGINT",  () => gracefulShutdown("SIGINT",  httpServer));
 }
 
 main().catch((err) => {
-  console.error("Fatal server error:", err);
+  log(`❌ Fatal server error: ${err?.message ?? err}`, "fatal");
   process.exit(1);
 });
