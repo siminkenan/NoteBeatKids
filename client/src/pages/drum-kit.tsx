@@ -583,7 +583,7 @@ export default function DrumKit() {
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
       <img src={drumImg} alt="Davul Seti"
         className="w-full h-full object-contain pointer-events-none select-none"
-        draggable={false} />
+        draggable={false} loading="lazy" width={size} height={size} />
       {ZONES.map(zone => {
         const active = hits.has(zone.id);
         return (

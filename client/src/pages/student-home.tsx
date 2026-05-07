@@ -165,7 +165,7 @@ export default function StudentHome() {
             transition={{ delay: 0.2 }}
           >
             <div className="w-16 h-16 flex items-center justify-center flex-shrink-0">
-              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" />
+              <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" loading="lazy" width="64" height="64" />
             </div>
             <div>
               <h2 className="text-xl font-extrabold text-white">Metronom</h2>
@@ -253,7 +253,7 @@ export default function StudentHome() {
             transition={{ delay: 0.4 }}
           >
             <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
-              <img src={melodyLogoPath} alt="Melodi Taklit Oyunu"
+              <img src={melodyLogoPath} alt="Melodi Taklit Oyunu" loading="lazy" width="64" height="64"
                 className="w-full h-full object-cover" />
             </div>
             <div>

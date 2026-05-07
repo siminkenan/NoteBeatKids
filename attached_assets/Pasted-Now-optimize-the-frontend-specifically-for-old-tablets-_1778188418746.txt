@@ -1,0 +1,91 @@
+Now optimize the frontend specifically for old tablets and low-RAM devices.
+
+Do NOT break existing backend, auth, Redis, DB, student, teacher, admin or game flows.
+
+Goal:
+Make NoteBeat Kids load and run smoothly on:
+
+* old Android tablets
+* low RAM devices
+* older iPads / Safari
+* weak school smart boards
+
+Tasks:
+
+1. Route-based code splitting
+
+* Use React.lazy + Suspense for heavy pages.
+* Lazy-load:
+
+  * class detail page
+  * leaderboard
+  * VexFlow renderer
+  * music games
+  * admin dashboard
+  * teacher dashboard
+
+2. VexFlow optimization
+
+* Do NOT load VexFlow on initial app load.
+* Load VexFlow only when the specific note/music rendering page needs it.
+* Use dynamic import().
+
+3. Game page optimization
+
+* Split each game into its own chunk.
+* Do not preload all games on student home.
+* Load game assets only when entering that game.
+
+4. Image optimization
+
+* Find large PNG/JPG assets.
+* Replace or compress very large images where possible.
+* Use lazy loading for images.
+* Add width/height attributes where applicable.
+
+5. Low-device / Lite Mode improvements
+
+* Keep existing Lite Mode.
+* Disable heavy animations, shadows, blur, particles and transitions on low devices.
+* Reduce framer-motion usage on Lite Mode.
+* Avoid continuous animations on old devices.
+
+6. Bundle optimization
+
+* Fix the empty vendor-react chunk if possible.
+* Improve manualChunks in vite.config.ts.
+* Keep chunk size warnings under control.
+* Do not create too many tiny useless chunks.
+
+7. Runtime performance
+
+* Prevent unnecessary re-renders.
+* Memoize heavy components.
+* Avoid expensive calculations during render.
+* Use requestAnimationFrame carefully only where needed.
+
+8. Compatibility
+
+* Keep Safari 12 / older Android compatibility.
+* Do not introduce modern syntax that breaks old browsers.
+* Preserve current Vite target settings.
+
+9. Testing
+
+* Run production build.
+* Compare bundle output before/after.
+* Confirm app still opens:
+
+  * student login
+  * student home
+  * teacher dashboard
+  * admin dashboard
+  * leaderboard
+  * games
+
+Final report:
+
+* List changed files
+* List largest chunks before/after
+* Confirm old-device improvements
+* Confirm no backend/auth changes were made

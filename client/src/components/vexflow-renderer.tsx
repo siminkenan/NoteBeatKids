@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { Renderer, Stave, StaveNote, Voice, Formatter, Beam, type StemmableNote } from "vexflow";
+// Type-only import — erased at build time, no runtime bundle cost
+import type { StemmableNote } from "vexflow";
 
 export interface NoteData {
   keys: string[];
@@ -20,8 +21,8 @@ interface VexFlowRendererProps {
 /*
  * RHYTHM LINE RENDERER
  *
- * Renders 100% authentic VexFlow musical notation (quarter notes, eighth notes,
- * rests, beams, stems, flags — all unchanged).
+ * VexFlow is loaded via dynamic import() — only when this component actually
+ * mounts. This keeps VexFlow (~1.1 MB) out of the initial bundle.
  *
  * Visual changes applied via post-render SVG manipulation:
  *   1. The 4 non-middle staff lines are hidden (display:none).
@@ -44,143 +45,136 @@ export function VexFlowRenderer({
 
   useEffect(() => {
     if (!containerRef.current || notes.length === 0) return;
-    containerRef.current.innerHTML = "";
+    let cancelled = false;
 
-    try {
-      /* ── VexFlow renderer at full canvas — no viewBox tricks ── */
-      const renderer = new Renderer(containerRef.current, Renderer.Backends.SVG);
-      renderer.resize(width, height);
-      const context = renderer.getContext();
-      context.setFont("Arial", 10);
+    (async () => {
+      // Dynamic import — VexFlow loaded only when this component mounts
+      const { Renderer, Stave, StaveNote, Voice, Formatter, Beam } = await import("vexflow");
+      if (cancelled || !containerRef.current) return;
 
-      /*
-       * Place the stave so the purple middle line (B4) sits at exactly height/2.
-       * Middle line = staveY + 20 (3rd of 5 lines at 10px spacing).
-       * → staveY = height/2 − 20
-       * Edge-to-edge width: staveX=5, staveWidth=width−10.
-       */
-      const staveX      = 5;
-      const staveY      = Math.round(height / 2 - 40);
-      const staveWidth  = width - 10;
-      const middleLineY = staveY + 20;   // B4 = 3rd line = staveY + 2 × 10
+      containerRef.current.innerHTML = "";
 
-      const stave = new Stave(staveX, staveY, staveWidth);
-      if (showClef)          stave.addClef("treble");
-      if (showTimeSignature) stave.addTimeSignature("4/4");
-      stave.setContext(context).draw();
+      try {
+        const renderer = new Renderer(containerRef.current, Renderer.Backends.SVG);
+        renderer.resize(width, height);
+        const context = renderer.getContext();
+        context.setFont("Arial", 10);
 
-      /* ── Build VexFlow notes ── */
-      const vexNotes: StemmableNote[] = notes.map((n, i) => {
-        const staveNote = new StaveNote({
-          keys: n.keys,
-          duration: n.duration,
-          clef: "treble",
-        });
-        if (hitIndices?.has(i)) {
-          staveNote.setStyle({ fillStyle: "#16a34a", strokeStyle: "#16a34a" });
-        } else if (i === highlightIndex) {
-          staveNote.setStyle({ fillStyle: "#f97316", strokeStyle: "#f97316" });
-        }
-        return staveNote;
-      });
+        const staveX      = 5;
+        const staveY      = Math.round(height / 2 - 40);
+        const staveWidth  = width - 10;
+        const middleLineY = staveY + 20;
 
-      /* ── Beams for eighth notes ── */
-      const beamGroups: StemmableNote[][] = [];
-      let currentBeam: StemmableNote[] = [];
-      for (let i = 0; i < vexNotes.length; i++) {
-        if (notes[i].duration === "8" || notes[i].duration === "8r") {
-          currentBeam.push(vexNotes[i]);
-        } else {
-          if (currentBeam.length >= 2) beamGroups.push([...currentBeam]);
-          currentBeam = [];
-        }
-      }
-      if (currentBeam.length >= 2) beamGroups.push(currentBeam);
+        const stave = new Stave(staveX, staveY, staveWidth);
+        if (showClef)          stave.addClef("treble");
+        if (showTimeSignature) stave.addTimeSignature("4/4");
+        stave.setContext(context).draw();
 
-      /* ── Format & draw ── */
-      const voice = new Voice({ numBeats: 4, beatValue: 4 });
-      voice.setStrict(false);
-      voice.addTickables(vexNotes);
-      new Formatter().joinVoices([voice]).format([voice], staveWidth - (showClef ? 100 : 20));
-      voice.draw(context, stave);
-      beamGroups.forEach(group => new Beam(group).setContext(context).draw());
-
-      /* ── POST-RENDER SVG MANIPULATION ── */
-      const svg = containerRef.current.querySelector("svg");
-      if (!svg) return;
-
-      /* 1. Inject keyframe animation for glow */
-      if (!svg.querySelector("style#rhythm-anim")) {
-        const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-        style.id = "rhythm-anim";
-        style.textContent = `
-          @keyframes rhythmGlowPulse {
-            0%   { opacity: 0.30; transform: scale(1.0); }
-            50%  { opacity: 0.08; transform: scale(1.6); }
-            100% { opacity: 0.30; transform: scale(1.0); }
+        const vexNotes: StemmableNote[] = notes.map((n, i) => {
+          const staveNote = new StaveNote({
+            keys: n.keys,
+            duration: n.duration,
+            clef: "treble",
+          });
+          if (hitIndices?.has(i)) {
+            staveNote.setStyle({ fillStyle: "#16a34a", strokeStyle: "#16a34a" });
+          } else if (i === highlightIndex) {
+            staveNote.setStyle({ fillStyle: "#f97316", strokeStyle: "#f97316" });
           }
-          .rhythm-glow-ring {
-            animation: rhythmGlowPulse 0.6s ease-in-out infinite;
-            transform-box: fill-box;
-            transform-origin: center;
-          }
-        `;
-        svg.prepend(style);
-      }
-
-      /* 2. Identify and process staff lines.
-            VexFlow draws 5 horizontal <line> elements spanning the stave width. */
-      const allLines = Array.from(svg.querySelectorAll("line"));
-      const staffLines = allLines.filter(el => {
-        const y1 = parseFloat(el.getAttribute("y1") ?? "0");
-        const y2 = parseFloat(el.getAttribute("y2") ?? "0");
-        const x1 = parseFloat(el.getAttribute("x1") ?? "0");
-        const x2 = parseFloat(el.getAttribute("x2") ?? "0");
-        return Math.abs(y1 - y2) < 1 && (x2 - x1) > staveWidth * 0.4;
-      });
-
-      /* Find the line closest to middleLineY — keep it, hide the rest */
-      if (staffLines.length > 0) {
-        const middleLine = staffLines.reduce((best, el) => {
-          const yBest = parseFloat(best.getAttribute("y1") ?? "0");
-          const yCurr = parseFloat(el.getAttribute("y1") ?? "0");
-          return Math.abs(yCurr - middleLineY) < Math.abs(yBest - middleLineY) ? el : best;
+          return staveNote;
         });
 
-        staffLines.forEach(el => {
-          if (el === middleLine) {
-            /* Bold purple rhythm line */
-            el.setAttribute("stroke", "#7c3aed");
-            el.setAttribute("stroke-width", "4");
-            el.removeAttribute("stroke-dasharray");
+        const beamGroups: StemmableNote[][] = [];
+        let currentBeam: StemmableNote[] = [];
+        for (let i = 0; i < vexNotes.length; i++) {
+          if (notes[i].duration === "8" || notes[i].duration === "8r") {
+            currentBeam.push(vexNotes[i]);
           } else {
-            el.style.display = "none";
+            if (currentBeam.length >= 2) beamGroups.push([...currentBeam]);
+            currentBeam = [];
           }
+        }
+        if (currentBeam.length >= 2) beamGroups.push(currentBeam);
+
+        const voice = new Voice({ numBeats: 4, beatValue: 4 });
+        voice.setStrict(false);
+        voice.addTickables(vexNotes);
+        new Formatter().joinVoices([voice]).format([voice], staveWidth - (showClef ? 100 : 20));
+        voice.draw(context, stave);
+        beamGroups.forEach(group => new Beam(group).setContext(context).draw());
+
+        if (cancelled || !containerRef.current) return;
+
+        const svg = containerRef.current.querySelector("svg");
+        if (!svg) return;
+
+        if (!svg.querySelector("style#rhythm-anim")) {
+          const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+          style.id = "rhythm-anim";
+          style.textContent = `
+            @keyframes rhythmGlowPulse {
+              0%   { opacity: 0.30; transform: scale(1.0); }
+              50%  { opacity: 0.08; transform: scale(1.6); }
+              100% { opacity: 0.30; transform: scale(1.0); }
+            }
+            .rhythm-glow-ring {
+              animation: rhythmGlowPulse 0.6s ease-in-out infinite;
+              transform-box: fill-box;
+              transform-origin: center;
+            }
+          `;
+          svg.prepend(style);
+        }
+
+        const allLines = Array.from(svg.querySelectorAll("line"));
+        const staffLines = allLines.filter(el => {
+          const y1 = parseFloat(el.getAttribute("y1") ?? "0");
+          const y2 = parseFloat(el.getAttribute("y2") ?? "0");
+          const x1 = parseFloat(el.getAttribute("x1") ?? "0");
+          const x2 = parseFloat(el.getAttribute("x2") ?? "0");
+          return Math.abs(y1 - y2) < 1 && (x2 - x1) > staveWidth * 0.4;
         });
+
+        if (staffLines.length > 0) {
+          const middleLine = staffLines.reduce((best, el) => {
+            const yBest = parseFloat(best.getAttribute("y1") ?? "0");
+            const yCurr = parseFloat(el.getAttribute("y1") ?? "0");
+            return Math.abs(yCurr - middleLineY) < Math.abs(yBest - middleLineY) ? el : best;
+          });
+
+          staffLines.forEach(el => {
+            if (el === middleLine) {
+              el.setAttribute("stroke", "#7c3aed");
+              el.setAttribute("stroke-width", "4");
+              el.removeAttribute("stroke-dasharray");
+            } else {
+              el.style.display = "none";
+            }
+          });
+        }
+
+        const oldGlow = svg.querySelector(".rhythm-glow-ring");
+        if (oldGlow) oldGlow.remove();
+
+        if (highlightIndex >= 0 && highlightIndex < vexNotes.length) {
+          try {
+            const noteX = (vexNotes[highlightIndex] as any).getAbsoluteX();
+            const glowCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            glowCircle.setAttribute("cx", String(noteX));
+            glowCircle.setAttribute("cy", String(middleLineY));
+            glowCircle.setAttribute("r", "14");
+            glowCircle.setAttribute("fill", "#f97316");
+            glowCircle.setAttribute("opacity", "0.3");
+            glowCircle.classList.add("rhythm-glow-ring");
+            svg.insertBefore(glowCircle, svg.querySelector("style#rhythm-anim")?.nextSibling ?? svg.firstChild);
+          } catch (_) {}
+        }
+      } catch (e) {
+        console.error("VexFlow rendering error:", e);
       }
+    })();
 
-      /* 3. Glow ring behind the active note */
-      const oldGlow = svg.querySelector(".rhythm-glow-ring");
-      if (oldGlow) oldGlow.remove();
-
-      if (highlightIndex >= 0 && highlightIndex < vexNotes.length) {
-        try {
-          const noteX = (vexNotes[highlightIndex] as StaveNote).getAbsoluteX();
-          const glowCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-          glowCircle.setAttribute("cx", String(noteX));
-          glowCircle.setAttribute("cy", String(middleLineY));
-          glowCircle.setAttribute("r", "14");
-          glowCircle.setAttribute("fill", "#f97316");
-          glowCircle.setAttribute("opacity", "0.3");
-          glowCircle.classList.add("rhythm-glow-ring");
-          /* Insert behind all other elements */
-          svg.insertBefore(glowCircle, svg.querySelector("style#rhythm-anim")?.nextSibling ?? svg.firstChild);
-        } catch (_) { /* getAbsoluteX may throw before layout — silently skip */ }
-      }
-
-    } catch (e) {
-      console.error("VexFlow rendering error:", e);
-    }
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, width, height, showClef, showTimeSignature, highlightIndex, hitKey]);
 
@@ -193,7 +187,7 @@ export function VexFlowRenderer({
   );
 }
 
-// Note reading renderer - shows single note on treble staff
+// Note reading renderer — shows single note on treble staff
 interface SingleNoteRendererProps {
   noteKey: string;
   width?: number;
@@ -206,33 +200,42 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
 
   useEffect(() => {
     if (!containerRef.current) return;
-    containerRef.current.innerHTML = "";
+    let cancelled = false;
 
-    try {
-      const renderer = new Renderer(containerRef.current, Renderer.Backends.SVG);
-      renderer.resize(width, height);
-      const context = renderer.getContext();
-      context.setFont("Arial", 10);
+    (async () => {
+      const { Renderer, Stave, StaveNote, Voice, Formatter } = await import("vexflow");
+      if (cancelled || !containerRef.current) return;
 
-      const stave = new Stave(10, 20, width - 20);
-      stave.addClef("treble");
-      stave.setContext(context).draw();
+      containerRef.current.innerHTML = "";
 
-      const note = new StaveNote({
-        keys: [noteKey],
-        duration: "q",
-        clef: "treble",
-      });
+      try {
+        const renderer = new Renderer(containerRef.current, Renderer.Backends.SVG);
+        renderer.resize(width, height);
+        const context = renderer.getContext();
+        context.setFont("Arial", 10);
 
-      const voice = new Voice({ numBeats: 1, beatValue: 4 });
-      voice.setStrict(false);
-      voice.addTickables([note]);
+        const stave = new Stave(10, 20, width - 20);
+        stave.addClef("treble");
+        stave.setContext(context).draw();
 
-      new Formatter().joinVoices([voice]).format([voice], width - 80);
-      voice.draw(context, stave);
-    } catch (e) {
-      console.error("VexFlow single note error:", e);
-    }
+        const note = new StaveNote({
+          keys: [noteKey],
+          duration: "q",
+          clef: "treble",
+        });
+
+        const voice = new Voice({ numBeats: 1, beatValue: 4 });
+        voice.setStrict(false);
+        voice.addTickables([note]);
+
+        new Formatter().joinVoices([voice]).format([voice], width - 80);
+        voice.draw(context, stave);
+      } catch (e) {
+        console.error("VexFlow single note error:", e);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [noteKey, width, height]);
 
   if (scale === 1) {

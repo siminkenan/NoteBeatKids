@@ -426,7 +426,7 @@ body {
 /* ========== LİTE MODE — Düşük performanslı cihazlar ========== */
 /*
  * Lite Mode: Cihaz güçsüzse <html> etiketine "lite-mode" sınıfı eklenir.
- * Bu blok UI/layout/renk değiştirmez; sadece ağır animasyonları durdurur.
+ * Bu blok UI/layout/renk değiştirmez; sadece ağır GPU operasyonlarını durdurur.
  */
 .lite-mode *,
 .lite-mode *::before,
@@ -436,6 +436,18 @@ body {
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
+
+  /* GPU yoğun filter efektleri — eski cihazlarda FPS düşürür */
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+
+  /* Gölge hesaplamaları — eski GPU'larda yavaş */
+  box-shadow: none !important;
+  text-shadow: none !important;
+
+  /* Parçacık / blur overlay'leri */
+  will-change: auto !important;
 }
 
 /* Splash floatNote animasyonunu da durdur */
@@ -447,6 +459,11 @@ body {
 /* Splash spinner hızlı dönsün (yükleniyor gözüksün ama GPU kullanmasın) */
 .lite-mode #splash-spinner {
   animation-duration: 1s !important;
+}
+
+/* VexFlow parlaklık halkasını Lite Mode'da kapat */
+.lite-mode .rhythm-glow-ring {
+  display: none !important;
 }
 
 /* prefers-reduced-motion: sistem genelinde de uygula */

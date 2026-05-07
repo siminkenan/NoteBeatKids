@@ -284,7 +284,7 @@ export default function TeacherDashboard() {
               animate={{ opacity: 1, y: 0 }}
             >
               <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center">
-                <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" />
+                <img src={metronomeImgPath} alt="Metronom" className="w-full h-full object-contain drop-shadow-lg" loading="lazy" width="64" height="64" />
               </div>
               <div>
                 <p className="text-white font-extrabold text-lg leading-tight">Metronom</p>
