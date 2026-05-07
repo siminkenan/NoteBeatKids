@@ -79,6 +79,9 @@ export default function TeacherLogin() {
     if (teacher.teacherToken) {
       localStorage.setItem("teacherToken", teacher.teacherToken);
     }
+    if (teacher.refreshToken) {
+      localStorage.setItem("teacherRefreshToken", teacher.refreshToken);
+    }
     if (remember) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), teacherCode: teacherCode.trim().toUpperCase() }));
     } else {
