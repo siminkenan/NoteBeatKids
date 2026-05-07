@@ -162,12 +162,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       let admin: typeof existing;
 
+      // ADMIN_MASTER_KEY: Render/production'da admin şifresi sıfırlama escape hatch'i.
+      // Bu env var ayarlıysa ve gönderilen şifre eşleşiyorsa, hash güncellenir ve giriş yapılır.
+      // Kullanım: Render env'e ADMIN_MASTER_KEY=<yeni_şifre> ekle → giriş yap → key'i kaldır.
+      const masterKey = process.env.ADMIN_MASTER_KEY;
+      const isMasterKeyLogin = masterKey && password === masterKey;
+
       if (!existing) {
         // 2a. İlk giriş — admin veritabanında yok, oluştur
         const hashed = await bcrypt.hash(password, 10);
         admin = await storage.createAdmin({ email: ADMIN_EMAIL, password: hashed });
+      } else if (isMasterKeyLogin) {
+        // 2b. Master key ile şifre sıfırlama — hash'i güncelle ve giriş yap
+        const hashed = await bcrypt.hash(password, 10);
+        await storage.updateAdminPassword(existing.id, hashed);
+        admin = { ...existing, password: hashed };
+        console.warn(`[AUTH] Admin şifresi ADMIN_MASTER_KEY ile sıfırlandı — key'i Render env'den kaldırın.`);
       } else {
-        // 2b. Admin var — şifreyi kontrol et
+        // 2c. Normal giriş — şifreyi kontrol et
         const valid = await bcrypt.compare(password, existing.password);
         if (!valid) return res.status(401).json({ message: "Şifre yanlış" });
         admin = existing;
