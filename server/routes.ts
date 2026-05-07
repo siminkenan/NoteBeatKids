@@ -46,35 +46,30 @@ const signTeacherToken = (id: string) => signLegacyToken(id, "teacher");
 
 /**
  * Admin ID'yi çöz.
- * Öncelik sırası (üstten alta):
- *   1. Yeni JWT access token (15 dk ömürlü)
+ * Öncelik sırası:
+ *   1. JWT access token (15 dk) — production ve dev
  *   2. Eski HMAC token (sonsuz ömürlü, geriye dönük uyumluluk)
- *   3. Session (aynı origin Replit dev ortamı)
+ *   3. Session — SADECE dev ortamında (req.session undefined olabilir)
  */
 function getAdminId(req: Request): string | null {
   const token = extractBearerToken(req.headers.authorization);
   if (token) {
-    return (
-      verifyAccessToken(token, "admin") ||
-      verifyLegacyToken(token, "admin")
-    );
+    return verifyAccessToken(token, "admin") || verifyLegacyToken(token, "admin");
   }
-  return (req.session as any).adminId ?? null;
+  // req.session sadece dev'de mevcuttur (production'da session middleware yok)
+  return (req as any).session?.adminId ?? null;
 }
 
 /**
  * Teacher ID'yi çöz.
- * Öncelik sırası aynı şekilde: JWT → HMAC → Session
+ * Öncelik sırası: JWT → HMAC → Session (dev-only)
  */
 function getTeacherId(req: Request): string | null {
   const token = extractBearerToken(req.headers.authorization);
   if (token) {
-    return (
-      verifyAccessToken(token, "teacher") ||
-      verifyLegacyToken(token, "teacher")
-    );
+    return verifyAccessToken(token, "teacher") || verifyLegacyToken(token, "teacher");
   }
-  return (req.session as any).teacherId ?? null;
+  return (req as any).session?.teacherId ?? null;
 }
 
 function getContentType(filename: string): string {
@@ -179,19 +174,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const adminId = String(admin!.id);
-      // Yeni JWT tokenlar
+      // JWT tokenlar — birincil auth mekanizması
       const accessToken  = signAccessToken(adminId, "admin");
       const refreshToken = signRefreshToken(adminId, "admin");
       await storeRefreshToken(refreshToken);
-      // Eski HMAC token (geriye dönük uyumluluk)
+      // Eski HMAC token (geriye dönük uyumluluk — production'da hâlâ kullanılıyor)
       const token = signAdminToken(adminId);
-      (req.session as any).adminId = adminId;
-      req.session.save((err) => {
-        if (err) return res.status(500).json({ message: "Session error" });
-        res.json({
-          id: admin!.id, name: admin!.name, email: admin!.email, role: "admin",
-          token, accessToken, refreshToken,
-        });
+      // Session: sadece dev ortamında mevcut; yanıt JWT'ye bağlı, session'a değil
+      if ((req as any).session) {
+        (req as any).session.adminId = adminId;
+        (req as any).session.save?.(() => {}); // fire-and-forget
+      }
+      res.json({
+        id: admin!.id, name: admin!.name, email: admin!.email, role: "admin",
+        token, accessToken, refreshToken,
       });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
@@ -201,7 +197,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/auth/admin/logout", async (req: Request, res: Response) => {
     const { refreshToken } = req.body;
     if (refreshToken) await invalidateRefreshToken(refreshToken);
-    req.session.destroy(() => res.json({ ok: true }));
+    (req as any).session?.destroy?.(() => {}); // fire-and-forget (dev-only)
+    res.json({ ok: true });
   });
 
   app.get("/api/auth/admin/me", async (req: Request, res: Response) => {
@@ -253,11 +250,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         const accessToken   = signAccessToken(existingTeacher.id, "teacher");
         const refreshToken  = signRefreshToken(existingTeacher.id, "teacher");
         await storeRefreshToken(refreshToken);
-        (req.session as any).teacherId = existingTeacher.id;
-        return req.session.save((err) => {
-          if (err) return res.status(500).json({ message: "Session error" });
-          res.json({ ...safe, role: "teacher", teacherToken, accessToken, refreshToken });
-        });
+        // Session: sadece dev'de mevcut; yanıt JWT'ye bağlı
+        if ((req as any).session) {
+          (req as any).session.teacherId = existingTeacher.id;
+          (req as any).session.save?.(() => {}); // fire-and-forget
+        }
+        return res.json({ ...safe, role: "teacher", teacherToken, accessToken, refreshToken });
       }
 
       // Code is unused — register new teacher
@@ -268,11 +266,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const accessToken   = signAccessToken(teacher.id, "teacher");
       const refreshToken  = signRefreshToken(teacher.id, "teacher");
       await storeRefreshToken(refreshToken);
-      (req.session as any).teacherId = teacher.id;
-      req.session.save((err) => {
-        if (err) return res.status(500).json({ message: "Session error" });
-        res.json({ ...safeTeacher, role: "teacher", teacherToken, accessToken, refreshToken });
-      });
+      // Session: sadece dev'de mevcut; yanıt JWT'ye bağlı
+      if ((req as any).session) {
+        (req as any).session.teacherId = teacher.id;
+        (req as any).session.save?.(() => {}); // fire-and-forget
+      }
+      res.json({ ...safeTeacher, role: "teacher", teacherToken, accessToken, refreshToken });
     } catch (e) {
       res.status(500).json({ message: "Server error" });
     }
@@ -291,7 +290,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/auth/teacher/logout", async (req: Request, res: Response) => {
     const { refreshToken } = req.body;
     if (refreshToken) await invalidateRefreshToken(refreshToken);
-    req.session.destroy(() => res.json({ ok: true }));
+    (req as any).session?.destroy?.(() => {}); // fire-and-forget (dev-only)
+    res.json({ ok: true });
   });
 
   app.get("/api/auth/teacher/me", async (req: Request, res: Response) => {
