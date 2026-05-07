@@ -207,7 +207,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/auth/admin/logout", async (req: Request, res: Response) => {
-    const { refreshToken } = req.body;
+    const { refreshToken } = (req.body || {}) as { refreshToken?: string };
     if (refreshToken) await invalidateRefreshToken(refreshToken);
     (req as any).session?.destroy?.(() => {}); // fire-and-forget (dev-only)
     res.json({ ok: true });
@@ -300,7 +300,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/auth/teacher/logout", async (req: Request, res: Response) => {
-    const { refreshToken } = req.body;
+    const { refreshToken } = (req.body || {}) as { refreshToken?: string };
     if (refreshToken) await invalidateRefreshToken(refreshToken);
     (req as any).session?.destroy?.(() => {}); // fire-and-forget (dev-only)
     res.json({ ok: true });
