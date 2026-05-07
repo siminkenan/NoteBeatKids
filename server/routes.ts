@@ -145,6 +145,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Diagnostic ping — Vercel→Render bağlantısını test etmek için kullanılır
+  // Tarayıcıdan: https://notebeatkids.vercel.app/api/ping
+  app.get("/api/ping", (_req, res) => {
+    res.json({
+      ok: true,
+      env: process.env.NODE_ENV || "development",
+      ts: new Date().toISOString(),
+    });
+  });
+
   // Admin auth
   // Sanal koruma: Sadece bu e-posta admin olabilir, veritabanındaki role ne olursa olsun.
   const ADMIN_EMAIL = "ovalikenan46@gmail.com";
