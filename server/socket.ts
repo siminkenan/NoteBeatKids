@@ -1,11 +1,25 @@
+/**
+ * SOCKET.IO — Redis Adapter ile Çoklu Instance Desteği
+ * ──────────────────────────────────────────────────────────────────────────────
+ * Redis mevcut → @socket.io/redis-adapter ile tüm Render instance'ları senkronize
+ * Redis yok   → tek instance'da in-memory çalışır (geliştirme ortamı)
+ *
+ * Odalar: her kurum için `inst:{institutionId}` odası
+ */
+
 import { Server as SocketIOServer } from "socket.io";
-import { Server as HttpServer } from "http";
+import type { Server as HttpServer } from "http";
 import { storage } from "./storage";
 import { getCachedLeaderboard, setCachedLeaderboard } from "./leaderboardCache";
+import { redis } from "./redis";
+import { log } from "./logger";
 
 let io: SocketIOServer | null = null;
 
-export function initSocketIO(httpServer: HttpServer) {
+// Boşta kalan socket'ları kapat (30 dk)
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+
+export async function initSocketIO(httpServer: HttpServer) {
   io = new SocketIOServer(httpServer, {
     cors: {
       origin: (origin, callback) => {
@@ -22,8 +36,31 @@ export function initSocketIO(httpServer: HttpServer) {
       },
       credentials: true,
     },
+    // Bağlantı güvenilirliği
+    pingTimeout: 20_000,
+    pingInterval: 25_000,
+    connectTimeout: 10_000,
+    transports: ["websocket", "polling"],
   });
 
+  // ── Redis Adapter (çoklu instance ölçekleme) ──────────────────────────────
+  if (redis) {
+    try {
+      const { createAdapter } = await import("@socket.io/redis-adapter");
+      // Pub/Sub için iki ayrı bağlantı gerekli
+      const pubClient = redis.duplicate();
+      const subClient = redis.duplicate();
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+      io.adapter(createAdapter(pubClient, subClient));
+      log("✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)");
+    } catch (err: any) {
+      log(`⚠️  Socket.io Redis adapter başlatılamadı, in-memory devam ediyor: ${err?.message}`);
+    }
+  } else {
+    log("ℹ️  Socket.io in-memory adapter kullanıyor (tek instance)");
+  }
+
+  // ── Bağlantı yönetimi ─────────────────────────────────────────────────────
   io.on("connection", async (socket) => {
     let institutionId = socket.handshake.query.institutionId as string;
 
@@ -36,12 +73,29 @@ export function initSocketIO(httpServer: HttpServer) {
       }
     }
 
-    if (!institutionId) { socket.disconnect(); return; }
+    if (!institutionId) {
+      socket.disconnect();
+      return;
+    }
 
     // Kuruma ait odaya katıl
     socket.join(`inst:${institutionId}`);
 
-    // Bağlanınca hemen mevcut listeyi gönder (önbellekten)
+    // Boşta kalma zamanlayıcısı
+    let idleTimer = setTimeout(() => {
+      socket.disconnect(true);
+    }, IDLE_TIMEOUT_MS);
+
+    socket.on("ping_keep_alive", () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => socket.disconnect(true), IDLE_TIMEOUT_MS);
+    });
+
+    socket.on("disconnect", () => {
+      clearTimeout(idleTimer);
+    });
+
+    // Bağlanınca mevcut listeyi hemen gönder (önbellekten)
     try {
       const types: Array<"school" | "monthly"> = ["school", "monthly"];
       for (const type of types) {
