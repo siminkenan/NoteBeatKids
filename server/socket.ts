@@ -32,30 +32,7 @@ const STALE_SWEEP_MS = 5 * 60 * 1000;
 export async function initSocketIO(httpServer: HttpServer): Promise<SocketIOServer> {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: (origin, callback) => {
-        if (!origin) return callback(null, true); // server-to-server
-        const allowedOrigins = (process.env.FRONTEND_URL || "")
-          .split(",")
-          .map((o) => o.trim())
-          .filter(Boolean);
-
-        const isProduction = process.env.NODE_ENV === "production";
-
-        if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        // Geliştirme ortamında esnek — üretimde sadece explicit origin'ler
-        if (!isProduction && (origin.includes("localhost") || origin.includes("replit.dev"))) {
-          return callback(null, true);
-        }
-        // Üretimde FRONTEND_URL listesinde olmayan origin'lere izin vermiyoruz
-        // ancak .onrender.com backend'in kendi socket client'ı için gerekebilir
-        if (origin.endsWith(".onrender.com") || origin.endsWith(".vercel.app")) {
-          return callback(null, true);
-        }
-        log(`Socket CORS reddedildi: ${origin}`, "warn");
-        return callback(new Error(`Socket CORS blocked: ${origin}`));
-      },
+      origin: true, // tüm origin'lere izin ver
       credentials: true,
     },
     // Bağlantı güvenilirliği
