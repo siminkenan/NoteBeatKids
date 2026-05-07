@@ -5,16 +5,19 @@
  * Development/Replit'te eksik değişkenler sadece uyarı üretir, sunucu kapanmaz.
  */
 
+// Sadece DATABASE_URL zorunlu — diğerlerinin hepsi kod içinde fallback'e sahip.
+// JWT_ACCESS_SECRET / JWT_REFRESH_SECRET → auth.ts'de SESSION_SECRET'a fallback yapar.
+// SESSION_SECRET                          → "notebeat-kids-secret-2024" sabit fallback'e sahip.
 const PRODUCTION_REQUIRED = [
-  { key: "DATABASE_URL",       description: "PostgreSQL bağlantı URL'i (Neon)" },
-  { key: "SESSION_SECRET",     description: "Oturum imzalama anahtarı (güçlü rastgele string)" },
-  { key: "JWT_ACCESS_SECRET",  description: "JWT access token imzalama anahtarı" },
-  { key: "JWT_REFRESH_SECRET", description: "JWT refresh token imzalama anahtarı" },
+  { key: "DATABASE_URL", description: "PostgreSQL bağlantı URL'i (Neon)" },
 ];
 
 const PRODUCTION_RECOMMENDED = [
-  { key: "REDIS_URL",     description: "Redis URL (Upstash — leaderboard önbelleği + WebSocket)" },
-  { key: "FRONTEND_URL",  description: "İzin verilen frontend URL'leri (virgülle ayrılmış)" },
+  { key: "SESSION_SECRET",     description: "Oturum imzalama anahtarı (güçlü rastgele string)" },
+  { key: "JWT_ACCESS_SECRET",  description: "JWT access token imzalama anahtarı" },
+  { key: "JWT_REFRESH_SECRET", description: "JWT refresh token imzalama anahtarı" },
+  { key: "REDIS_URL",          description: "Redis URL (Upstash — leaderboard önbelleği + WebSocket)" },
+  { key: "FRONTEND_URL",       description: "İzin verilen frontend URL'leri (virgülle ayrılmış)" },
 ];
 
 export function validateEnv(): void {
