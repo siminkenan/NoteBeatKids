@@ -19,6 +19,27 @@ import { broadcastLeaderboard } from "./socket";
 import { markInstitutionDirty } from "./scoreBuffer";
 import { scoreRateLimit } from "./rateLimit";
 
+// ── Kurum ID önbelleği (instance içi, 5 dk TTL) ───────────────────────────────
+// getInstitutionIdForStudent her puan isteğinde 3 tablolu JOIN yapıyor.
+// Bu cache ile her öğrenci için ilk istekte DB'ye gidilir, sonraki istekler bellekten döner.
+const instIdCache = new Map<string, { id: string | null; expiresAt: number }>();
+const INST_CACHE_TTL = 5 * 60 * 1000; // 5 dakika
+async function cachedInstitutionId(studentId: string): Promise<string | null> {
+  const now = Date.now();
+  const hit = instIdCache.get(studentId);
+  if (hit && now < hit.expiresAt) return hit.id;
+  const id = await storage.getInstitutionIdForStudent(studentId);
+  instIdCache.set(studentId, { id, expiresAt: now + INST_CACHE_TTL });
+  return id;
+}
+// Her 10 dakikada TTL geçmiş girdileri temizle
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of Array.from(instIdCache.entries())) {
+    if (now >= v.expiresAt) instIdCache.delete(k);
+  }
+}, 10 * 60 * 1000).unref();
+
 // ── Kısa isimler (geriye dönük uyumluluk) ──────────────────────────────────────
 const signAdminToken   = (id: string) => signLegacyToken(id, "admin");
 const signTeacherToken = (id: string) => signLegacyToken(id, "teacher");
@@ -391,7 +412,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const progress = await storage.upsertProgress(req.params.studentId as string, appType, finalData);
       // Puan tampona alındı. DB'ye yazma 30 sn sonra toplu yapılacak.
       // Kurum önbelleğini kirli işaretle → flush sonrası Socket.io ile broadcast edilecek.
-      const instId = await storage.getInstitutionIdForStudent(req.params.studentId as string);
+      const instId = await cachedInstitutionId(req.params.studentId as string);
       if (instId) {
         invalidateLeaderboardCache(instId);
         markInstitutionDirty(instId);
