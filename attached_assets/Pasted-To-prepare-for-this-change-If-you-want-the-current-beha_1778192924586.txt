@@ -1,0 +1,564 @@
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[redis] ✅ Hazır
+{"level":30,"time":1778189436437,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778189438278,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778189438380,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+{"level":30,"time":1778189499426,"pid":51,"hostname":"srv-d73qjkua2pns73abnd90-5bf75d45b4-l9kdn","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778189499428,"pid":51,"hostname":"srv-d73qjkua2pns73abnd90-5bf75d45b4-l9kdn","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778189499429,"pid":51,"hostname":"srv-d73qjkua2pns73abnd90-5bf75d45b4-l9kdn","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778189499571,"pid":51,"hostname":"srv-d73qjkua2pns73abnd90-5bf75d45b4-l9kdn","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778189499571,"pid":51,"hostname":"srv-d73qjkua2pns73abnd90-5bf75d45b4-l9kdn","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778189499571,"pid":51,"hostname":"srv-d73qjkua2pns73abnd90-5bf75d45b4-l9kdn","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778189499571,"pid":51,"hostname":"srv-d73qjkua2pns73abnd90-5bf75d45b4-l9kdn","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+==> Running 'node dist/index.js'
+{"level":30,"time":1778189512475,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+[redis] ✅ Hazır
+{"level":30,"time":1778189513018,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:67) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1778189513025,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778189514237,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778189514300,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778189522383,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778189522384,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778189522407,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778189522407,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778189522409,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778189522409,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778189522410,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778189522411,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2820:25)"}
+{"level":30,"time":1778189522414,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778189522414,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778189522796,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778189522797,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2820:25)"}
+{"level":30,"time":1778189522806,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778189522806,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778189541667,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778189541667,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778189541890,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778189541890,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778189552538,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778189552539,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778189574512,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778189574513,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778189574513,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778189574658,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778189574658,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778189574658,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778189574659,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-7cd89779fd-qxqmb","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+{"level":30,"time":1778189814303,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"monitor","msg":"📊 Bellek: RSS=77MB Heap=20MB/22MB | DB Pool: total=0 idle=0 waiting=0"}
+==> Detected service running on port 10000
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node dist/index.js'
+{"level":30,"time":1778189994582,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+{"level":30,"time":1778189995100,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:67) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[redis] ✅ Hazır
+{"level":30,"time":1778189995108,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778189996983,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778189997079,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778190059141,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778190059142,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778190059143,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778190059284,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778190059284,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778190059284,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778190059285,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-7965fb6f89-lmtms","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node dist/index.js'
+{"level":30,"time":1778190084524,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+[redis] ✅ Hazır
+{"level":30,"time":1778190085041,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:69) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1778190085047,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778190086220,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778190086280,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778190095347,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190095347,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190095367,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190095367,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190095368,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190095369,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190095368,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190095369,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190095371,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190095371,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190095373,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190095373,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190095378,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190095378,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190109977,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190109978,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190110640,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190110640,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190122008,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190122008,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190126700,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190126700,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190149579,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778190149580,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778190149580,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778190149725,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778190149726,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778190149726,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778190149726,"pid":67,"hostname":"srv-d73qjkua2pns73abnd90-5bbb495545-sd8qs","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node dist/index.js'
+{"level":30,"time":1778190237819,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+{"level":30,"time":1778190238338,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:68) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[redis] ✅ Hazır
+{"level":30,"time":1778190238344,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778190239484,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778190239544,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778190253882,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190253882,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190271987,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190271988,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190272234,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190272235,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190283680,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190283681,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2827:25)"}
+{"level":30,"time":1778190301240,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778190301242,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778190301242,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778190301382,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778190301382,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778190301382,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778190301382,"pid":69,"hostname":"srv-d73qjkua2pns73abnd90-797d7799d4-29b4m","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+{"level":30,"time":1778190539545,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"monitor","msg":"📊 Bellek: RSS=86MB Heap=21MB/22MB | DB Pool: total=0 idle=0 waiting=0"}
+==> Detected service running on port 10000
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node dist/index.js'
+{"level":30,"time":1778190810776,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+[redis] ✅ Hazır
+{"level":30,"time":1778190811244,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:68) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1778190811251,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778190813264,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778190813339,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778190839546,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"monitor","msg":"📊 Bellek: RSS=87MB Heap=21MB/23MB | DB Pool: total=0 idle=0 waiting=0"}
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+{"level":30,"time":1778190873286,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778190873287,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778190873287,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778190873430,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778190873430,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778190873430,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778190873430,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-768dfd86f8-sdf5l","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+==> Running 'node dist/index.js'
+{"level":30,"time":1778190889667,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+[redis] ✅ Hazır
+{"level":30,"time":1778190890177,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:68) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1778190890186,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778190891358,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778190891417,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778190921091,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190921091,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190921109,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190921109,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190921116,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190921117,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190921118,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190921118,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190921119,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190921119,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190921523,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190921524,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190921527,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190921527,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190926005,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190926006,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190926007,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190926008,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190926009,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190926009,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190926012,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190926012,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190926028,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190926028,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190926030,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190926030,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190926031,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190926032,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190927315,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190927315,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190927316,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190927316,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190927318,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190927318,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190927319,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190927319,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190927320,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190927320,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190927321,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190927321,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190927342,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190927343,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190928203,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190928204,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190928205,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190928205,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190928206,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190928206,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190928207,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190928207,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190928208,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190928208,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190928209,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190928209,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190928224,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778190928225,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190938229,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190938229,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190938474,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190938474,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190948803,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190948804,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190953722,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190953723,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190958300,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778190958300,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778190958783,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778190958784,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778190958785,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778190958927,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778190958927,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778190958927,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778190958927,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-784b8856c7-rkdvb","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+{"level":30,"time":1778191065929,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191065929,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191065930,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191065932,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191065932,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191066049,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191066050,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191066363,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191066364,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191082386,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778191082387,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191137871,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191137872,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191137888,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191137888,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191137892,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191137892,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191137893,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191137893,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191137894,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191137894,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191138295,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191138296,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191138319,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191138319,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (file:///opt/render/project/src/dist/index.js:2834:25)"}
+{"level":30,"time":1778191191419,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"monitor","msg":"📊 Bellek: RSS=84MB Heap=22MB/24MB | DB Pool: total=0 idle=0 waiting=0"}
+==> Detected service running on port 10000
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node dist/index.js'
+{"level":30,"time":1778191402717,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+{"level":30,"time":1778191403179,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:68) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[redis] ✅ Hazır
+{"level":30,"time":1778191403189,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778191405146,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778191405234,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+{"level":30,"time":1778191465158,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778191465159,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778191465159,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778191465300,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778191465300,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778191465300,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778191465300,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7785765c58-gxw76","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+==> Running 'node dist/index.js'
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+Error: Cannot find module '/opt/render/project/src/dist/index.js'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+    at node:internal/main/run_main_module:28:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+Node.js v20.20.2
+==> Exited with status 1
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'node dist/index.js'
+node:internal/modules/cjs/loader:1210
+  throw err;
+  ^
+Error: Cannot find module '/opt/render/project/src/dist/index.js'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+    at node:internal/main/run_main_module:28:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+Node.js v20.20.2
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+{"level":30,"time":1778191553668,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:66) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+{"level":30,"time":1778191553676,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"🚀 Server running on port 10000"}
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1778191554919,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778191554983,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778191581480,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191581481,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778191581485,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778191581485,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778191600297,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778191600298,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778191600546,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778191600547,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778191609976,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778191609976,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778191615427,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778191615428,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778191615428,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778191615572,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778191615573,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778191615573,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778191615573,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-78f6c5bd66-g4v9x","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+{"level":30,"time":1778191854985,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"monitor","msg":"📊 Bellek: RSS=87MB Heap=18MB/20MB | DB Pool: total=0 idle=0 waiting=0"}
+==> Detected service running on port 10000
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node dist/index.cjs'
+{"level":30,"time":1778192113500,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+[redis] ✅ Hazır
+{"level":30,"time":1778192114028,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:68) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1778192114038,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778192115902,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778192115993,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778192154986,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"monitor","msg":"📊 Bellek: RSS=89MB Heap=19MB/20MB | DB Pool: total=0 idle=0 waiting=0"}
+Deploy cancelled
+Deploy cancelled
+Deploy cancelled
+{"level":30,"time":1778192178502,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778192178504,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778192178507,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778192178647,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778192178647,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778192178647,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778192178647,"pid":66,"hostname":"srv-d73qjkua2pns73abnd90-6d69bf9c5f-466dc","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node dist/index.cjs '
+{"level":30,"time":1778192242966,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"express","msg":"🚀 NoteBeat Kids başlatılıyor (production)..."}
+[redis] ✅ Bağlantı kuruldu
+[redis] ✅ Hazır
+{"level":30,"time":1778192243483,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"express","msg":"✅ Socket.io Redis adapter etkinleştirildi (çoklu instance desteği)"}
+(node:65) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1778192243489,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"express","msg":"🚀 Server running on port 10000"}
+{"level":30,"time":1778192244739,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"express","msg":"✅ Migration: tüm sütunlar ve index'ler kontrol edildi"}
+{"level":30,"time":1778192244805,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"express","msg":"✅ Admin seed skipped — created on first login"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://notebeatkids-2.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+{"level":30,"time":1778192252559,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192252560,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192252579,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192252579,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192262881,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778192262882,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192263118,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778192263120,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192275394,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778192275394,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192307085,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"🛑 SIGTERM alındı — kapatılıyor..."}
+{"level":30,"time":1778192307086,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"✅ HTTP sunucusu kapatıldı"}
+{"level":30,"time":1778192307087,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"✅ Socket.io kapatıldı"}
+{"level":30,"time":1778192307230,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"✅ Redis bağlantısı kapatıldı"}
+{"level":30,"time":1778192307230,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"📊 DB pool kapanıyor: 0 bağlantı (0 boşta)"}
+{"level":30,"time":1778192307230,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"✅ DB pool kapatıldı"}
+{"level":30,"time":1778192307230,"pid":68,"hostname":"srv-d73qjkua2pns73abnd90-7b86467994-l59qr","source":"express","msg":"👋 Sunucu düzgün kapatıldı"}
+{"level":30,"time":1778192544806,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"monitor","msg":"📊 Bellek: RSS=88MB Heap=18MB/20MB | DB Pool: total=0 idle=0 waiting=0"}
+==> Detected service running on port 10000
+==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+{"level":30,"time":1778192625025,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192625025,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192625523,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192625524,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192629934,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192629934,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192629953,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192629954,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192676571,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778192676571,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192676809,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778192676810,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192687745,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeat-kids.vercel.app"}
+{"level":30,"time":1778192687746,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeat-kids.vercel.app — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192706577,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192706578,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+Menu
+{"level":30,"time":1778192706598,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192706599,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192776965,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192776965,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192777339,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"warn","msg":"CORS reddedildi: https://notebeatkids-2.onrender.com"}
+{"level":30,"time":1778192777343,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"error","msg":"❌ Sunucu hatası: CORS blocked: https://notebeatkids-2.onrender.com — at origin (/opt/render/project/src/dist/index.cjs:187:927)"}
+{"level":30,"time":1778192844807,"pid":65,"hostname":"srv-d73qjkua2pns73abnd90-596dbb686f-q2vds","source":"monitor","msg":"📊 Bellek: RSS=90MB Heap=19MB/21MB | DB Pool: total=0 idle=0 waiting=0"}
