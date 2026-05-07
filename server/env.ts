@@ -1,78 +1,70 @@
 /**
- * PRODUCTION ORTAM DEĞİŞKENİ DOĞRULAMA
+ * ORTAM DEĞİŞKENİ DOĞRULAMA
  * ──────────────────────────────────────────────────────────────────────────────
- * Ana süreç başlamadan önce çağrılır. Zorunlu değişkenler eksikse process.exit(1).
- * Önerilen değişkenler production'da uyarı üretir.
+ * Production'da zorunlu değişkenler eksikse process.exit(1).
+ * Development/Replit'te eksik değişkenler sadece uyarı üretir, sunucu kapanmaz.
  */
 
-interface EnvCheck {
-  key: string;
-  required: boolean;
-  description: string;
-}
-
-const CHECKS: EnvCheck[] = [
-  { key: "DATABASE_URL",        required: true,  description: "PostgreSQL bağlantı URL'i (Neon)" },
-  { key: "SESSION_SECRET",      required: false, description: "Oturum imzalama anahtarı (güçlü rastgele string)" },
-  { key: "JWT_ACCESS_SECRET",   required: false, description: "JWT access token imzalama anahtarı" },
-  { key: "JWT_REFRESH_SECRET",  required: false, description: "JWT refresh token imzalama anahtarı" },
-  { key: "REDIS_URL",           required: false, description: "Redis URL (Upstash — önbellek + WebSocket çoklu instance)" },
-  { key: "FRONTEND_URL",        required: false, description: "İzin verilen frontend URL'leri (virgülle ayrılmış)" },
+const PRODUCTION_REQUIRED = [
+  { key: "DATABASE_URL",       description: "PostgreSQL bağlantı URL'i (Neon)" },
+  { key: "SESSION_SECRET",     description: "Oturum imzalama anahtarı (güçlü rastgele string)" },
+  { key: "JWT_ACCESS_SECRET",  description: "JWT access token imzalama anahtarı" },
+  { key: "JWT_REFRESH_SECRET", description: "JWT refresh token imzalama anahtarı" },
 ];
 
-const DEFAULT_SECRET = "notebeat-kids-secret-2024";
+const PRODUCTION_RECOMMENDED = [
+  { key: "REDIS_URL",     description: "Redis URL (Upstash — leaderboard önbelleği + WebSocket)" },
+  { key: "FRONTEND_URL",  description: "İzin verilen frontend URL'leri (virgülle ayrılmış)" },
+];
 
 export function validateEnv(): void {
   const isProduction = process.env.NODE_ENV === "production";
-  const missing: string[] = [];
-  const warnings: string[] = [];
-
-  for (const check of CHECKS) {
-    const val = process.env[check.key];
-    if (!val) {
-      if (check.required) {
-        missing.push(`  ❌ ${check.key} — ${check.description}`);
-      } else if (isProduction) {
-        warnings.push(`  ⚠️  ${check.key} — ${check.description}`);
-      }
-    }
-  }
-
-  if (missing.length) {
-    console.error(
-      "❌ FATAL — Zorunlu ortam değişkenleri eksik:\n" + missing.join("\n") +
-      "\nSunucu başlatılamıyor."
-    );
-    process.exit(1);
-  }
 
   if (isProduction) {
-    if (warnings.length) {
-      console.warn("⚠️  Önerilen ortam değişkenleri eksik (production performansı ve güvenlik etkilenir):\n" + warnings.join("\n"));
+    // --- Production: zorunlu değişkenler eksikse kapat ---
+    const missing = PRODUCTION_REQUIRED.filter(c => !process.env[c.key]);
+    if (missing.length) {
+      console.error(
+        "❌ FATAL — Production'da zorunlu ortam değişkenleri eksik:\n" +
+        missing.map(c => `  ❌ ${c.key} — ${c.description}`).join("\n") +
+        "\nSunucu başlatılamıyor."
+      );
+      process.exit(1);
+    }
+
+    // Önerilen değişkenler yoksa uyar ama devam et
+    const recommended = PRODUCTION_RECOMMENDED.filter(c => !process.env[c.key]);
+    if (recommended.length) {
+      console.warn(
+        "⚠️  Production'da önerilen değişkenler eksik (performans/güvenlik etkilenir):\n" +
+        recommended.map(c => `  ⚠️  ${c.key} — ${c.description}`).join("\n")
+      );
     }
 
     const secret = process.env.SESSION_SECRET || "";
-    if (!secret || secret === DEFAULT_SECRET) {
-      console.warn("⚠️  SESSION_SECRET varsayılan değer kullanıyor! Production'da güçlü bir rastgele anahtar belirleyin.");
+    if (secret === "notebeat-kids-secret-2024") {
+      console.warn("⚠️  SESSION_SECRET varsayılan değer kullanıyor! Production'da güçlü bir anahtar belirleyin.");
     }
-
+  } else {
+    // --- Development/Replit: sadece uyar, kapanma yok ---
+    const allChecks = [...PRODUCTION_REQUIRED, ...PRODUCTION_RECOMMENDED];
+    const missing = allChecks.filter(c => !process.env[c.key]);
+    if (missing.length) {
+      console.warn(
+        "⚠️  [DEV] Bazı ortam değişkenleri eksik (uygulama fallback ile çalışacak):\n" +
+        missing.map(c => `  ⚠️  ${c.key} — ${c.description}`).join("\n")
+      );
+    }
+    if (!process.env.DATABASE_URL) {
+      console.warn("⚠️  [DEV] DATABASE_URL eksik — DB işlemleri başarısız olabilir.");
+    }
     if (!process.env.REDIS_URL) {
-      console.warn("⚠️  REDIS_URL tanımlı değil — leaderboard önbelleği ve WebSocket çoklu instance desteği devre dışı!");
-    }
-
-    if (!process.env.FRONTEND_URL) {
-      console.warn("⚠️  FRONTEND_URL tanımlı değil — CORS kısıtlaması zayıf kalıyor!");
-    }
-
-    const jwtAccess  = process.env.JWT_ACCESS_SECRET  || "";
-    const jwtRefresh = process.env.JWT_REFRESH_SECRET || "";
-    if (!jwtAccess || !jwtRefresh) {
-      console.warn("⚠️  JWT_ACCESS_SECRET / JWT_REFRESH_SECRET eksik — TOKEN_SECRET (SESSION_SECRET) fallback kullanılıyor.");
+      console.info("ℹ️  [DEV] REDIS_URL yok — in-memory önbellek ve socket fallback kullanılıyor.");
     }
   }
 }
 
-/** Belirli bir env değişkeninin değerini veya varsayılanı döndürür (log'lamadan) */
+/** Belirli bir env değişkeninin değerini veya varsayılanı döndürür */
 export function env(key: string, fallback = ""): string {
   return process.env[key] || fallback;
 }
