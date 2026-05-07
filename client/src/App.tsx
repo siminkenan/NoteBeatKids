@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./lib/auth";
+import { useLiteMode } from "./lib/liteMode";
 import AmbientSound from "@/components/ambient-sound";
 
 // Eagerly loaded — shown immediately on first visit
@@ -30,30 +31,52 @@ const DrumKit           = lazy(() => import("@/pages/drum-kit"));
 const MelodyEcho        = lazy(() => import("@/pages/melody-echo"));
 const Leaderboard       = lazy(() => import("@/pages/leaderboard"));
 
-// Arka planda tüm sayfa parçalarını önceden yükler — kullanıcı bir butona
-// tıkladığında sayfa anında açılır, "Yükleniyor" gösterilmez
+// Sayfa parçalarını arka planda önceden yükler.
+// Lite Mode'da (zayıf cihaz) ağır sayfalar (VexFlow içeren) atlanır;
+// yalnızca hafif UI sayfaları önceden yüklenir.
 function usePrefetchRoutes() {
+  const isLite = useLiteMode();
+
   useEffect(() => {
-    const t = setTimeout(() => {
-      import("@/pages/teacher-login");
-      import("@/pages/teacher-dashboard");
-      import("@/pages/class-detail");
-      import("@/pages/student-login");
-      import("@/pages/student-home");
-      import("@/pages/rhythm-game");
-      import("@/pages/note-detective");
-      import("@/pages/level-map");
-      import("@/pages/admin-login");
-      import("@/pages/admin-dashboard");
-      import("@/pages/metronome");
-      import("@/pages/rhythm-orchestra");
-      import("@/pages/teacher-orchestra");
-      import("@/pages/drum-kit");
-      import("@/pages/melody-echo");
-      import("@/pages/leaderboard");
-    }, 500);
-    return () => clearTimeout(t);
-  }, []);
+    // Her cihazda önceden yüklenir — hafif sayfalar
+    const lightPages = [
+      () => import("@/pages/teacher-login"),
+      () => import("@/pages/student-login"),
+      () => import("@/pages/student-home"),
+      () => import("@/pages/level-map"),
+      () => import("@/pages/admin-login"),
+    ];
+
+    // Sadece normal cihazlarda önceden yüklenir — ağır sayfalar
+    const heavyPages = [
+      () => import("@/pages/teacher-dashboard"),
+      () => import("@/pages/class-detail"),
+      () => import("@/pages/rhythm-game"),      // VexFlow içerir
+      () => import("@/pages/note-detective"),    // VexFlow içerir
+      () => import("@/pages/admin-dashboard"),
+      () => import("@/pages/metronome"),
+      () => import("@/pages/rhythm-orchestra"),
+      () => import("@/pages/teacher-orchestra"),
+      () => import("@/pages/drum-kit"),
+      () => import("@/pages/melody-echo"),
+      () => import("@/pages/leaderboard"),
+    ];
+
+    // Hafif sayfalar: 600 ms sonra
+    const t1 = setTimeout(() => {
+      lightPages.forEach(fn => fn());
+    }, 600);
+
+    // Ağır sayfalar: Lite Mode'da yüklenmez; normal cihazlarda 2500 ms sonra
+    const t2 = !isLite
+      ? setTimeout(() => { heavyPages.forEach(fn => fn()); }, 2500)
+      : null;
+
+    return () => {
+      clearTimeout(t1);
+      if (t2 !== null) clearTimeout(t2);
+    };
+  }, [isLite]);
 }
 
 const AMBIENT_PATHS = ["/", "/teacher", "/admin"];
