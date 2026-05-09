@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, Star, ChevronDown, ChevronRight, UserCheck, QrCode, Copy, Pencil, CalendarClock } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import type { Institution, Teacher } from "@shared/schema";
@@ -65,22 +65,7 @@ type InstitutionDetails = {
   }>;
 };
 
-function accuracy(correct: number, wrong: number) {
-  const total = correct + wrong;
-  return total === 0 ? null : Math.round((correct / total) * 100);
-}
 
-function AccBar({ pct, color }: { pct: number | null; color: string }) {
-  if (pct === null) return <span className="text-xs text-muted-foreground font-semibold">—</span>;
-  return (
-    <div className="flex items-center gap-1.5 min-w-0">
-      <div className="flex-1 bg-slate-100 rounded-full h-2 min-w-[40px]">
-        <div className={`h-2 rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs font-bold w-8 text-right">{pct}%</span>
-    </div>
-  );
-}
 
 const institutionSchema = z.object({
   name: z.string().min(1, "Kurum adı gerekli"),
@@ -122,7 +107,6 @@ export default function AdminDashboard() {
   const [classSearch, setClassSearch] = useState("");
   const [selectedInstId, setSelectedInstId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [expandedTeachers, setExpandedTeachers] = useState<Set<string>>(new Set());
   const [editingInst, setEditingInst] = useState<InstWithExpiry | null>(null);
 
   useEffect(() => {
@@ -471,7 +455,7 @@ export default function AdminDashboard() {
                         <div className="flex items-start justify-between gap-2">
                           <button
                             className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 hover:bg-blue-200 transition-colors cursor-pointer"
-                            onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); setExpandedTeachers(new Set()); }}
+                            onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); }}
                             data-testid={`button-inst-detail-${inst.id}`}
                             title="Detayları Görüntüle"
                           >
@@ -487,7 +471,7 @@ export default function AdminDashboard() {
                         </div>
                         <button
                           className="text-base font-extrabold mt-2 text-left hover:text-primary transition-colors w-full"
-                          onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); setExpandedTeachers(new Set()); }}
+                          onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); }}
                           data-testid={`button-inst-name-${inst.id}`}
                         >
                           {inst.name}
@@ -512,7 +496,7 @@ export default function AdminDashboard() {
 
                         <button
                           className="w-full flex items-center gap-2 p-2 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors text-left"
-                          onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); setExpandedTeachers(new Set()); setCodesSearchQuery(""); }}
+                          onClick={() => { setSelectedInstId(inst.id); setDetailOpen(true); setCodesSearchQuery(""); }}
                           data-testid={`button-view-codes-${inst.id}`}
                         >
                           <QrCode className="w-4 h-4 text-indigo-600 flex-shrink-0" />
@@ -1022,143 +1006,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Öğretmenler */}
-              {institutionDetails.teachers.length === 0 ? (
-                <p className="text-center text-muted-foreground font-semibold py-6">Bu kurumda henüz öğretmen yok.</p>
-              ) : (
-                <div className="space-y-3">
-                  <h4 className="font-extrabold text-sm text-muted-foreground uppercase tracking-wide">Öğretmenler & Performans</h4>
-                  {institutionDetails.teachers.map(teacher => {
-                    const isExpanded = expandedTeachers.has(teacher.id);
-                    const totalStudents = teacher.classes.reduce((s, c) => s + c.students.length, 0);
-                    return (
-                      <div key={teacher.id} className="border rounded-xl overflow-hidden" data-testid={`section-teacher-${teacher.id}`}>
-                        <button
-                          className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
-                          onClick={() => {
-                            const next = new Set(expandedTeachers);
-                            if (isExpanded) next.delete(teacher.id); else next.add(teacher.id);
-                            setExpandedTeachers(next);
-                          }}
-                          data-testid={`button-expand-teacher-${teacher.id}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <UserCheck className="w-4 h-4 text-primary" />
-                            </div>
-                            <div>
-                              <p className="font-extrabold text-sm">{teacher.name}</p>
-                              <p className="text-xs text-muted-foreground">{teacher.email} · {teacher.classes.length} sınıf · {totalStudents} öğrenci</p>
-                            </div>
-                          </div>
-                          {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                        </button>
-
-                        {isExpanded && (
-                          <div className="p-3 space-y-3">
-                            {teacher.classes.length === 0 ? (
-                              <p className="text-xs text-muted-foreground text-center py-2">Henüz sınıf yok.</p>
-                            ) : teacher.classes.map(cls => (
-                              <div key={cls.id} className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <School className="w-3.5 h-3.5 text-indigo-600" />
-                                  <span className="font-bold text-sm">{cls.name}</span>
-                                  <code className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{cls.classCode}</code>
-                                  <span className="text-xs text-muted-foreground">{cls.students.length}/{cls.maxStudents}</span>
-                                </div>
-                                {cls.students.length === 0 ? (
-                                  <p className="text-xs text-muted-foreground pl-5">Henüz öğrenci yok.</p>
-                                ) : (
-                                  <>
-                                  {/* Sınıf Performans Özeti */}
-                                  {(() => {
-                                    const withRhythm = cls.students.filter(s => s.rhythmCorrect + s.rhythmWrong > 0);
-                                    const withNotes = cls.students.filter(s => s.notesCorrect + s.notesWrong > 0);
-                                    const withMelody = cls.students.filter(s => s.melodyCorrect + s.melodyWrong > 0);
-                                    const avgRhythm = withRhythm.length ? Math.round(withRhythm.reduce((a, s) => a + accuracy(s.rhythmCorrect, s.rhythmWrong)!, 0) / withRhythm.length) : null;
-                                    const avgNotes = withNotes.length ? Math.round(withNotes.reduce((a, s) => a + accuracy(s.notesCorrect, s.notesWrong)!, 0) / withNotes.length) : null;
-                                    const avgMelody = withMelody.length ? Math.round(withMelody.reduce((a, s) => a + accuracy(s.melodyCorrect, s.melodyWrong)!, 0) / withMelody.length) : null;
-                                    const totalDrumSec = cls.students.reduce((a, s) => a + s.drumTimeSeconds, 0);
-                                    return (
-                                      <div className="mb-2 p-2.5 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-blue-100 space-y-1.5">
-                                        <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wide mb-1.5">Sınıf Başarı Özeti</p>
-                                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                                          <div>
-                                            <p className="text-xs text-muted-foreground font-semibold mb-0.5">🎵 Ritim Yakalama</p>
-                                            <AccBar pct={avgRhythm} color="bg-orange-400" />
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground font-semibold mb-0.5">🔍 Nota Dedektifi</p>
-                                            <AccBar pct={avgNotes} color="bg-purple-400" />
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground font-semibold mb-0.5">🥁 Davul Süresi</p>
-                                            <span className="text-xs font-bold text-amber-700">{totalDrumSec > 0 ? `${Math.floor(totalDrumSec / 60)}d ${totalDrumSec % 60}s` : "—"}</span>
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground font-semibold mb-0.5">🎹 Melodi Tekrarı</p>
-                                            <AccBar pct={avgMelody} color="bg-pink-400" />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
-                                  <div className="overflow-x-auto rounded-lg border">
-                                    <table className="w-full text-xs">
-                                      <thead className="bg-slate-50">
-                                        <tr>
-                                          <th className="text-left p-2 font-bold">Öğrenci</th>
-                                          <th className="text-center p-2 font-bold">🎵 Ritim</th>
-                                          <th className="text-center p-2 font-bold">🔍 Nota</th>
-                                          <th className="text-center p-2 font-bold">🥁 Davul</th>
-                                          <th className="text-center p-2 font-bold">🎹 Melodi</th>
-                                          <th className="text-center p-2 font-bold">Süre</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {cls.students.map(s => (
-                                          <tr key={s.id} className="border-t hover:bg-slate-50" data-testid={`row-student-${s.id}`}>
-                                            <td className="p-2 font-semibold">{s.firstName} {s.lastName}</td>
-                                            <td className="p-2 text-center">
-                                              <div className="flex flex-col items-center gap-0.5">
-                                                <span className="font-bold text-orange-600">{accuracy(s.rhythmCorrect, s.rhythmWrong) !== null ? `${accuracy(s.rhythmCorrect, s.rhythmWrong)}%` : "—"}</span>
-                                                <span className="text-slate-400 text-[10px]">Sv.{s.rhythmLevel}</span>
-                                              </div>
-                                            </td>
-                                            <td className="p-2 text-center">
-                                              <div className="flex flex-col items-center gap-0.5">
-                                                <span className="font-bold text-purple-600">{accuracy(s.notesCorrect, s.notesWrong) !== null ? `${accuracy(s.notesCorrect, s.notesWrong)}%` : "—"}</span>
-                                                <span className="text-slate-400 text-[10px]">Sv.{s.notesLevel}</span>
-                                              </div>
-                                            </td>
-                                            <td className="p-2 text-center font-bold text-amber-600">
-                                              {s.drumTimeSeconds > 0 ? `${Math.floor(s.drumTimeSeconds / 60)}d` : "—"}
-                                            </td>
-                                            <td className="p-2 text-center">
-                                              <div className="flex flex-col items-center gap-0.5">
-                                                <span className="font-bold text-pink-600">{accuracy(s.melodyCorrect, s.melodyWrong) !== null ? `${accuracy(s.melodyCorrect, s.melodyWrong)}%` : "—"}</span>
-                                                <span className="text-yellow-500 flex justify-center">
-                                                  {Array.from({ length: Math.min(s.melodyStars, 5) }).map((_, i) => <Star key={i} className="w-2 h-2 fill-current" />)}
-                                                </span>
-                                              </div>
-                                            </td>
-                                            <td className="p-2 text-center text-muted-foreground">{Math.floor(s.totalTimeSeconds / 60)}d</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                  </>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
         </DialogContent>
