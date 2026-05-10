@@ -192,9 +192,11 @@ export default function AdminDashboard() {
       });
       return res.json();
     },
-    onSuccess: (resp) => {
-      queryClient.refetchQueries({ queryKey: ["/api/admin/institutions"] });
-      queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
+    onSuccess: (resp, { id }) => {
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
+        old ? old.map((inst) => inst.id === id ? { ...inst, ...resp } : inst) : old
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       setEditingInst(null);
       if (resp?.quotaReset) {
         toast({ title: "Kurum Güncellendi", description: "Lisans uzatıldı, kontenjan sıfırlandı." });
@@ -234,8 +236,7 @@ export default function AdminDashboard() {
       queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
         old ? [...old, newInst] : [newInst]
       );
-      queryClient.refetchQueries({ queryKey: ["/api/admin/institutions"] });
-      queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       setInstDialogOpen(false);
       instForm.reset();
       toast({ title: "Kurum oluşturuldu!" });
@@ -263,9 +264,11 @@ export default function AdminDashboard() {
       const res = await apiRequest("PATCH", `/api/admin/institutions/${id}`, { isActive });
       return res.json();
     },
-    onSuccess: (data) => {
-      queryClient.refetchQueries({ queryKey: ["/api/admin/institutions"] });
-      queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
+    onSuccess: (data, { id, isActive }) => {
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
+        old ? old.map((inst) => inst.id === id ? { ...inst, isActive } : inst) : old
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       if (data?.quotaReset) {
         toast({ title: "Abonelik Yenilendi", description: "Kontenjan sıfırlandı, tüm sınıf ve öğrenci verileri temizlendi." });
       } else {
@@ -299,11 +302,13 @@ export default function AdminDashboard() {
       const res = await apiRequest("DELETE", `/api/admin/institutions/${id}`, undefined);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.refetchQueries({ queryKey: ["/api/admin/institutions"] });
-      queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
-      queryClient.refetchQueries({ queryKey: ["/api/admin/classes"] });
-      queryClient.refetchQueries({ queryKey: ["/api/admin/teachers"] });
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
+        old ? old.filter((inst) => inst.id !== id) : old
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/teachers"] });
       toast({ title: "Kurum silindi!", description: "Tüm öğretmen, sınıf ve öğrenci verileri kaldırıldı." });
     },
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
