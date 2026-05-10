@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-// Type-only import — erased at build time, no runtime bundle cost
 import type { StemmableNote } from "vexflow";
 
 export interface NoteData {
@@ -19,16 +18,24 @@ interface VexFlowRendererProps {
 }
 
 /*
+ * Module-level VexFlow cache — imported once, reused forever.
+ * Eliminates the async-import race condition where a prop change
+ * (highlightIndex, noteKey, etc.) fires cleanup (cancelled=true)
+ * before the first import resolves, leaving the canvas blank.
+ */
+let _vfPromise: Promise<typeof import("vexflow")> | null = null;
+function loadVexFlow() {
+  if (!_vfPromise) _vfPromise = import("vexflow");
+  return _vfPromise;
+}
+
+/*
  * RHYTHM LINE RENDERER
- *
- * VexFlow is loaded via dynamic import() — only when this component actually
- * mounts. This keeps VexFlow (~1.1 MB) out of the initial bundle.
  *
  * Visual changes applied via post-render SVG manipulation:
  *   1. The 4 non-middle staff lines are hidden (display:none).
  *   2. The middle staff line (where B4 sits) is kept and styled purple+bold.
- *   3. A subtle glow circle is overlaid behind the active (highlighted) note,
- *      positioned using VexFlow's own getAbsoluteX() after formatting.
+ *   3. A subtle glow circle is overlaid behind the active (highlighted) note.
  *   4. staveY is computed so the B4 middle line sits at height/2 (vertical centre).
  */
 export function VexFlowRenderer({
@@ -48,8 +55,7 @@ export function VexFlowRenderer({
     let cancelled = false;
 
     (async () => {
-      // Dynamic import — VexFlow loaded only when this component mounts
-      const { Renderer, Stave, StaveNote, Voice, Formatter, Beam } = await import("vexflow");
+      const { Renderer, Stave, StaveNote, Voice, Formatter, Beam } = await loadVexFlow();
       if (cancelled || !containerRef.current) return;
 
       containerRef.current.innerHTML = "";
@@ -203,7 +209,7 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
     let cancelled = false;
 
     (async () => {
-      const { Renderer, Stave, StaveNote, Voice, Formatter } = await import("vexflow");
+      const { Renderer, Stave, StaveNote, Voice, Formatter } = await loadVexFlow();
       if (cancelled || !containerRef.current) return;
 
       containerRef.current.innerHTML = "";
@@ -214,7 +220,9 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
         const context = renderer.getContext();
         context.setFont("Arial", 10);
 
-        const stave = new Stave(10, 20, width - 20);
+        // Centre the staff vertically: middle B4 line at height/2
+        const staveY = Math.round(height / 2 - 20);
+        const stave = new Stave(10, staveY, width - 20);
         stave.addClef("treble");
         stave.setContext(context).draw();
 
@@ -246,7 +254,7 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
     <div style={{
       width: width * scale,
       height: height * scale,
-      overflow: "hidden",
+      overflow: "visible",
       position: "relative",
       flexShrink: 0,
     }}>

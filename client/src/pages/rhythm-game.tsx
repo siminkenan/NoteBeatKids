@@ -234,7 +234,10 @@ export default function RhythmGame() {
   const [badge, setBadge] = useState<Badge>(null);
   const [earnedBadge, setEarnedBadge] = useState<Badge>(null); // shown in completion screen
   const [levelStarsEarned, setLevelStarsEarned] = useState(0); // for levelup screen
-  const [vexW, setVexW] = useState(480);
+  const [vexW, setVexW] = useState(() => {
+    const w = window.innerWidth;
+    return w < 768 ? w - 48 : 480;
+  });
 
   useEffect(() => {
     function updateVexW() {
