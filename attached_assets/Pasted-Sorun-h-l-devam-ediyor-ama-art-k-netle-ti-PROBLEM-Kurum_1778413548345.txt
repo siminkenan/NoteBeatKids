@@ -1,0 +1,75 @@
+Sorun hâlâ devam ediyor ama artık netleşti.
+
+PROBLEM:
+Kurumlar DB’de data olarak kalıyor.
+Admin panelinde sadece 1 kurum kartı görünüyor.
+Görünen kurum kartını silince diğer kurum kartı ortaya çıkıyor.
+Yani backend/DB tarafında kurumlar var ama frontend admin paneli aynı anda tüm kurum kartlarını render etmiyor.
+
+Bu artık createInstitution veya localStorage problemi değil.
+Lütfen özellikle frontend render/filter/map tarafını kontrol et.
+
+Kontrol edilecek kritik noktalar:
+
+1. admin-dashboard.tsx içinde kurum kartlarının render edildiği bölümü bul.
+   - institutions.map(...) gerçekten tüm array üzerinde çalışıyor mu?
+   - Yanlışlıkla institutions[0], slice(0,1), find(...), filter(...)[0], selectedInstitution gibi tek kayıt gösteren yapı var mı?
+   - CSS/grid yapısı kartları üst üste bindiriyor olabilir mi?
+   - hidden, absolute, z-index, overflow-hidden, max-height gibi stil yüzünden sadece ilk kart görünüyor olabilir mi?
+
+2. Kurum listesi state/cache kontrolü:
+   - Backend’den gelen kurum sayısını console.log ile yazdır.
+   - Render edilen kurum sayısını ayrıca yazdır.
+   - Örnek:
+     console.log("DB/server institutions count:", institutions.length);
+     console.log("Rendered institution cards count:", displayedInstitutions.length);
+
+3. Filtreleme problemi:
+   - Admin panelde kurumlar isActive, status, selected, search, currentInstitution, institutionId gibi bir filtreyle tek kayda düşürülüyor olabilir.
+   - displayedInstitutions veya filteredInstitutions değişkeni varsa kontrol et.
+   - Eğer institutions array 5 kayıt ama displayedInstitutions 1 kayıt ise bu filtreyi düzelt.
+
+4. React key problemi:
+   - map içinde key olarak index kullanma.
+   - key mutlaka kurumun gerçek DB id’si olsun:
+     key={institution.id}
+   - Aynı id/name mapping hatası varsa React eski kartı yeniden kullanıyor olabilir.
+
+5. Accordion/card state problemi:
+   - Her kurum kartı aynı expanded/open state’i paylaşıyor olabilir.
+   - Sadece selectedInstitution gösteriliyorsa tüm kurumlar map edilerek gösterilmeli.
+   - Bir kurum silinince diğerinin görünmesi, ekranda tek slot/tek selected card mantığı olduğunu gösteriyor.
+
+6. CSS layout kontrolü:
+   - Kart container’ı grid veya flex olmalı.
+   - Örnek güvenli yapı:
+     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+       {institutions.map((institution) => (
+         <InstitutionCard key={institution.id} institution={institution} />
+       ))}
+     </div>
+   - Container’da overflow-hidden, fixed height, absolute position varsa kaldır veya düzelt.
+   - Kartlar üst üste biniyorsa position: absolute kullanılmasın.
+
+7. Backend response kontrolü:
+   - GET /api/admin/institutions response’unda gerçekten tüm kurumlar array olarak dönüyor mu?
+   - Response örneğini logla.
+   - Eğer response tüm kurumları dönüyor ama UI 1 tane gösteriyorsa sorun kesin frontend render tarafıdır.
+
+8. localStorage artık ana kaynak olmasın:
+   - localStorage’dan tek kurum geliyorsa bile server response geldikten sonra tüm liste ekrana basılmalı.
+   - localStorage placeholder gösterse bile server verisi geldikten sonra onu ezmeli.
+
+Beklenen sonuç:
+- DB’de kaç kurum varsa admin panelinde aynı anda o kadar kurum kartı görünmeli.
+- 5 kurum varsa 5 kart aynı anda görünmeli.
+- Bir kartı silince sadece o kart silinmeli, gizli olan başka kart ortaya çıkmamalı.
+- Refresh, logout/login ve gizli sekmede de tüm kurumlar görünmeli.
+
+Lütfen düzeltmeden sonra bana şunu raporla:
+- Server’dan kaç kurum geldi?
+- Frontend’de institutions array kaç kayıt içeriyor?
+- displayed/render edilen kart sayısı kaç?
+- Sorun map/filter mıydı, CSS mi, selectedInstitution mantığı mı?
+- Hangi dosyalar değişti?
+- Render canlı testinde tüm kurum kartları aynı anda görünüyor mu?
