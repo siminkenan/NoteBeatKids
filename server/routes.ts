@@ -587,11 +587,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     new Date(inst.licenseEnd) < new Date();
 
   app.get("/api/admin/institutions", async (req: Request, res: Response) => {
+    const authHeader = req.headers.authorization || "(none)";
+    const tokenPreview = authHeader.startsWith("Bearer ") ? authHeader.slice(7, 20) + "..." : "(no bearer)";
     const adminId = getAdminId(req);
+    console.log(`[GET /api/admin/institutions] token=${tokenPreview} adminId=${adminId ?? "null (401)"}`);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const page  = Math.max(1, Number(req.query.page)  || 0);
     const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 0));
     const list  = await storage.getInstitutions();
+    console.log(`[GET /api/admin/institutions] DB returned ${list.length} institutions:`, list.map(i => `${i.name}(${i.id.slice(0,8)})`).join(", ") || "(empty)");
     const mapped = list.map(inst => ({ ...inst, isExpired: isLicenseExpired(inst) }));
     // Pagination (opt-in: only when ?page= provided)
     if (page && limit) {
@@ -607,6 +611,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post("/api/admin/institutions", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
+    console.log(`[POST /api/admin/institutions] adminId=${adminId ?? "null (401)"} body.name="${req.body?.name}"`);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     try {
       const body = {
@@ -619,8 +624,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       };
       const parsed = insertInstitutionSchema.parse(body);
       const inst = await storage.createInstitution(parsed);
+      console.log(`[POST /api/admin/institutions] ✅ Kurum kaydedildi: id=${inst.id} name="${inst.name}"`);
       res.json({ ...inst, isExpired: isLicenseExpired(inst) });
     } catch (e: any) {
+      console.error(`[POST /api/admin/institutions] ❌ Hata:`, e.message);
       res.status(400).json({ message: e.message });
     }
   });

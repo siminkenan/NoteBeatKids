@@ -20,6 +20,29 @@ export function teacherAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * Route-based auth header selection.
+ * CRITICAL: Never mix admin + teacher tokens in the same header object —
+ * the last spread wins and overrides the first, causing 401 on the wrong role.
+ */
+function authHeadersForPath(path: string): Record<string, string> {
+  const isAdminPath =
+    path.startsWith("/api/admin") || path.startsWith("/api/auth/admin");
+  const isTeacherPath =
+    path.startsWith("/api/teacher") ||
+    path.startsWith("/api/auth/teacher") ||
+    path.startsWith("/api/student") ||
+    path.startsWith("/api/orchestra") ||
+    path.startsWith("/api/leaderboard");
+
+  if (isAdminPath) return adminAuthHeader();
+  if (isTeacherPath) return teacherAuthHeader();
+  // Fallback: admin first (teacher login page sits at /api/auth/teacher/*)
+  const admin = adminAuthHeader();
+  if (Object.keys(admin).length) return admin;
+  return teacherAuthHeader();
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -29,8 +52,7 @@ export async function apiRequest(
     method,
     headers: {
       ...(data ? { "Content-Type": "application/json" } : {}),
-      ...adminAuthHeader(),
-      ...teacherAuthHeader(),
+      ...authHeadersForPath(url),
     },
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
@@ -46,11 +68,14 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const path = queryKey.join("/"); // e.g. "/api/teacher/classes/123"
-    const url = API_URL ? `${API_URL}${path}` : path;
+    const path = queryKey[0] as string;
+    const rest = (queryKey as string[]).slice(1);
+    const fullPath = rest.length ? `${path}/${rest.join("/")}` : path;
+    const url = API_URL ? `${API_URL}${fullPath}` : fullPath;
+
     const res = await fetch(url, {
       credentials: "include",
-      headers: { ...adminAuthHeader(), ...teacherAuthHeader() },
+      headers: authHeadersForPath(fullPath),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

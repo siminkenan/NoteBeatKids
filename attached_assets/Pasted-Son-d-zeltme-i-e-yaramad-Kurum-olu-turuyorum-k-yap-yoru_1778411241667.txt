@@ -1,0 +1,60 @@
+Son düzeltme işe yaramadı. Kurum oluşturuyorum, çıkış yapıyorum, tekrar admin giriş yapıyorum ama admin panelinde kurum kartı görünmüyor.
+
+Bu kez sadece teacher code generation tarafına bakma. Asıl kontrol etmen gereken yerler:
+
+1. Kurum gerçekten Neon DB’de var mı?
+   - institutions / schools / organizations tablosunu kontrol et.
+   - Oluşturduğum kurumun kaydı DB’de duruyor mu?
+   - Eğer DB’de yoksa createInstitution INSERT işlemi başarısız veya rollback oluyor.
+
+2. Admin girişinden sonra kurum listesi hangi endpoint ile çekiliyor?
+   - GET /api/admin/institutions veya mevcut liste endpoint’ini bul.
+   - Bu endpoint gerçek DB’den kurumları dönüyor mu?
+   - Response boş array mi dönüyor?
+   - Yanlış adminId / institutionId / status / isActive filtresi yüzünden kurum gizleniyor mu?
+
+3. Frontend admin panelinde kurum listesi nereden geliyor?
+   - admin-dashboard.tsx içinde kurumları yükleyen query’yi bul.
+   - queryKey doğru mu?
+   - endpoint doğru mu?
+   - enabled şartı yüzünden query çalışmıyor mu?
+   - token/JWT header gönderiliyor mu?
+   - logout/login sonrası query invalidate/refetch yapılıyor mu?
+
+4. localStorage çözümünü ana kaynak yapma.
+   - DB her zaman ana kaynak olsun.
+   - localStorage varsa sadece ilk yükleme için geçici gösterim olsun.
+   - DB’den boş liste geliyorsa bunun sebebini logla.
+
+5. Backend’e debug log ekle:
+   - createInstitution sonrası: created institution id/name logla.
+   - getInstitutions endpointinde: kaç kurum bulundu logla.
+   - hangi SQL sorgusu çalışıyor logla.
+   - hangi user/admin ile çağrıldı logla.
+
+6. Frontend’e debug log ekle:
+   - admin panel açıldığında institutions fetch çalışıyor mu?
+   - gelen response nedir?
+   - token var mı?
+   - error var mı?
+   - logout sonrası cache temizleniyor mu?
+
+7. Olası kritik hata:
+   - Kurum create edilirken field adı farklı kaydediliyor olabilir.
+   - Listeleme endpoint’i sadece active=true olanları çekiyor olabilir ama create sırasında active/status set edilmiyor olabilir.
+   - createInstitution school/institution tablosuna yazıyor ama listeleme başka tablodan çekiyor olabilir.
+   - response mapping id/name alanlarını yanlış dönüyor olabilir.
+   - React Query cache logout sonrası boş listeyi tutuyor olabilir.
+
+Beklenen düzeltme:
+- Kurum oluşturulunca Neon DB’ye kesin kayıt olacak.
+- Admin girişinden sonra GET kurum listeleme endpoint’i aynı kurumu DB’den dönecek.
+- Frontend admin paneli bu DB sonucunu gösterecek.
+- Çıkış/giriş, refresh ve farklı tarayıcıda kurum kartı görünmeye devam edecek.
+- Öğretmen, sınıf ve öğrenci kodları bozulmayacak.
+
+Lütfen işlemin sonunda bana şunu raporla:
+- Kurum DB’de var mıydı?
+- Listeleme endpoint’i neden göstermiyordu?
+- Hangi dosyaları düzelttin?
+- Canlı Render testinde logout/login sonrası kart göründü mü?

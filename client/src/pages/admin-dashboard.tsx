@@ -143,12 +143,25 @@ export default function AdminDashboard() {
     retryDelay: 2000,
   });
 
-  const { data: serverInstitutions, isLoading: instLoading, isError: instError, refetch: refetchInstitutions } = useQuery<InstWithExpiry[]>({
+  const { data: serverInstitutions, isLoading: instLoading, isError: instError, error: instQueryError, refetch: refetchInstitutions } = useQuery<InstWithExpiry[]>({
     queryKey: ["/api/admin/institutions"],
     enabled: !!admin,
     retry: 3,
     retryDelay: 2000,
   });
+
+  // Debug: log institutions query status whenever it changes
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+    const teacherToken = localStorage.getItem("teacherToken");
+    console.log(`[AdminDashboard] institutions query — admin=${!!admin} adminToken=${token ? token.slice(0,12)+"..." : "null"} teacherToken=${teacherToken ? teacherToken.slice(0,12)+"..." : "null"}`);
+    if (serverInstitutions !== undefined) {
+      console.log(`[AdminDashboard] institutions from server: ${serverInstitutions.length} items`, serverInstitutions.map(i => i.name));
+    }
+    if (instQueryError) {
+      console.error(`[AdminDashboard] institutions query error:`, instQueryError);
+    }
+  }, [serverInstitutions, instQueryError, admin]);
 
   // When server returns data, sync to localStorage (source of truth)
   useEffect(() => {
@@ -158,7 +171,7 @@ export default function AdminDashboard() {
     }
   }, [serverInstitutions]);
 
-  // Merge: server data wins when available, localStorage is fallback
+  // Merge: server data wins when available, localStorage is fallback (shown while server loads)
   const institutions = serverInstitutions ?? localInstitutions;
 
   const { data: teachers } = useQuery<Teacher[]>({
