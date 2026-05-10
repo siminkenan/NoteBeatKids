@@ -112,7 +112,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (authLoading) return;
     if (!admin) {
-      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/admin/me`, { credentials: "include" })
+      const adminToken = localStorage.getItem("adminToken");
+      fetch(`${(import.meta.env.VITE_API_URL || "")}/api/auth/admin/me`, {
+        credentials: "include",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : {},
+      })
         .then(r => r.ok ? r.json() : null)
         .then(a => { if (a) setAdmin(a); else navigate("/admin/login"); });
     }
@@ -123,9 +127,11 @@ export default function AdminDashboard() {
     enabled: !!admin,
   });
 
-  const { data: institutions } = useQuery<InstWithExpiry[]>({
+  const { data: institutions, isLoading: instLoading, isError: instError, refetch: refetchInstitutions } = useQuery<InstWithExpiry[]>({
     queryKey: ["/api/admin/institutions"],
     enabled: !!admin,
+    retry: 3,
+    retryDelay: 2000,
   });
 
   const { data: teachers } = useQuery<Teacher[]>({
@@ -451,6 +457,22 @@ export default function AdminDashboard() {
               </Dialog>
             </div>
 
+            {instLoading && (
+              <div className="flex items-center justify-center py-12 text-muted-foreground font-semibold gap-2">
+                <span className="animate-spin">⏳</span> Kurumlar yükleniyor...
+              </div>
+            )}
+            {instError && !instLoading && (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <p className="text-red-500 font-bold">Kurumlar yüklenemedi.</p>
+                <button
+                  onClick={() => refetchInstitutions()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
+                >
+                  Tekrar Dene
+                </button>
+              </div>
+            )}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {institutions?.map((inst, i) => {
                 const active = isLicenseActive(inst);
