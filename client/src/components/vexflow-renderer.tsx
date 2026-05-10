@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { StemmableNote } from "vexflow";
 
 export interface NoteData {
@@ -27,6 +27,11 @@ let _vfPromise: Promise<typeof import("vexflow")> | null = null;
 function loadVexFlow() {
   if (!_vfPromise) _vfPromise = import("vexflow");
   return _vfPromise;
+}
+
+/** Call this early (e.g. on student home page) to warm the cache */
+export function preloadVexFlow() {
+  loadVexFlow();
 }
 
 /*
@@ -203,10 +208,12 @@ interface SingleNoteRendererProps {
 
 export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale = 1 }: SingleNoteRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
     let cancelled = false;
+    setVisible(false);
 
     (async () => {
       const { Renderer, Stave, StaveNote, Voice, Formatter } = await loadVexFlow();
@@ -236,6 +243,8 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
 
         new Formatter().joinVoices([voice]).format([voice], width - 80);
         voice.draw(context, stave);
+
+        if (!cancelled) setVisible(true);
       } catch (e) {
         console.error("VexFlow single note error:", e);
       }
@@ -245,7 +254,11 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
   }, [noteKey, width, height]);
 
   if (scale === 1) {
-    return <div ref={containerRef} style={{ width, minHeight: height }} />;
+    return (
+      <div style={{ width, minHeight: height, opacity: visible ? 1 : 0, transition: "opacity 0.15s" }}>
+        <div ref={containerRef} style={{ width, height }} />
+      </div>
+    );
   }
 
   return (
@@ -255,6 +268,8 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
       overflow: "hidden",
       position: "relative",
       flexShrink: 0,
+      opacity: visible ? 1 : 0,
+      transition: "opacity 0.15s",
     }}>
       <div
         ref={containerRef}

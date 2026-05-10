@@ -7,6 +7,7 @@ import ProtectedLogo from "@/components/protected-logo";
 import metronomeImgPath from "@assets/metronome-logo.png";
 import melodyLogoPath from "@assets/ChatGPT_Image_13_Mar_2026_23_21_37_1773433578533.png";
 import type { StudentProgress } from "@shared/schema";
+import { preloadVexFlow } from "@/components/vexflow-renderer";
 
 export default function StudentHome() {
   const [, navigate] = useLocation();
@@ -17,6 +18,10 @@ export default function StudentHome() {
       navigate("/student/login");
     }
   }, [student, studentLoading, navigate]);
+
+  // Preload VexFlow while student is on home screen so Note Detective
+  // and Rhythm Game render instantly without partial/flicker on first open
+  useEffect(() => { preloadVexFlow(); }, []);
 
   const { data: progress } = useQuery<StudentProgress[]>({
     queryKey: ["/api/student", student?.student.id, "progress"],
