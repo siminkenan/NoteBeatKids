@@ -1,0 +1,78 @@
+Mevcut sistemi bozma. Sadece admin panelindeki kurum kartlarının kalıcı görünmeme problemini düzelt.
+
+PROBLEM:
+Render canlı linkinden admin girişi yapıyorum.
+Admin panelinde yeni kurum kartı oluşturuyorum.
+Kurum oluşturuluyor gibi görünüyor.
+Aynı kurumun öğretmen kartları ve sınıf kartları duruyor.
+Fakat admin çıkış yapıp tekrar giriş yapınca ana kurum kartı admin panelinde görünmüyor.
+Daha önce bu problem yoktu.
+Büyük ihtimalle kurum kaydı Neon PostgreSQL’e tam yazılmıyor, yanlış kolonla kaydediliyor, yanlış endpoint’ten çekiliyor, cache eski kalıyor veya frontend state sadece önizlemede gösterip DB’den tekrar okuyunca kartı kaybediyor.
+
+İSTEDİĞİM:
+Önizlemede görünen kurum kartı kesinlikle canlı Render yayında da kalıcı olsun.
+Sadece frontend state’e eklenmiş geçici kart istemiyorum.
+Kurum kartı oluşturulduğunda Neon DB’ye doğru şekilde kaydedilsin.
+Çıkış yapıp tekrar admin girişi yapılınca kurum kartı DB’den tekrar çekilip görünmeye devam etsin.
+
+YAPILACAKLAR:
+1. Admin kurum oluşturma endpoint’ini kontrol et.
+   - POST /api/admin/institutions veya mevcut kurum oluşturma endpoint’i hangisiyse onu bul.
+   - Kurum oluşturulurken Neon PostgreSQL’e INSERT gerçekten yapılıyor mu kontrol et.
+   - INSERT sonrası oluşturulan kurumun id, name, created_at, status gibi gerekli alanları response içinde dönsün.
+
+2. Admin kurum listeleme endpoint’ini kontrol et.
+   - GET /api/admin/institutions veya mevcut liste endpoint’i hangisiyse onu bul.
+   - Admin panel açıldığında kurumlar mutlaka DB’den çekilsin.
+   - Sadece local state, mock data, memory cache veya preview state kullanılmasın.
+   - Silinmemiş/aktif tüm kurumlar listelensin.
+
+3. Frontend admin panelini kontrol et.
+   - Kurum oluşturulduktan sonra sadece state’e geçici kart ekleme yapma.
+   - Başarılı kayıt sonrası ya DB’den kurum listesini tekrar fetch et ya da backend’den dönen gerçek DB kaydını state’e ekle.
+   - Admin çıkış/giriş sonrası kurum listesi tekrar backend’den yüklensin.
+
+4. Neon şema ve alan adlarını kontrol et.
+   - institutions / schools / organizations tablosu hangisiyse kurum kartı onunla uyumlu olsun.
+   - Backend’in INSERT yaptığı kolonlar ile frontend’in beklediği alanlar aynı olsun.
+   - Örneğin frontend institution.name bekliyorsa backend school_name dönmesin; gerekiyorsa map et.
+   - ID alanı id / institutionId / schoolId karışıklığı varsa düzelt.
+
+5. Cache problemi varsa düzelt.
+   - Admin kurum listesi için eski cache kullanılıyorsa kurum oluşturulduktan sonra cache invalidate edilsin.
+   - Admin panelde kurum listesi her girişte güncel DB verisiyle gelsin.
+   - Öğretmen dashboard cache veya performans cache yapısını bozma.
+
+6. Öğretmen ve sınıf kartlarını bozma.
+   - Mevcut öğretmen kodları, sınıf kartları, öğrenci kodları aynen korunacak.
+   - Sadece ana kurum kartının kalıcı görünme problemi düzeltilecek.
+
+7. Güvenlik ve mevcut sistemi bozma.
+   - Admin login, JWT, trusted device, teacher/student login akışlarına dokunma.
+   - Var olan endpoint isimlerini gereksiz değiştirme.
+   - Büyük refactor yapma.
+   - Sadece gerekli minimal düzeltmeleri yap.
+
+8. Test ekle veya manuel test çıktısı ver:
+   - Admin login ol.
+   - Yeni kurum oluştur.
+   - Response’ta gerçek DB id geliyor mu kontrol et.
+   - Admin panel kurum listesinde kurum görünüyor mu kontrol et.
+   - Çıkış yap.
+   - Tekrar admin girişi yap.
+   - Aynı kurum kartı hâlâ görünüyor mu kontrol et.
+   - Render canlı ortamında Neon DB’den geldiğini doğrula.
+
+BEKLENEN SONUÇ:
+Admin panelinde oluşturulan kurum kartı geçici preview kartı gibi davranmayacak.
+Kurum kartı Neon PostgreSQL’e kalıcı kaydedilecek.
+Admin çıkış yapıp tekrar giriş yaptığında kurum kartı görünmeye devam edecek.
+Öğretmen ve sınıf kartlarıyla ilişkisi bozulmayacak.
+Canlı Render linkinde çalışan sistemde kalıcı olarak düzelecek.
+
+İşlem sonunda bana:
+- Hangi dosyalarda değişiklik yaptığını
+- Hangi endpointleri düzelttiğini
+- Kurum kartının artık Neon DB’den geldiğini nasıl doğruladığını
+- GitHub’a push için commit mesajını
+Türkçe olarak raporla.

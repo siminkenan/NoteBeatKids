@@ -233,7 +233,11 @@ export class DatabaseStorage implements IStorage {
     const inst = result[0];
     // Generate individual teacher codes up to maxTeachers (capped at 500 for sanity)
     const count = Math.min(inst.maxTeachers, 500);
-    await this.generateTeacherCodesForInstitution(inst.id, count, 1);
+    // Fire teacher code generation in background — do NOT await so the HTTP response
+    // returns immediately (prevents Render 30-second timeout on large counts).
+    this.generateTeacherCodesForInstitution(inst.id, count, 1).catch((err) => {
+      console.error("[createInstitution] teacher code generation failed:", err);
+    });
     return inst;
   }
 
@@ -243,14 +247,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async generateTeacherCodesForInstitution(institutionId: string, count: number, startSlot = 1): Promise<TeacherCode[]> {
+    if (count === 0) return [];
+    // Fetch all existing codes in ONE query (instead of 500 individual SELECTs)
+    const existing = await db.select({ code: teacherCodes.code }).from(teacherCodes);
+    const existingSet = new Set(existing.map((r) => r.code));
+
+    // Generate unique codes in memory — 32^8 ≈ 1 trillion possibilities, collision rate negligible
     const rows = [];
+    const used = new Set<string>(existingSet);
     for (let i = 0; i < count; i++) {
-      const code = await this.uniqueTeacherCode();
+      let code = this.generateCode(8);
+      let safety = 0;
+      while (used.has(code) && safety < 100) { code = this.generateCode(8); safety++; }
+      used.add(code);
       rows.push({ institutionId, code, slotNumber: startSlot + i });
     }
-    if (rows.length === 0) return [];
-    const result = await db.insert(teacherCodes).values(rows).returning();
-    return result;
+
+    // One batch INSERT instead of N individual inserts
+    const insertResult = await db.insert(teacherCodes).values(rows).returning();
+    return insertResult;
   }
 
   async getTeacherCodesByInstitution(institutionId: string): Promise<Array<TeacherCode & { teacherName: string | null }>> {
