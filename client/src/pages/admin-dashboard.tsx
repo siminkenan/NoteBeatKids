@@ -126,8 +126,6 @@ export default function AdminDashboard() {
   const { data: institutions } = useQuery<InstWithExpiry[]>({
     queryKey: ["/api/admin/institutions"],
     enabled: !!admin,
-    staleTime: 0,
-    refetchOnMount: true,
   });
 
   const { data: teachers } = useQuery<Teacher[]>({
