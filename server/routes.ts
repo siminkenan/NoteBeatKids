@@ -592,13 +592,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const adminId = getAdminId(req);
     console.log(`[GET /api/admin/institutions] token=${tokenPreview} adminId=${adminId ?? "null (401)"}`);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const page  = Math.max(1, Number(req.query.page)  || 0);
-    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 0));
     const list  = await storage.getInstitutions();
     console.log(`[GET /api/admin/institutions] DB returned ${list.length} institutions:`, list.map(i => `${i.name}(${i.id.slice(0,8)})`).join(", ") || "(empty)");
     const mapped = list.map(inst => ({ ...inst, isExpired: isLicenseExpired(inst) }));
-    // Pagination (opt-in: only when ?page= provided)
-    if (page && limit) {
+    // Pagination: ONLY when both ?page= AND ?limit= are explicitly provided as valid numbers
+    const pageParam  = req.query.page  !== undefined ? Number(req.query.page)  : NaN;
+    const limitParam = req.query.limit !== undefined ? Number(req.query.limit) : NaN;
+    if (!isNaN(pageParam) && !isNaN(limitParam) && pageParam > 0 && limitParam > 0) {
+      const page  = Math.max(1, pageParam);
+      const limit = Math.min(500, limitParam);
       const start = (page - 1) * limit;
       const slice = mapped.slice(start, start + limit);
       res.setHeader("X-Total-Count", String(mapped.length));
