@@ -98,6 +98,15 @@ function formatTime(seconds: number) {
   return `${h}s ${m}d`;
 }
 
+const INST_LS_KEY = "notebeat_admin_institutions_v1";
+
+function lsGetInstitutions(): InstWithExpiry[] {
+  try { return JSON.parse(localStorage.getItem(INST_LS_KEY) || "[]"); } catch { return []; }
+}
+function lsSetInstitutions(list: InstWithExpiry[]) {
+  try { localStorage.setItem(INST_LS_KEY, JSON.stringify(list)); } catch {}
+}
+
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
   const { admin, setAdmin, logoutAdmin, authLoading } = useAuth();
@@ -108,6 +117,9 @@ export default function AdminDashboard() {
   const [selectedInstId, setSelectedInstId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingInst, setEditingInst] = useState<InstWithExpiry | null>(null);
+
+  // localStorage-backed institutions — visible immediately even when server is sleeping
+  const [localInstitutions, setLocalInstitutions] = useState<InstWithExpiry[]>(lsGetInstitutions);
 
   useEffect(() => {
     if (authLoading) return;
@@ -131,12 +143,23 @@ export default function AdminDashboard() {
     retryDelay: 2000,
   });
 
-  const { data: institutions, isLoading: instLoading, isError: instError, refetch: refetchInstitutions } = useQuery<InstWithExpiry[]>({
+  const { data: serverInstitutions, isLoading: instLoading, isError: instError, refetch: refetchInstitutions } = useQuery<InstWithExpiry[]>({
     queryKey: ["/api/admin/institutions"],
     enabled: !!admin,
     retry: 3,
     retryDelay: 2000,
   });
+
+  // When server returns data, sync to localStorage (source of truth)
+  useEffect(() => {
+    if (serverInstitutions) {
+      setLocalInstitutions(serverInstitutions);
+      lsSetInstitutions(serverInstitutions);
+    }
+  }, [serverInstitutions]);
+
+  // Merge: server data wins when available, localStorage is fallback
+  const institutions = serverInstitutions ?? localInstitutions;
 
   const { data: teachers } = useQuery<Teacher[]>({
     queryKey: ["/api/admin/teachers"],
@@ -201,9 +224,10 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: (resp, { id }) => {
-      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
-        old ? old.map((inst) => inst.id === id ? { ...inst, ...resp } : inst) : old
-      );
+      const updated = lsGetInstitutions().map((inst) => inst.id === id ? { ...inst, ...resp } : inst);
+      lsSetInstitutions(updated);
+      setLocalInstitutions(updated);
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], updated);
       queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
       setEditingInst(null);
       if (resp?.quotaReset) {
@@ -241,9 +265,10 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: (newInst) => {
-      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
-        old ? [...old, newInst] : [newInst]
-      );
+      const updated = [...lsGetInstitutions(), newInst];
+      lsSetInstitutions(updated);
+      setLocalInstitutions(updated);
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], updated);
       queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
       setInstDialogOpen(false);
       instForm.reset();
@@ -273,9 +298,10 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: (data, { id, isActive }) => {
-      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
-        old ? old.map((inst) => inst.id === id ? { ...inst, isActive } : inst) : old
-      );
+      const updated = lsGetInstitutions().map((inst) => inst.id === id ? { ...inst, isActive } : inst);
+      lsSetInstitutions(updated);
+      setLocalInstitutions(updated);
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], updated);
       queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
       if (data?.quotaReset) {
         toast({ title: "Abonelik Yenilendi", description: "Kontenjan sıfırlandı, tüm sınıf ve öğrenci verileri temizlendi." });
@@ -312,9 +338,10 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: (_, id) => {
-      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
-        old ? old.filter((inst) => inst.id !== id) : old
-      );
+      const updated = lsGetInstitutions().filter((inst) => inst.id !== id);
+      lsSetInstitutions(updated);
+      setLocalInstitutions(updated);
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], updated);
       queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
       queryClient.refetchQueries({ queryKey: ["/api/admin/classes"] });
       queryClient.refetchQueries({ queryKey: ["/api/admin/teachers"] });
