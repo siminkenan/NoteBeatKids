@@ -1,0 +1,80 @@
+Admin panelinde yeni bir problem var.
+
+PROBLEM:
+Render canlı sitede admin giriş/çıkış yaptıkça oluşturduğum kurum kartları tek tek çıkıyor.
+Yani tüm kurum kartları aynı anda listelenmiyor.
+Bazen bir girişte bir kurum, başka girişte başka kurum görünüyor.
+Ben admin panelinde oluşturduğum bütün kurum kartlarını aynı anda görmek istiyorum.
+
+LÜTFEN MEVCUT SİSTEMİ BOZMADAN SADECE BU SORUNU DÜZELT.
+
+Kontrol edilecek yerler:
+
+1. Backend GET /api/admin/institutions endpoint’i
+- Tüm kurumları Neon PostgreSQL’den çekiyor mu?
+- Yanlışlıkla LIMIT 1, findFirst, getInstitutionById, tek kayıt döndürme veya random/eski cache kullanımı var mı?
+- Query mutlaka tüm aktif kurumları dönmeli.
+- Örnek:
+  SELECT * FROM institutions ORDER BY created_at DESC;
+- Eğer active/status filtresi varsa oluşturulan tüm kurumlarda bu alan doğru set ediliyor mu?
+
+2. Frontend admin-dashboard kurum listeleme
+- Gelen kurum listesi array olarak işleniyor mu?
+- State güncellenirken eski liste silinip sadece son gelen tek kurum yazılıyor olabilir.
+- setInstitutions([newInstitution]) gibi tek kayıtla ezme varsa düzelt.
+- Kurum oluşturulduktan sonra:
+  - Ya queryClient.invalidateQueries(["admin-institutions"])
+  - Ya da eski liste korunarak yeni kurum eklenmeli.
+- Çıkış/giriş sonrası mutlaka server’dan tüm liste tekrar çekilmeli.
+
+3. React Query cache problemi
+- queryKey sabit ve doğru olsun:
+  ["admin-institutions"]
+- Logout/login sonrası eski boş/tekli cache kalmasın.
+- Admin login başarılı olunca institutions query refetch edilsin.
+- Kurum oluşturma, silme, güncelleme sonrası institutions query invalidate edilsin.
+
+4. localStorage problemi
+- localStorage ana kaynak olmasın.
+- localStorage’da tek kurum varsa DB’den gelen tüm listeyi ezmesin.
+- DB’den gelen liste her zaman ana kaynak kabul edilsin.
+- Server’dan 5 kurum geldiyse localStorage da 5 kurumla güncellensin.
+- localStorage merge yapılacaksa id bazlı merge yapılsın, tek kayıtla komple liste bozulmasın.
+
+5. Mapping problemi
+- Backend response şu formatta net array dönmeli:
+  {
+    "institutions": [
+      { "id": "...", "name": "...", "createdAt": "...", "isActive": true }
+    ]
+  }
+  veya frontend mevcut format neyse ona göre tüm array’i okumalı.
+- Frontend tek institution objesi bekliyorsa düzelt.
+- response.data mı, response.institutions mı, direkt array mi kontrol et.
+
+6. Debug log ekle
+Backend log:
+- GET /api/admin/institutions çağrıldı
+- DB’den kaç kurum geldi
+- kurum isimleri/id’leri listelendi
+
+Frontend console log:
+- Server’dan gelen kurum sayısı
+- Ekrana basılan kurum sayısı
+- localStorage kurum sayısı
+- query cache kurum sayısı
+
+7. Beklenen sonuç
+- Admin panel açıldığında bütün kurum kartları aynı anda görünmeli.
+- Giriş/çıkış yapınca kurumlar tek tek değil, topluca görünmeli.
+- Refresh yapınca da tüm kurumlar görünmeli.
+- Farklı tarayıcı/gizli sekmede admin giriş yapınca yine tüm kurumlar DB’den görünmeli.
+- Öğretmen, sınıf, öğrenci kodları ve mevcut login sistemi bozulmamalı.
+
+İşlem sonunda bana Türkçe rapor ver:
+- Sorunun kökü neydi?
+- Backend mi frontend mi localStorage/cache mi?
+- Hangi dosyalar değişti?
+- DB’den kaç kurum geldi?
+- Ekranda kaç kurum gösterildi?
+- Render canlı testinde tüm kurumlar aynı anda görünüyor mu?

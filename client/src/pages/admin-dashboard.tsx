@@ -100,10 +100,12 @@ function formatTime(seconds: number) {
 
 const INST_LS_KEY = "notebeat_admin_institutions_v1";
 
+// localStorage is a DISPLAY PLACEHOLDER only — server is always authoritative.
+// Never read from localStorage inside mutations. Only write when server responds.
 function lsGetInstitutions(): InstWithExpiry[] {
   try { return JSON.parse(localStorage.getItem(INST_LS_KEY) || "[]"); } catch { return []; }
 }
-function lsSetInstitutions(list: InstWithExpiry[]) {
+function lsSaveInstitutions(list: InstWithExpiry[]) {
   try { localStorage.setItem(INST_LS_KEY, JSON.stringify(list)); } catch {}
 }
 
@@ -118,8 +120,8 @@ export default function AdminDashboard() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingInst, setEditingInst] = useState<InstWithExpiry | null>(null);
 
-  // localStorage-backed institutions — visible immediately even when server is sleeping
-  const [localInstitutions, setLocalInstitutions] = useState<InstWithExpiry[]>(lsGetInstitutions);
+  // Snapshot from localStorage shown ONLY while server is loading (display placeholder)
+  const [localInstitutions] = useState<InstWithExpiry[]>(lsGetInstitutions);
 
   useEffect(() => {
     if (authLoading) return;
@@ -143,35 +145,45 @@ export default function AdminDashboard() {
     retryDelay: 2000,
   });
 
-  const { data: serverInstitutions, isLoading: instLoading, isError: instError, error: instQueryError, refetch: refetchInstitutions } = useQuery<InstWithExpiry[]>({
+  const {
+    data: serverInstitutions,
+    isLoading: instLoading,
+    isError: instError,
+    error: instQueryError,
+    refetch: refetchInstitutions,
+    isFetching: instFetching,
+  } = useQuery<InstWithExpiry[]>({
     queryKey: ["/api/admin/institutions"],
     enabled: !!admin,
-    retry: 3,
-    retryDelay: 2000,
+    refetchOnMount: true,
+    staleTime: 0,
+    // Exponential backoff — gives Render ~60s cold-start time:
+    // 3s, 6s, 9s, 12s, 15s, 18s, 21s, 24s (total ~108s across 8 retries)
+    retry: 8,
+    retryDelay: (attempt) => Math.min(3000 * (attempt + 1), 30000),
   });
 
-  // Debug: log institutions query status whenever it changes
+  // Debug: log institutions query results
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
+    const adminToken = localStorage.getItem("adminToken");
     const teacherToken = localStorage.getItem("teacherToken");
-    console.log(`[AdminDashboard] institutions query — admin=${!!admin} adminToken=${token ? token.slice(0,12)+"..." : "null"} teacherToken=${teacherToken ? teacherToken.slice(0,12)+"..." : "null"}`);
     if (serverInstitutions !== undefined) {
-      console.log(`[AdminDashboard] institutions from server: ${serverInstitutions.length} items`, serverInstitutions.map(i => i.name));
+      console.log(`[AdminDashboard] Server returned ${serverInstitutions.length} institution(s):`, serverInstitutions.map(i => i.name));
+      console.log(`[AdminDashboard] adminToken=${adminToken ? adminToken.slice(0,12)+"..." : "null"} teacherToken=${teacherToken ? "present (may conflict!)" : "null"}`);
     }
     if (instQueryError) {
-      console.error(`[AdminDashboard] institutions query error:`, instQueryError);
+      console.error(`[AdminDashboard] institutions fetch error:`, instQueryError);
     }
-  }, [serverInstitutions, instQueryError, admin]);
+  }, [serverInstitutions, instQueryError]);
 
-  // When server returns data, sync to localStorage (source of truth)
+  // When server responds, save to localStorage (read-only from mutations perspective)
   useEffect(() => {
     if (serverInstitutions) {
-      setLocalInstitutions(serverInstitutions);
-      lsSetInstitutions(serverInstitutions);
+      lsSaveInstitutions(serverInstitutions);
     }
   }, [serverInstitutions]);
 
-  // Merge: server data wins when available, localStorage is fallback (shown while server loads)
+  // Server is ALWAYS primary. localStorage placeholder shown only while server is loading.
   const institutions = serverInstitutions ?? localInstitutions;
 
   const { data: teachers } = useQuery<Teacher[]>({
@@ -237,10 +249,9 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: (resp, { id }) => {
-      const updated = lsGetInstitutions().map((inst) => inst.id === id ? { ...inst, ...resp } : inst);
-      lsSetInstitutions(updated);
-      setLocalInstitutions(updated);
-      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], updated);
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
+        old ? old.map((inst) => inst.id === id ? { ...inst, ...resp } : inst) : old
+      );
       queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
       setEditingInst(null);
       if (resp?.quotaReset) {
@@ -248,6 +259,7 @@ export default function AdminDashboard() {
       } else {
         toast({ title: "Kurum güncellendi!" });
       }
+      setTimeout(() => refetchInstitutions(), 1500);
     },
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
@@ -278,14 +290,16 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: (newInst) => {
-      const updated = [...lsGetInstitutions(), newInst];
-      lsSetInstitutions(updated);
-      setLocalInstitutions(updated);
-      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], updated);
+      // Instant UI update — add new institution to current list
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
+        old ? [...old, newInst] : [newInst]
+      );
       queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
       setInstDialogOpen(false);
       instForm.reset();
       toast({ title: "Kurum oluşturuldu!" });
+      // Background sync with server after 1.5s (server already committed the record)
+      setTimeout(() => refetchInstitutions(), 1500);
     },
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
@@ -311,10 +325,9 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: (data, { id, isActive }) => {
-      const updated = lsGetInstitutions().map((inst) => inst.id === id ? { ...inst, isActive } : inst);
-      lsSetInstitutions(updated);
-      setLocalInstitutions(updated);
-      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], updated);
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
+        old ? old.map((inst) => inst.id === id ? { ...inst, isActive } : inst) : old
+      );
       queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
       if (data?.quotaReset) {
         toast({ title: "Abonelik Yenilendi", description: "Kontenjan sıfırlandı, tüm sınıf ve öğrenci verileri temizlendi." });
@@ -351,14 +364,14 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: (_, id) => {
-      const updated = lsGetInstitutions().filter((inst) => inst.id !== id);
-      lsSetInstitutions(updated);
-      setLocalInstitutions(updated);
-      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], updated);
+      queryClient.setQueryData<InstWithExpiry[]>(["/api/admin/institutions"], (old) =>
+        old ? old.filter((inst) => inst.id !== id) : old
+      );
       queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
       queryClient.refetchQueries({ queryKey: ["/api/admin/classes"] });
       queryClient.refetchQueries({ queryKey: ["/api/admin/teachers"] });
       toast({ title: "Kurum silindi!", description: "Tüm öğretmen, sınıf ve öğrenci verileri kaldırıldı." });
+      setTimeout(() => refetchInstitutions(), 1500);
     },
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
   });
