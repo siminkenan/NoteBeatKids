@@ -281,8 +281,7 @@ export default function AdminDashboard() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.refetchQueries({ queryKey: ["/api/admin/institutions"] });
-      queryClient.refetchQueries({ queryKey: ["/api/admin/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({ title: "Kontenjan Sıfırlandı", description: "Tüm sınıf ve öğrenci verileri temizlendi." });
     },
     onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
@@ -293,7 +292,9 @@ export default function AdminDashboard() {
     title: string;
     description: string;
     onConfirm: () => void;
+    requireTyped?: boolean;
   }>({ open: false, title: "", description: "", onConfirm: () => {} });
+  const [confirmTyped, setConfirmTyped] = useState("");
 
   const deleteInstitution = useMutation({
     mutationFn: async (id: string) => {
@@ -573,11 +574,13 @@ export default function AdminDashboard() {
                             size="sm"
                             className="rounded-xl font-bold gap-1.5 text-red-500 hover:bg-red-50"
                             onClick={() => {
+                              setConfirmTyped("");
                               setConfirmDialog({
                                 open: true,
                                 title: "Kurumu Sil",
                                 description: `"${inst.name}" kurumu ve bağlı tüm öğretmen, sınıf ve öğrenciler kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
                                 onConfirm: () => deleteInstitution.mutate(inst.id),
+                                requireTyped: true,
                               });
                             }}
                             disabled={deleteInstitution.isPending}
@@ -1019,7 +1022,10 @@ export default function AdminDashboard() {
 
       <AlertDialog
         open={confirmDialog.open}
-        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}
+        onOpenChange={(open) => {
+          setConfirmDialog((prev) => ({ ...prev, open }));
+          if (!open) setConfirmTyped("");
+        }}
       >
         <AlertDialogContent className="rounded-2xl max-w-sm">
           <AlertDialogHeader>
@@ -1030,19 +1036,36 @@ export default function AdminDashboard() {
               {confirmDialog.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmDialog.requireTyped && (
+            <div className="px-1 pb-1">
+              <p className="text-xs font-bold text-red-600 mb-1.5">Onaylamak için aşağıya <span className="font-black">SİL</span> yazın:</p>
+              <input
+                className="w-full border-2 border-red-300 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-red-500"
+                placeholder="SİL"
+                value={confirmTyped}
+                onChange={(e) => setConfirmTyped(e.target.value)}
+                data-testid="input-confirm-delete-text"
+                autoFocus
+              />
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel
               className="rounded-xl"
               data-testid="button-confirm-cancel"
+              onClick={() => setConfirmTyped("")}
             >
               Vazgeç
             </AlertDialogCancel>
             <AlertDialogAction
-              className="rounded-xl bg-red-600 hover:bg-red-700 text-white"
+              className="rounded-xl bg-red-600 hover:bg-red-700 text-white disabled:opacity-40 disabled:cursor-not-allowed"
               data-testid="button-confirm-delete"
+              disabled={confirmDialog.requireTyped ? confirmTyped.trim().toUpperCase() !== "SİL" : false}
               onClick={() => {
+                if (confirmDialog.requireTyped && confirmTyped.trim().toUpperCase() !== "SİL") return;
                 confirmDialog.onConfirm();
                 setConfirmDialog((prev) => ({ ...prev, open: false }));
+                setConfirmTyped("");
               }}
             >
               Evet, Sil
