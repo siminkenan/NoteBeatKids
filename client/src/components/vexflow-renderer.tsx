@@ -220,9 +220,7 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
         const context = renderer.getContext();
         context.setFont("Arial", 10);
 
-        // Centre the staff vertically: middle B4 line at height/2
-        const staveY = Math.round(height / 2 - 20);
-        const stave = new Stave(10, staveY, width - 20);
+        const stave = new Stave(10, 20, width - 20);
         stave.addClef("treble");
         stave.setContext(context).draw();
 
@@ -254,7 +252,7 @@ export function SingleNoteRenderer({ noteKey, width = 280, height = 160, scale =
     <div style={{
       width: width * scale,
       height: height * scale,
-      overflow: "visible",
+      overflow: "hidden",
       position: "relative",
       flexShrink: 0,
     }}>
