@@ -114,6 +114,24 @@ export default function NoteDetective() {
     wrong: number;
   } | null>(null);
 
+  // Responsive scale: fits the note card on any screen size
+  const [noteScale, setNoteScale] = useState(() => {
+    const w = window.innerWidth;
+    if (w < 400) return 1.1;
+    if (w < 480) return 1.3;
+    return 1.5;
+  });
+  useEffect(() => {
+    function onResize() {
+      const w = window.innerWidth;
+      if (w < 400) setNoteScale(1.1);
+      else if (w < 480) setNoteScale(1.3);
+      else setNoteScale(1.5);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   const sessionStartRef = useRef(Date.now());
   const audioCtxRef = useRef<AudioContext | null>(null);
   const progressLoadedRef = useRef(false);
@@ -500,7 +518,7 @@ export default function NoteDetective() {
                 noteKey={currentNote.vexKey}
                 width={220}
                 height={130}
-                scale={1.5}
+                scale={noteScale}
               />
             )}
           </div>
