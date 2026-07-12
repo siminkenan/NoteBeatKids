@@ -1,0 +1,89 @@
+Production'da Render deployundan sonra yeni bir problem oluştu.
+
+ÖNEMLİ KURALLAR
+
+* Mevcut çalışan sistemi bozma.
+* Endpoint isimlerini değiştirme.
+* Frontend'i kırma.
+* Authentication sistemini değiştirme.
+* Redis'i değiştirme.
+* PostgreSQL (Neon) yapısını değiştirme.
+* Socket.io yapısını değiştirme.
+* Leaderboard'u değiştirme.
+* Soft Delete sistemini bozma.
+* Audit Log sistemini bozma.
+* GitHub'a otomatik commit veya push yapma.
+
+## Problem
+
+Admin panelinde artık kurum silme işlemi çalışmıyor.
+
+Deploy öncesinde çalışıyordu.
+
+Soft Delete ve Audit Log güncellemesinden sonra oluştu.
+
+## Görev
+
+Kod tabanını incele.
+
+Sadece kurum silme işlemini analiz et.
+
+Aşağıdaki noktaları tek tek kontrol et.
+
+1. Frontend gerçekten doğru endpoint'i çağırıyor mu?
+
+2. DELETE /api/admin/institutions/:id endpoint'i çalışıyor mu?
+
+3. Route'a istek geliyor mu?
+
+4. Storage katmanında deleteInstitution() çalışıyor mu?
+
+5. PostgreSQL herhangi bir foreign key hatası veriyor mu?
+
+6. Transaction rollback oluyor mu?
+
+7. Audit Log eklenirken exception oluşuyor mu?
+
+8. Soft Delete değişiklikleri Institution silmeyi yanlışlıkla etkiledi mi?
+
+9. deleteClass() değişikliği institution silme zincirini bozdu mu?
+
+10. Render loglarında bu endpoint hata üretiyor mu?
+
+## Düzeltme Kuralları
+
+Sorunun kaynağını bul.
+
+Sadece gerekli satırları değiştir.
+
+Refactor yapma.
+
+Yeni mimari oluşturma.
+
+Çalışan modüllere dokunma.
+
+Sadece kurum silme işlemini eski çalışır hâline getir.
+
+Eğer PostgreSQL foreign key nedeniyle silinemiyorsa, güvenli şekilde gerekli bağımlılıkları sırayla temizle veya mevcut soft delete mimarisine uygun çözüm uygula.
+
+Hiçbir mevcut veriyi yanlışlıkla silme.
+
+Hiçbir endpoint'i bozma.
+
+## Sonunda
+
+Bana sadece şunları raporla:
+
+* Sorunun gerçek nedeni.
+* Değiştirilen dosyalar.
+* Değiştirilen fonksiyonlar.
+* Neden bozulduğu.
+* Neden artık düzeldi.
+
+Build al.
+
+TypeScript kontrolü yap.
+
+Server tarafında hata olmadığını doğrula.
+
+GitHub'a kesinlikle push yapma. Önce rapor ver.
