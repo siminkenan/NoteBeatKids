@@ -1,0 +1,317 @@
+# GÖREV: NoteBeat Kids Veri Güvenliği Güncellemesi (Production Safe)
+
+Bu görev Production sistem üzerinde uygulanacaktır.
+
+⚠️ En önemli kural:
+
+* Mevcut çalışan sistemi bozma.
+* API endpoint isimlerini değiştirme.
+* Frontend'i kırma.
+* Authentication yapısını değiştirme.
+* Redis entegrasyonunu bozma.
+* PostgreSQL (Neon) bağlantısını değiştirme.
+* Render deployment yapısını değiştirme.
+* Socket.io yapısını değiştirme.
+* Çalışan leaderboard sistemini değiştirme.
+* Mevcut kullanıcıların hiçbir verisini kaybetme.
+* Bu çalışma tamamen mevcut sisteme güvenlik katmanı eklemek içindir.
+
+Kod tabanını incele ve aşağıdaki geliştirmeleri mevcut mimariyi koruyarak uygula.
+
+---
+
+# 1) deleteClass() işlemini Hard Delete yerine Soft Delete yap
+
+Mevcut yapı:
+
+storage.deleteClass()
+
+şu anda;
+
+* classes
+* students
+* studentCodes
+* progress
+* monthlyStats
+* monthlyWinners
+* vb.
+
+verileri fiziksel olarak siliyor.
+
+Bunun yerine:
+
+classes tablosuna
+
+deleted_at TIMESTAMP NULL
+
+alanı ekle.
+
+Silme işleminde:
+
+UPDATE classes
+SET deleted_at = NOW()
+
+uygula.
+
+Hiçbir öğrenci verisini fiziksel olarak silme.
+
+Hiçbir puan kaydını silme.
+
+Hiçbir progress kaydını silme.
+
+Veriler sadece pasif hale gelsin.
+
+---
+
+# 2) Tüm sorguları güncelle
+
+Normal çalışan sistem bozulmadan
+
+WHERE deleted_at IS NULL
+
+filtresini gerekli tüm Class sorgularına ekle.
+
+Örneğin:
+
+getClassesByTeacher()
+
+getClass()
+
+Teacher Dashboard
+
+Leaderboards
+
+Student Login
+
+Student Codes
+
+Admin Panel
+
+yalnızca aktif sınıfları görsün.
+
+---
+
+# 3) Çöp Kutusu Sistemi
+
+Silinen sınıflar geri alınabilir olsun.
+
+Admin paneline
+
+Deleted Classes
+
+sekmesi ekle.
+
+Buradan:
+
+Restore
+
+işlemi yapılabilsin.
+
+Restore:
+
+deleted_at = NULL
+
+yapsın.
+
+---
+
+# 4) Audit Log Sistemi
+
+Yeni tablo oluştur.
+
+audit_logs
+
+Alanlar:
+
+id
+
+action
+
+userType
+
+userId
+
+institutionId
+
+teacherId
+
+classId
+
+studentId
+
+details
+
+ipAddress
+
+createdAt
+
+Aşağıdaki işlemler otomatik loglansın.
+
+CREATE_CLASS
+
+DELETE_CLASS
+
+RESTORE_CLASS
+
+CREATE_STUDENT
+
+DELETE_STUDENT
+
+LICENSE_UPDATE
+
+RESET_QUOTA
+
+LOGIN
+
+LOGOUT
+
+Hiçbir log silinmesin.
+
+---
+
+# 5) Silme Onayı
+
+Teacher
+
+ve
+
+Admin
+
+tarafındaki
+
+DELETE CLASS
+
+işlemi tek tık olmasın.
+
+En az iki aşamalı doğrulama kullan.
+
+Yanlışlıkla silme engellensin.
+
+---
+
+# 6) resetInstitutionQuota()
+
+Bu fonksiyon mevcut sistemde otomatik çalışıyorsa,
+
+otomatik çalışmasını kaldır.
+
+Sadece aşağıdaki şartlarda çalışsın.
+
+Admin
+
+manuel olarak
+
+Reset Institution
+
+butonuna basarsa
+
+ve ikinci onayı verirse.
+
+Lisans tarihi değişmesi kesinlikle veri silmesin.
+
+---
+
+# 7) Render Log
+
+Aşağıdaki kritik işlemleri Render loglarına yaz.
+
+DELETE_CLASS
+
+RESTORE_CLASS
+
+RESET_QUOTA
+
+LICENSE_UPDATE
+
+CREATE_CLASS
+
+CREATE_STUDENT
+
+DELETE_STUDENT
+
+Böylece Production ortamında hangi işlem ne zaman yapılmış görülebilsin.
+
+---
+
+# 8) Migration
+
+Migration güvenli olsun.
+
+Hiçbir mevcut veri silinmesin.
+
+Mevcut Class kayıtları
+
+deleted_at = NULL
+
+olarak güncellensin.
+
+---
+
+# 9) Kod Kalitesi
+
+Refactor yapma.
+
+Dosya isimlerini değiştirme.
+
+API isimlerini değiştirme.
+
+Frontend'i kırma.
+
+Mevcut Response formatlarını değiştirme.
+
+Sadece gerekli güvenlik katmanlarını ekle.
+
+---
+
+# 10) Test
+
+Çalışma sonunda aşağıdakileri otomatik test et.
+
+✓ Teacher Login
+
+✓ Student Login
+
+✓ Leaderboard
+
+✓ Student Codes
+
+✓ Teacher Classes
+
+✓ Admin Panel
+
+✓ Redis Cache
+
+✓ PostgreSQL
+
+✓ Socket.io
+
+✓ Render Production Build
+
+Hiçbir endpoint bozulmamış olmalı.
+
+---
+
+# 11) Git
+
+Kod tamamen bittikten sonra:
+
+* TypeScript hatalarını kontrol et.
+* Build al.
+* Production build'i doğrula.
+* Tüm testleri çalıştır.
+* Başarılı ise GitHub repository'sine commit ve push yap.
+
+Commit mesajı:
+
+feat: production-safe class protection, soft delete, audit logs and recovery system
+
+Başarısız olan hiçbir build GitHub'a gönderilmesin.
+
+Son olarak bana;
+
+* hangi dosyaların değiştiğini,
+* hangi migration'ın oluşturulduğunu,
+* hangi testlerin geçtiğini,
+* hangi commit hash'inin GitHub'a gönderildiğini
+
+ayrıntılı rapor olarak sun.

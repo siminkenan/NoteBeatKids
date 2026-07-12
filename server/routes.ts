@@ -513,7 +513,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
     const cls = await storage.getClass(req.params.classId as string);
     if (!cls || cls.teacherId !== teacherId) return res.status(403).json({ message: "Forbidden" });
+    const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ?? req.socket.remoteAddress ?? null;
     await storage.deleteClass(req.params.classId as string);
+    console.log(`[DELETE_CLASS] teacher=${teacherId} class=${req.params.classId} name="${cls.name}" code=${cls.classCode}`);
+    await storage.createAuditLog({ action: "DELETE_CLASS", userType: "teacher", userId: teacherId, teacherId, classId: cls.id, details: `name="${cls.name}" code=${cls.classCode}`, ipAddress: ip });
     res.json({ ok: true });
   });
 
@@ -639,25 +642,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const current = await storage.getInstitution(req.params.id as string);
     if (!current) return res.status(404).json({ message: "Institution not found" });
-    const wasExpired = isLicenseExpired(current);
     const newLicenseEnd = req.body.licenseEnd ? new Date(req.body.licenseEnd) : null;
-    const isRenewal = wasExpired && newLicenseEnd && newLicenseEnd > new Date();
-    if (isRenewal) {
-      await storage.resetInstitutionQuota(req.params.id as string);
-    }
-    // Admin controls isActive directly; if a new future licenseEnd is provided, default isActive to true
+    // NOTE: resetInstitutionQuota is NEVER triggered automatically by license date changes.
+    // It only runs when admin explicitly calls POST /api/admin/institutions/:id/reset-quota
     const updates: any = { ...req.body };
     if (newLicenseEnd) updates.licenseEnd = newLicenseEnd;
-    if (isRenewal && updates.isActive === undefined) updates.isActive = true;
     const inst = await storage.updateInstitution(req.params.id as string, updates);
     if (!inst) return res.status(404).json({ message: "Institution not found" });
-    res.json({ ...inst, isExpired: isLicenseExpired(inst), quotaReset: isRenewal });
+    // Audit log
+    const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ?? req.socket.remoteAddress ?? null;
+    await storage.createAuditLog({ action: "LICENSE_UPDATE", userType: "admin", userId: adminId, institutionId: req.params.id as string, details: `licenseEnd=${newLicenseEnd?.toISOString() ?? "unchanged"}`, ipAddress: ip });
+    console.log(`[LICENSE_UPDATE] admin=${adminId} institution=${req.params.id} licenseEnd=${newLicenseEnd?.toISOString() ?? "unchanged"}`);
+    res.json({ ...inst, isExpired: isLicenseExpired(inst) });
   });
 
   app.post("/api/admin/institutions/:id/reset-quota", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ?? req.socket.remoteAddress ?? null;
+    console.log(`[RESET_QUOTA] admin=${adminId} institution=${req.params.id}`);
     await storage.resetInstitutionQuota(req.params.id as string);
+    await storage.createAuditLog({ action: "RESET_QUOTA", userType: "admin", userId: adminId, institutionId: req.params.id as string, ipAddress: ip });
     res.json({ ok: true });
   });
 
@@ -765,7 +770,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
     const cls = await storage.getClass(req.params.classId as string);
     if (!cls) return res.status(404).json({ message: "Class not found" });
+    const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ?? req.socket.remoteAddress ?? null;
     await storage.deleteClass(req.params.classId as string);
+    console.log(`[DELETE_CLASS] admin=${adminId} class=${req.params.classId} name="${cls.name}" code=${cls.classCode}`);
+    await storage.createAuditLog({ action: "DELETE_CLASS", userType: "admin", userId: adminId, classId: cls.id, details: `name="${cls.name}" code=${cls.classCode}`, ipAddress: ip });
+    res.json({ ok: true });
+  });
+
+  // Admin: get deleted (soft-deleted) classes
+  app.get("/api/admin/classes/deleted", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const institutionId = req.query.institutionId as string | undefined;
+    const list = await storage.getDeletedClasses(institutionId);
+    res.json(list);
+  });
+
+  // Admin: restore a soft-deleted class
+  app.post("/api/admin/classes/:classId/restore", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ?? req.socket.remoteAddress ?? null;
+    await storage.restoreClass(req.params.classId as string);
+    console.log(`[RESTORE_CLASS] admin=${adminId} class=${req.params.classId}`);
+    await storage.createAuditLog({ action: "RESTORE_CLASS", userType: "admin", userId: adminId, classId: req.params.classId as string, ipAddress: ip });
     res.json({ ok: true });
   });
 

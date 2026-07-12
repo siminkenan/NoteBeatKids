@@ -1,4 +1,4 @@
-import { eq, and, sql, desc, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, sql, desc, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
 import { bufferScore, getBufferEntry, getBufferedByStudent, flushScoreBuffer } from "./scoreBuffer";
@@ -27,7 +27,7 @@ async function cacheDel(...keys: string[]): Promise<void> {
 import {
   institutions, admins, teachers, classes, students, studentProgress, teacherCodes, studentCodes,
   orchestraSongs, orchestraProgress, maestroResources, maestroViewProgress,
-  monthlyStats, monthlyWinners,
+  monthlyStats, monthlyWinners, auditLogs,
   type Institution, type InsertInstitution,
   type Admin, type Teacher, type InsertTeacher,
   type Class, type InsertClass,
@@ -38,6 +38,32 @@ import {
   type MaestroResource, type MaestroViewProgress,
   type MonthlyWinner,
 } from "@shared/schema";
+
+export type DeletedClassInfo = {
+  id: string;
+  name: string;
+  branchName: string;
+  classCode: string;
+  maxStudents: number;
+  deletedAt: Date;
+  createdAt: Date;
+  teacherName: string;
+  teacherEmail: string;
+  institutionName: string | null;
+  studentCount: number;
+};
+
+export type AuditLogData = {
+  action: string;
+  userType: string;
+  userId?: string | null;
+  institutionId?: string | null;
+  teacherId?: string | null;
+  classId?: string | null;
+  studentId?: string | null;
+  details?: string | null;
+  ipAddress?: string | null;
+};
 
 export type LeaderboardEntry = {
   rank: number;
@@ -98,6 +124,9 @@ export interface IStorage {
   getClassByCode(code: string): Promise<Class | undefined>;
   createClass(data: InsertClass & { classCode: string }): Promise<Class>;
   deleteClass(id: string): Promise<void>;
+  restoreClass(id: string): Promise<void>;
+  getDeletedClasses(institutionId?: string): Promise<DeletedClassInfo[]>;
+  createAuditLog(data: AuditLogData): Promise<void>;
   // Student codes
   generateStudentCodesForClass(classId: string, count: number): Promise<StudentCode[]>;
   getStudentCodesByClass(classId: string): Promise<StudentCode[]>;
@@ -399,6 +428,7 @@ export class DatabaseStorage implements IStorage {
         maxStudents: classes.maxStudents,
         expiresAt: classes.expiresAt,
         createdAt: classes.createdAt,
+        deletedAt: classes.deletedAt,
         teacherName: teachers.name,
         teacherEmail: teachers.email,
         institutionName: institutions.name,
@@ -407,6 +437,7 @@ export class DatabaseStorage implements IStorage {
       .from(classes)
       .leftJoin(teachers, eq(classes.teacherId, teachers.id))
       .leftJoin(institutions, eq(teachers.institutionId, institutions.id))
+      .where(isNull(classes.deletedAt))
       .orderBy(classes.createdAt);
 
     const counts = await db
@@ -425,19 +456,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClassesByTeacher(teacherId: string): Promise<Class[]> {
-    return db.select().from(classes).where(eq(classes.teacherId, teacherId)).orderBy(classes.createdAt);
+    return db.select().from(classes).where(and(eq(classes.teacherId, teacherId), isNull(classes.deletedAt))).orderBy(classes.createdAt);
   }
 
   async getClass(id: string): Promise<Class | undefined> {
-    const result = await db.select().from(classes).where(eq(classes.id, id)).limit(1);
+    const result = await db.select().from(classes).where(and(eq(classes.id, id), isNull(classes.deletedAt))).limit(1);
     return result[0];
   }
 
   async getClassByCode(code: string): Promise<Class | undefined> {
     const key = `cls:code:${code.toUpperCase()}`;
     const cached = await cacheGet<Class>(key);
-    if (cached) return cached;
-    const result = await db.select().from(classes).where(eq(classes.classCode, code.toUpperCase())).limit(1);
+    if (cached) {
+      // Ensure the cached entry has not been soft-deleted
+      if ((cached as any).deletedAt) { await cacheDel(key); return undefined; }
+      return cached;
+    }
+    const result = await db.select().from(classes).where(and(eq(classes.classCode, code.toUpperCase()), isNull(classes.deletedAt))).limit(1);
     if (result[0]) await cacheSet(key, result[0]);
     return result[0];
   }
@@ -451,27 +486,94 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClass(id: string): Promise<void> {
-    // 1. Collect student IDs first
-    const studentList = await this.getStudentsByClass(id);
-    const studentIds = studentList.map(s => s.id);
-
-    // 2. Bulk-delete all dependent rows in one query each (avoids FK violations)
-    if (studentIds.length > 0) {
-      await db.delete(maestroViewProgress).where(inArray(maestroViewProgress.studentId, studentIds));
-      await db.delete(studentProgress).where(inArray(studentProgress.studentId, studentIds));
-      await db.delete(orchestraProgress).where(inArray(orchestraProgress.studentId, studentIds));
-      await db.delete(monthlyStats).where(inArray(monthlyStats.studentId, studentIds));
-      await db.delete(monthlyWinners).where(inArray(monthlyWinners.studentId, studentIds));
+    // Soft delete — only mark deleted_at, preserve ALL student data and progress
+    const [deleted] = await db
+      .update(classes)
+      .set({ deletedAt: new Date() })
+      .where(eq(classes.id, id))
+      .returning({ classCode: classes.classCode });
+    // Invalidate Redis cache for this class code
+    if (deleted?.classCode) {
+      await cacheDel(`cls:code:${deleted.classCode.toUpperCase()}`);
     }
+  }
 
-    // 3. Nullify studentId refs in student_codes (FK: student_codes.studentId → students.id)
-    await db.update(studentCodes).set({ studentId: null }).where(eq(studentCodes.classId, id));
-    // 4. Now safe to delete students
-    await db.delete(students).where(eq(students.classId, id));
-    // 5. Delete student_codes for the class
-    await db.delete(studentCodes).where(eq(studentCodes.classId, id));
-    // 6. Delete the class
-    await db.delete(classes).where(eq(classes.id, id));
+  async restoreClass(id: string): Promise<void> {
+    // Restore soft-deleted class by clearing deleted_at
+    const [restored] = await db
+      .update(classes)
+      .set({ deletedAt: null })
+      .where(eq(classes.id, id))
+      .returning({ classCode: classes.classCode });
+    // Invalidate Redis cache so fresh DB read is forced
+    if (restored?.classCode) {
+      await cacheDel(`cls:code:${restored.classCode.toUpperCase()}`);
+    }
+  }
+
+  async getDeletedClasses(institutionId?: string): Promise<DeletedClassInfo[]> {
+    const rows = await db
+      .select({
+        id: classes.id,
+        name: classes.name,
+        branchName: classes.branchName,
+        classCode: classes.classCode,
+        maxStudents: classes.maxStudents,
+        deletedAt: classes.deletedAt,
+        createdAt: classes.createdAt,
+        teacherName: teachers.name,
+        teacherEmail: teachers.email,
+        institutionName: institutions.name,
+        institutionId: teachers.institutionId,
+      })
+      .from(classes)
+      .leftJoin(teachers, eq(classes.teacherId, teachers.id))
+      .leftJoin(institutions, eq(teachers.institutionId, institutions.id))
+      .where(
+        institutionId
+          ? and(isNotNull(classes.deletedAt), eq(teachers.institutionId, institutionId))
+          : isNotNull(classes.deletedAt)
+      )
+      .orderBy(desc(classes.deletedAt));
+
+    const counts = await db
+      .select({ classId: students.classId, count: sql<number>`count(*)::int` })
+      .from(students)
+      .groupBy(students.classId);
+    const countMap = Object.fromEntries(counts.map(r => [r.classId, r.count]));
+
+    return rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      branchName: r.branchName,
+      classCode: r.classCode,
+      maxStudents: r.maxStudents,
+      deletedAt: r.deletedAt!,
+      createdAt: r.createdAt,
+      teacherName: r.teacherName ?? "—",
+      teacherEmail: r.teacherEmail ?? "—",
+      institutionName: r.institutionName ?? null,
+      studentCount: countMap[r.id] ?? 0,
+    }));
+  }
+
+  async createAuditLog(data: AuditLogData): Promise<void> {
+    try {
+      await db.insert(auditLogs).values({
+        action: data.action,
+        userType: data.userType,
+        userId: data.userId ?? null,
+        institutionId: data.institutionId ?? null,
+        teacherId: data.teacherId ?? null,
+        classId: data.classId ?? null,
+        studentId: data.studentId ?? null,
+        details: data.details ?? null,
+        ipAddress: data.ipAddress ?? null,
+      });
+    } catch (e) {
+      // Audit log failure must never break the main flow
+      console.error("[AUDIT LOG] Write failed:", e);
+    }
   }
 
   async getStudentsByClass(classId: string): Promise<Student[]> {
@@ -778,7 +880,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select({ institutionId: teachers.institutionId })
       .from(students)
-      .innerJoin(classes, eq(students.classId, classes.id))
+      .innerJoin(classes, and(eq(students.classId, classes.id), isNull(classes.deletedAt)))
       .innerJoin(teachers, eq(classes.teacherId, teachers.id))
       .where(eq(students.id, studentId))
       .limit(1);
@@ -828,7 +930,7 @@ export class DatabaseStorage implements IStorage {
         COALESCE(ms.monthly_badges_count, 0)::int AS monthly_badges,
         ms.last_reset_month
       FROM students s
-      JOIN classes c ON s.class_id = c.id
+      JOIN classes c ON s.class_id = c.id AND c.deleted_at IS NULL
       JOIN teachers t ON c.teacher_id = t.id
       JOIN institutions i ON t.institution_id = i.id
       LEFT JOIN student_progress sp ON sp.student_id = s.id
