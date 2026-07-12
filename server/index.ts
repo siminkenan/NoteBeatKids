@@ -75,6 +75,32 @@ async function gracefulShutdown(signal: string, httpServer: import("http").Serve
 async function runMigrations() {
   const migrations = [
     sql`ALTER TABLE classes ADD COLUMN IF NOT EXISTS branch_name text NOT NULL DEFAULT ''`,
+    sql`CREATE TABLE IF NOT EXISTS admin_devices (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      admin_id text NOT NULL,
+      device_type text NOT NULL,
+      fingerprint text NOT NULL,
+      device_name text,
+      browser text,
+      os text,
+      first_login_at timestamp DEFAULT now() NOT NULL,
+      last_login_at timestamp DEFAULT now() NOT NULL,
+      is_active boolean NOT NULL DEFAULT true
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS admin_login_logs (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      admin_email text NOT NULL,
+      ip text,
+      browser text,
+      os text,
+      device_type text,
+      fingerprint text,
+      success boolean NOT NULL,
+      failure_reason text,
+      created_at timestamp DEFAULT now() NOT NULL
+    )`,
+    sql`CREATE INDEX IF NOT EXISTS idx_admin_devices_admin_id ON admin_devices(admin_id)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_admin_login_logs_email ON admin_login_logs(admin_email)`,
     sql`CREATE TABLE IF NOT EXISTS system_errors (
       id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       severity text NOT NULL DEFAULT 'error',

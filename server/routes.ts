@@ -6,6 +6,7 @@ import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
 import { requestMetricsMiddleware } from "./apiMetrics";
 import { getHealthReport } from "./healthService";
+import { checkBruteForce, recordFailedAttempt, resetLoginAttempts, detectDeviceType, extractBrowserInfo, getClientIp } from "./deviceSecurity";
 import {
   signAccessToken, signRefreshToken, storeRefreshToken,
   invalidateRefreshToken, invalidateAllRefreshTokens,
@@ -164,51 +165,83 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post("/api/auth/admin/login", async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
+      const { email, password, fingerprint, deviceType: clientDeviceType } = req.body as {
+        email: string; password: string; fingerprint?: string; deviceType?: string;
+      };
+      const ua = req.headers["user-agent"] ?? "";
+      const ip = getClientIp(req);
+      const { browser, os, deviceName } = extractBrowserInfo(ua);
+      const deviceType = (clientDeviceType === "mobile" ? "mobile" : "desktop") as "desktop" | "mobile";
 
       // 1. Sanal admin koruması — yalnızca bu e-posta kabul edilir
       if (email !== ADMIN_EMAIL) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const existing = await storage.getAdminByEmail(ADMIN_EMAIL);
+      // 2. Brute-force kontrolü
+      const bruteCheck = checkBruteForce(ADMIN_EMAIL);
+      if (bruteCheck.locked) {
+        storage.createAdminLoginLog({ adminEmail: ADMIN_EMAIL, ip, browser, os, deviceType, fingerprint, success: false, failureReason: "account_locked" }).catch(() => {});
+        return res.status(429).json({ message: `Çok fazla hatalı giriş yapıldı. Lütfen ${bruteCheck.minutesLeft} dakika sonra tekrar deneyiniz.` });
+      }
 
+      const existing = await storage.getAdminByEmail(ADMIN_EMAIL);
       let admin: typeof existing;
 
-      // ADMIN_MASTER_KEY: Render/production'da admin şifresi sıfırlama escape hatch'i.
-      // Bu env var ayarlıysa ve gönderilen şifre eşleşiyorsa, hash güncellenir ve giriş yapılır.
-      // Kullanım: Render env'e ADMIN_MASTER_KEY=<yeni_şifre> ekle → giriş yap → key'i kaldır.
       const masterKey = process.env.ADMIN_MASTER_KEY;
       const isMasterKeyLogin = masterKey && password === masterKey;
 
       if (!existing) {
-        // 2a. İlk giriş — admin veritabanında yok, oluştur
+        // 3a. İlk giriş — admin veritabanında yok, oluştur
         const hashed = await bcrypt.hash(password, 10);
         admin = await storage.createAdmin({ email: ADMIN_EMAIL, password: hashed });
       } else if (isMasterKeyLogin) {
-        // 2b. Master key ile şifre sıfırlama — hash'i güncelle ve giriş yap
+        // 3b. Master key ile şifre sıfırlama — cihaz kontrolünü atla
         const hashed = await bcrypt.hash(password, 10);
         await storage.updateAdminPassword(existing.id, hashed);
         admin = { ...existing, password: hashed };
         console.warn(`[AUTH] Admin şifresi ADMIN_MASTER_KEY ile sıfırlandı — key'i Render env'den kaldırın.`);
       } else {
-        // 2c. Normal giriş — şifreyi kontrol et
+        // 3c. Normal giriş — şifreyi kontrol et
         const valid = await bcrypt.compare(password, existing.password);
-        if (!valid) return res.status(401).json({ message: "Şifre yanlış" });
+        if (!valid) {
+          recordFailedAttempt(ADMIN_EMAIL);
+          storage.createAdminLoginLog({ adminEmail: ADMIN_EMAIL, ip, browser, os, deviceType, fingerprint, success: false, failureReason: "wrong_password" }).catch(() => {});
+          return res.status(401).json({ message: "Şifre yanlış" });
+        }
         admin = existing;
       }
 
       const adminId = String(admin!.id);
-      // JWT tokenlar — birincil auth mekanizması
+
+      // 4. Cihaz parmak izi kontrolü (sadece fingerprint varsa ve master key değilse)
+      if (fingerprint && !isMasterKeyLogin) {
+        const existingDevice = await storage.getAdminDeviceByType(adminId, deviceType);
+        if (!existingDevice) {
+          // İlk kayıt — otomatik kaydet
+          await storage.registerAdminDevice({ adminId, deviceType, fingerprint, deviceName, browser, os });
+        } else if (existingDevice.fingerprint !== fingerprint) {
+          // Farklı cihaz — reddet
+          storage.createAdminLoginLog({ adminEmail: ADMIN_EMAIL, ip, browser, os, deviceType, fingerprint, success: false, failureReason: "unauthorized_device" }).catch(() => {});
+          return res.status(403).json({ message: "Bu cihaz admin paneli için yetkilendirilmemiştir." });
+        } else {
+          // Aynı cihaz — son giriş zamanını güncelle
+          await storage.updateAdminDeviceLastLogin(existingDevice.id);
+        }
+      }
+
+      // 5. Başarılı giriş
+      resetLoginAttempts(ADMIN_EMAIL);
+      storage.createAdminLoginLog({ adminEmail: ADMIN_EMAIL, ip, browser, os, deviceType, fingerprint, success: true }).catch(() => {});
+
+      // JWT tokenlar
       const accessToken  = signAccessToken(adminId, "admin");
       const refreshToken = signRefreshToken(adminId, "admin");
       await storeRefreshToken(refreshToken);
-      // Eski HMAC token (geriye dönük uyumluluk — production'da hâlâ kullanılıyor)
       const token = signAdminToken(adminId);
-      // Session: sadece dev ortamında mevcut; yanıt JWT'ye bağlı, session'a değil
       if ((req as any).session) {
         (req as any).session.adminId = adminId;
-        (req as any).session.save?.(() => {}); // fire-and-forget
+        (req as any).session.save?.(() => {});
       }
       res.json({
         id: admin!.id, name: admin!.name, email: admin!.email, role: "admin",
@@ -1191,6 +1224,45 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(errors);
     } catch (e: any) {
       res.status(500).json({ message: "Failed to fetch system errors", error: e?.message });
+    }
+  });
+
+  // ── Admin: Cihaz Güvenliği ─────────────────────────────────────────────────
+  app.get("/api/admin/devices", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const devices = await storage.getAdminDevices(adminId);
+      res.json(devices);
+    } catch (e: any) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/admin/devices/reset", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const { deviceType } = req.body as { deviceType?: string };
+    if (deviceType !== "desktop" && deviceType !== "mobile") {
+      return res.status(400).json({ message: "deviceType must be 'desktop' or 'mobile'" });
+    }
+    try {
+      await storage.deleteAdminDeviceByType(adminId, deviceType);
+      res.json({ ok: true, message: `${deviceType === "desktop" ? "Bilgisayar" : "Telefon"} kaydı silindi. Sonraki giriş otomatik kaydedilecek.` });
+    } catch (e: any) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.get("/api/admin/login-logs", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10), 200);
+      const logs = await storage.getAdminLoginLogs("ovalikenan46@gmail.com", limit);
+      res.json(logs.slice().reverse());
+    } catch (e: any) {
+      res.status(500).json({ message: "Server error" });
     }
   });
 

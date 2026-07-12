@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock, RotateCcw, Activity, AlertTriangle, Database, Wifi, RefreshCw, Server } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock, RotateCcw, Activity, AlertTriangle, Database, Wifi, RefreshCw, Server, Monitor, Smartphone, LockKeyhole, AlertCircle } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import type { Institution, Teacher } from "@shared/schema";
@@ -128,6 +128,170 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
     <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
       {ok ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} {label}
     </span>
+  );
+}
+
+function SecurityPanel() {
+  const { data: devices, isLoading: devicesLoading, refetch: refetchDevices } = useQuery<any[]>({
+    queryKey: ["/api/admin/devices"],
+  });
+  const { data: logs, isLoading: logsLoading, refetch: refetchLogs } = useQuery<any[]>({
+    queryKey: ["/api/admin/login-logs"],
+  });
+  const { toast } = useToast();
+  const resetMutation = useMutation({
+    mutationFn: async (deviceType: "desktop" | "mobile") =>
+      (await (await fetch("/api/admin/devices/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("adminToken") ?? ""}` },
+        body: JSON.stringify({ deviceType }),
+      })).json()),
+    onSuccess: (data) => {
+      toast({ title: "Cihaz sıfırlandı", description: data.message });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/devices"] });
+    },
+    onError: () => toast({ title: "Hata", description: "Cihaz sıfırlanamadı.", variant: "destructive" }),
+  });
+
+  const desktop = devices?.find((d: any) => d.deviceType === "desktop");
+  const mobile  = devices?.find((d: any) => d.deviceType === "mobile");
+
+  const failureLabel = (r: string | null) => {
+    if (!r) return null;
+    if (r === "wrong_password")     return "Yanlış şifre";
+    if (r === "account_locked")     return "Hesap kilitli";
+    if (r === "unauthorized_device") return "Yetkisiz cihaz";
+    return r;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <LockKeyhole className="w-5 h-5 text-indigo-600" />
+        <h2 className="text-xl font-extrabold text-gray-800">Cihaz Güvenliği</h2>
+        <Button size="sm" variant="outline" onClick={() => { refetchDevices(); refetchLogs(); }} className="ml-auto" data-testid="button-security-refresh">
+          <RefreshCw className="w-3.5 h-3.5 mr-1" /> Yenile
+        </Button>
+      </div>
+
+      {/* Yetkili cihazlar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Masaüstü */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Monitor className="w-4 h-4 text-blue-500" /> Masaüstü / Laptop
+              {desktop
+                ? <span className="ml-auto bg-green-100 text-green-700 text-xs font-bold rounded-full px-2 py-0.5">Kayıtlı</span>
+                : <span className="ml-auto bg-gray-100 text-gray-500 text-xs font-bold rounded-full px-2 py-0.5">Kayıt yok</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-2">
+            {devicesLoading ? (
+              <div className="text-xs text-gray-400">Yükleniyor...</div>
+            ) : desktop ? (
+              <>
+                <div className="text-sm font-semibold text-gray-700">{desktop.deviceName ?? "Bilinmiyor"}</div>
+                <div className="text-xs text-gray-500">Tarayıcı: {desktop.browser ?? "—"}</div>
+                <div className="text-xs text-gray-500">İşletim Sistemi: {desktop.os ?? "—"}</div>
+                <div className="text-xs text-gray-500">İlk Giriş: {new Date(desktop.firstLoginAt).toLocaleString("tr-TR")}</div>
+                <div className="text-xs text-gray-500">Son Giriş: {new Date(desktop.lastLoginAt).toLocaleString("tr-TR")}</div>
+                <Button
+                  size="sm" variant="outline"
+                  className="mt-2 text-red-600 border-red-200 hover:bg-red-50 w-full"
+                  onClick={() => resetMutation.mutate("desktop")}
+                  disabled={resetMutation.isPending}
+                  data-testid="button-reset-desktop"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Bilgisayarı Değiştir
+                </Button>
+              </>
+            ) : (
+              <div className="text-xs text-gray-400 py-2">Henüz masaüstü cihaz kaydedilmemiş. İlk girişte otomatik kaydedilecek.</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Mobil */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-5">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-purple-500" /> Mobil Telefon
+              {mobile
+                ? <span className="ml-auto bg-green-100 text-green-700 text-xs font-bold rounded-full px-2 py-0.5">Kayıtlı</span>
+                : <span className="ml-auto bg-gray-100 text-gray-500 text-xs font-bold rounded-full px-2 py-0.5">Kayıt yok</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-2">
+            {devicesLoading ? (
+              <div className="text-xs text-gray-400">Yükleniyor...</div>
+            ) : mobile ? (
+              <>
+                <div className="text-sm font-semibold text-gray-700">{mobile.deviceName ?? "Bilinmiyor"}</div>
+                <div className="text-xs text-gray-500">Tarayıcı: {mobile.browser ?? "—"}</div>
+                <div className="text-xs text-gray-500">İşletim Sistemi: {mobile.os ?? "—"}</div>
+                <div className="text-xs text-gray-500">İlk Giriş: {new Date(mobile.firstLoginAt).toLocaleString("tr-TR")}</div>
+                <div className="text-xs text-gray-500">Son Giriş: {new Date(mobile.lastLoginAt).toLocaleString("tr-TR")}</div>
+                <Button
+                  size="sm" variant="outline"
+                  className="mt-2 text-red-600 border-red-200 hover:bg-red-50 w-full"
+                  onClick={() => resetMutation.mutate("mobile")}
+                  disabled={resetMutation.isPending}
+                  data-testid="button-reset-mobile"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Telefonu Değiştir
+                </Button>
+              </>
+            ) : (
+              <div className="text-xs text-gray-400 py-2">Henüz telefon kaydedilmemiş. İlk girişte otomatik kaydedilecek.</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Giriş Logları */}
+      <Card className="rounded-2xl border shadow-sm">
+        <CardHeader className="pb-2 pt-4 px-5">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-slate-500" /> Son Giriş Kayıtları
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          {logsLoading ? (
+            <div className="text-xs text-gray-400">Yükleniyor...</div>
+          ) : !logs || logs.length === 0 ? (
+            <div className="text-xs text-gray-400 text-center py-4">Henüz kayıt yok</div>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {logs.map((l: any) => (
+                <div key={l.id} className={`border rounded-xl px-3 py-2 text-xs ${l.success ? "bg-green-50 border-green-100" : "bg-red-50 border-red-100"}`}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {l.success
+                      ? <CheckCircle className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                      : <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                    <span className={`font-bold ${l.success ? "text-green-700" : "text-red-600"}`}>
+                      {l.success ? "Başarılı" : "Başarısız"}
+                    </span>
+                    {!l.success && l.failureReason && (
+                      <span className="bg-red-100 text-red-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold">
+                        {failureLabel(l.failureReason)}
+                      </span>
+                    )}
+                    <span className="text-gray-400 ml-auto">{new Date(l.createdAt).toLocaleString("tr-TR")}</span>
+                  </div>
+                  <div className="text-gray-500 mt-0.5 flex gap-2 flex-wrap">
+                    {l.deviceType && <span>{l.deviceType === "mobile" ? "📱 Mobil" : "🖥️ Masaüstü"}</span>}
+                    {l.browser && <span>{l.browser}</span>}
+                    {l.os && <span>{l.os}</span>}
+                    {l.ip && <span className="font-mono text-gray-400">{l.ip}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -632,6 +796,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="health" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-health">
               <Activity className="w-3.5 h-3.5" /> Sağlık
             </TabsTrigger>
+            <TabsTrigger value="security" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-security">
+              <LockKeyhole className="w-3.5 h-3.5" /> Güvenlik
+            </TabsTrigger>
             <TabsTrigger value="deleted-classes" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-deleted-classes">
               <Trash2 className="w-3.5 h-3.5 text-red-500" />
               Çöp Kutusu
@@ -1113,6 +1280,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="health">
             <HealthPanel />
+          </TabsContent>
+
+          <TabsContent value="security">
+            <SecurityPanel />
           </TabsContent>
 
         </Tabs>

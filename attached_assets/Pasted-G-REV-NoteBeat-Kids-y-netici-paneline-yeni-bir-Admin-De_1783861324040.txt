@@ -1,0 +1,269 @@
+GÖREV
+
+NoteBeat Kids yönetici paneline yeni bir Admin Device Security sistemi ekle.
+
+Mevcut kodları değiştirme.
+
+Mevcut endpointleri bozma.
+
+Mevcut authentication sistemini koru.
+
+Yeni özellikler modüler şekilde eklensin.
+
+Kod kalitesi yüksek olsun.
+
+Typescript strict mode uyumlu olsun.
+
+Render + Neon PostgreSQL uyumlu olsun.
+
+React Query cache yapısını bozmasın.
+
+Performans kaybı oluşturmasın.
+
+AMAÇ
+
+Admin paneline yalnızca yetkili cihazlardan giriş yapılabilsin.
+
+Normal öğretmen ve öğrenci girişleri bundan etkilenmesin.
+
+Bu sistem sadece ADMIN hesabı için çalışsın.
+
+CİHAZ KAYIT SİSTEMİ
+
+Her admin hesabı için maksimum:
+
+• 1 Masaüstü / Laptop
+
+• 1 Mobil Telefon
+
+tanımlanabilsin.
+
+İLK GİRİŞ
+
+Admin hesabı ilk kez giriş yaptığında;
+
+Eğer kayıtlı masaüstü cihaz yoksa,
+
+o bilgisayar otomatik olarak yetkili masaüstü cihazı olarak kaydedilsin.
+
+Aynı şekilde,
+
+eğer kayıtlı telefon yoksa,
+
+ilk giriş yapan telefon otomatik kaydedilsin.
+
+Admin herhangi bir işlem yapmak zorunda kalmasın.
+
+SONRAKİ GİRİŞLER
+
+Admin tekrar giriş yaptığında;
+
+cihaz bilgisi kayıtlı cihaz ile eşleşiyorsa
+
+girişe izin ver.
+
+YENİ CİHAZ
+
+Eğer farklı bir bilgisayar
+
+veya
+
+farklı bir telefon
+
+giriş yapmaya çalışırsa;
+
+kesinlikle giriş yaptırma.
+
+HTTP 403 döndür.
+
+Ekranda şu mesaj gösterilsin:
+
+"Bu cihaz admin paneli için yetkilendirilmemiştir."
+
+CİHAZ TANIMA
+
+Device Fingerprint kullan.
+
+Fingerprint oluştururken;
+
+Browser
+
+Operating System
+
+Platform
+
+Language
+
+Timezone
+
+Screen Resolution
+
+User Agent
+
+bilgilerinden hash üret.
+
+Fingerprint düz metin tutulmasın.
+
+SHA-256 ile hashlensin.
+
+ADMIN PANELİ
+
+Yeni menü oluştur.
+
+Admin
+
+↓
+
+Güvenlik
+
+↓
+
+Yetkili Cihazlar
+
+Bu sayfada iki kart göster.
+
+Masaüstü
+
+Bilgisayar adı
+
+İlk giriş tarihi
+
+Son giriş
+
+Tarayıcı
+
+İşletim Sistemi
+
+Durum
+
+Telefon
+
+Telefon adı
+
+İlk giriş tarihi
+
+Son giriş
+
+Tarayıcı
+
+İşletim Sistemi
+
+Durum
+
+BUTONLAR
+
+Bilgisayarı Değiştir
+
+Telefonu Değiştir
+
+BİLGİSAYARI DEĞİŞTİR
+
+Admin butona bastığında;
+
+mevcut bilgisayar kaydı silinsin.
+
+Bir sonraki başarılı giriş yapan bilgisayar
+
+otomatik olarak yeni yetkili bilgisayar olsun.
+
+TELEFONU DEĞİŞTİR
+
+Admin butona bastığında;
+
+mevcut telefon kaydı silinsin.
+
+Bir sonraki başarılı giriş yapan telefon
+
+otomatik olarak yeni telefon olarak kaydedilsin.
+
+ŞİFRE GÜVENLİĞİ
+
+Admin hesabında;
+
+5 başarısız giriş denemesinden sonra
+
+hesabı 15 dakika kilitle.
+
+Mesaj:
+
+"Çok fazla hatalı giriş yapıldı. Lütfen 15 dakika sonra tekrar deneyiniz."
+
+15 dakika sonunda
+
+otomatik açılsın.
+
+LOG
+
+Başarılı giriş
+
+Başarısız giriş
+
+Yetkisiz cihaz denemesi
+
+Şifre hatası
+
+şu bilgilerle loglansın.
+
+Tarih
+
+Saat
+
+IP
+
+Browser
+
+Operating System
+
+Device Type
+
+PERFORMANS
+
+Bu sistem;
+
+Render Starter üzerinde sorunsuz çalışmalı.
+
+Neon PostgreSQL'de gereksiz sorgu üretmemeli.
+
+N+1 query oluşmamalı.
+
+React Query cache etkilenmemeli.
+
+Mevcut authentication akışı bozulmamalı.
+
+GÜVENLİK
+
+JWT doğrulaması korunacak.
+
+Yetkisiz cihaz hiçbir şekilde admin paneline erişemeyecek.
+
+Öğretmen ve öğrenci girişleri bu sistemden etkilenmeyecek.
+
+TEST
+
+Aşağıdaki senaryoların tamamını test et.
+
+✓ İlk bilgisayar otomatik kaydediliyor.
+
+✓ İlk telefon otomatik kaydediliyor.
+
+✓ Aynı cihaz tekrar giriş yapabiliyor.
+
+✓ Yeni bilgisayar reddediliyor.
+
+✓ Yeni telefon reddediliyor.
+
+✓ "Bilgisayarı Değiştir" çalışıyor.
+
+✓ "Telefonu Değiştir" çalışıyor.
+
+✓ 5 yanlış şifre sonrası hesap 15 dakika kilitleniyor.
+
+✓ Süre sonunda tekrar giriş yapılabiliyor.
+
+✓ Render uyumluluğu korunuyor.
+
+✓ Mevcut sistemde hiçbir özellik bozulmuyor.
+
+✓ Kod derleme hatası (TypeScript Error) oluşmuyor.
+
+✓ Yeni modül mevcut projeye güvenli şekilde entegre ediliyor.

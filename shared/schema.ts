@@ -221,6 +221,34 @@ export const systemErrors = pgTable("system_errors", {
 
 export type SystemError = typeof systemErrors.$inferSelect;
 
+export const adminDevices = pgTable("admin_devices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: text("admin_id").notNull(),
+  deviceType: text("device_type").notNull(), // 'desktop' | 'mobile'
+  fingerprint: text("fingerprint").notNull(),
+  deviceName: text("device_name"),
+  browser: text("browser"),
+  os: text("os"),
+  firstLoginAt: timestamp("first_login_at").defaultNow().notNull(),
+  lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+export type AdminDevice = typeof adminDevices.$inferSelect;
+
+export const adminLoginLogs = pgTable("admin_login_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminEmail: text("admin_email").notNull(),
+  ip: text("ip"),
+  browser: text("browser"),
+  os: text("os"),
+  deviceType: text("device_type"),
+  fingerprint: text("fingerprint"),
+  success: boolean("success").notNull(),
+  failureReason: text("failure_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type AdminLoginLog = typeof adminLoginLogs.$inferSelect;
+
 // connect-pg-simple session tablosu — kısıtlama adı dahil birebir eşleştirildi
 export const sessionTable = pgTable("session", {
   sid: varchar("sid").notNull(),

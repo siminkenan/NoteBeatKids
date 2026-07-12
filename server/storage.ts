@@ -129,6 +129,14 @@ export interface IStorage {
   createAuditLog(data: AuditLogData): Promise<void>;
   createSystemError(payload: import("./errorReporter").SystemErrorPayload): Promise<void>;
   getSystemErrors(limit?: number): Promise<import("@shared/schema").SystemError[]>;
+  // Admin device security
+  getAdminDevices(adminId: string): Promise<import("@shared/schema").AdminDevice[]>;
+  getAdminDeviceByType(adminId: string, deviceType: string): Promise<import("@shared/schema").AdminDevice | null>;
+  registerAdminDevice(data: { adminId: string; deviceType: string; fingerprint: string; deviceName?: string; browser?: string; os?: string }): Promise<import("@shared/schema").AdminDevice>;
+  updateAdminDeviceLastLogin(deviceId: string): Promise<void>;
+  deleteAdminDeviceByType(adminId: string, deviceType: string): Promise<void>;
+  createAdminLoginLog(data: { adminEmail: string; ip?: string; browser?: string; os?: string; deviceType?: string; fingerprint?: string; success: boolean; failureReason?: string }): Promise<void>;
+  getAdminLoginLogs(adminEmail: string, limit?: number): Promise<import("@shared/schema").AdminLoginLog[]>;
   // Student codes
   generateStudentCodesForClass(classId: string, count: number): Promise<StudentCode[]>;
   getStudentCodesByClass(classId: string): Promise<StudentCode[]>;
@@ -1372,6 +1380,67 @@ export class DatabaseStorage implements IStorage {
   async getMaestroViewProgressByStudent(studentId: string): Promise<MaestroViewProgress[]> {
     return db.select().from(maestroViewProgress)
       .where(eq(maestroViewProgress.studentId, studentId));
+  }
+
+  // ── Admin Device Security ─────────────────────────────────────────────────
+  async getAdminDevices(adminId: string): Promise<schema.AdminDevice[]> {
+    return db.select().from(schema.adminDevices)
+      .where(eq(schema.adminDevices.adminId, adminId))
+      .orderBy(schema.adminDevices.firstLoginAt);
+  }
+
+  async getAdminDeviceByType(adminId: string, deviceType: string): Promise<schema.AdminDevice | null> {
+    const rows = await db.select().from(schema.adminDevices)
+      .where(and(eq(schema.adminDevices.adminId, adminId), eq(schema.adminDevices.deviceType, deviceType)))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async registerAdminDevice(data: { adminId: string; deviceType: string; fingerprint: string; deviceName?: string; browser?: string; os?: string }): Promise<schema.AdminDevice> {
+    const [row] = await db.insert(schema.adminDevices).values({
+      adminId: data.adminId,
+      deviceType: data.deviceType,
+      fingerprint: data.fingerprint,
+      deviceName: data.deviceName ?? null,
+      browser: data.browser ?? null,
+      os: data.os ?? null,
+    }).returning();
+    return row;
+  }
+
+  async updateAdminDeviceLastLogin(deviceId: string): Promise<void> {
+    await db.update(schema.adminDevices)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(schema.adminDevices.id, deviceId));
+  }
+
+  async deleteAdminDeviceByType(adminId: string, deviceType: string): Promise<void> {
+    await db.delete(schema.adminDevices)
+      .where(and(eq(schema.adminDevices.adminId, adminId), eq(schema.adminDevices.deviceType, deviceType)));
+  }
+
+  async createAdminLoginLog(data: { adminEmail: string; ip?: string; browser?: string; os?: string; deviceType?: string; fingerprint?: string; success: boolean; failureReason?: string }): Promise<void> {
+    try {
+      await db.insert(schema.adminLoginLogs).values({
+        adminEmail: data.adminEmail,
+        ip: data.ip ?? null,
+        browser: data.browser ?? null,
+        os: data.os ?? null,
+        deviceType: data.deviceType ?? null,
+        fingerprint: data.fingerprint ?? null,
+        success: data.success,
+        failureReason: data.failureReason ?? null,
+      });
+    } catch (e) {
+      console.error("[LOGIN LOG] Write failed:", e);
+    }
+  }
+
+  async getAdminLoginLogs(adminEmail: string, limit = 50): Promise<schema.AdminLoginLog[]> {
+    return db.select().from(schema.adminLoginLogs)
+      .where(eq(schema.adminLoginLogs.adminEmail, adminEmail))
+      .orderBy(schema.adminLoginLogs.createdAt)
+      .limit(limit);
   }
 }
 

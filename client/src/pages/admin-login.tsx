@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Shield, Lock, LogIn } from "lucide-react";
 import ProtectedLogo from "@/components/protected-logo";
+import { getDeviceFingerprint, getDeviceType } from "@/lib/deviceFingerprint";
 
 export default function AdminLogin() {
   const [, navigate] = useLocation();
@@ -22,23 +23,40 @@ export default function AdminLogin() {
     if (!password) return;
     setLoading(true);
     try {
+      const fingerprint = await getDeviceFingerprint();
+      const deviceType = getDeviceType();
       const result = await apiRequest("POST", "/api/auth/admin/login", {
         email: "ovalikenan46@gmail.com",
         password,
+        fingerprint,
+        deviceType,
       });
       const admin = await result.json();
-      // Token'ları kaydet (Render+Vercel cross-domain için)
       if (admin.token) localStorage.setItem("adminToken", admin.token);
       if (admin.refreshToken) localStorage.setItem("adminRefreshToken", admin.refreshToken);
       setAdmin(admin);
       navigate("/admin/dashboard");
     } catch (e: any) {
       const msg: string = e?.message ?? "";
+      const status = e?.status ?? 0;
       const isNetwork = msg.startsWith("TypeError") || msg.includes("fetch") || msg.includes("Failed to fetch") || msg.includes("NetworkError");
       const isNotJson = msg.includes("JSON") || msg.includes("Unexpected token");
+      const isUnauthorizedDevice = status === 403 || msg.includes("yetkilendirilmemiştir");
+      const isLocked = status === 429 || msg.includes("dakika sonra");
+
       toast({
-        title: isNetwork ? "Sunucuya ulaşılamıyor" : "Erişim reddedildi",
-        description: isNetwork
+        title: isUnauthorizedDevice
+          ? "Yetkisiz Cihaz"
+          : isLocked
+          ? "Hesap Kilitlendi"
+          : isNetwork
+          ? "Sunucuya ulaşılamıyor"
+          : "Erişim reddedildi",
+        description: isUnauthorizedDevice
+          ? "Bu cihaz admin paneli için yetkilendirilmemiştir."
+          : isLocked
+          ? msg
+          : isNetwork
           ? "Render sunucusu uyanık olmayabilir. 30 saniye bekleyip tekrar deneyin."
           : isNotJson
           ? "API proxy yapılandırması eksik. Vercel → Settings → Environment'ta VITE_API_URL ayarlayın."
