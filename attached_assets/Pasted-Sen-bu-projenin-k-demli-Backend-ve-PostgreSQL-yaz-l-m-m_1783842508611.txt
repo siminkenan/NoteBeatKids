@@ -1,0 +1,66 @@
+Sen bu projenin kıdemli Backend ve PostgreSQL yazılım mimarısısın. Kod tabanının tamamını analiz ederek aşağıdaki problemi araştırmanı istiyorum.
+
+## Sistem Mimarisi
+
+* Backend: Node.js + Express
+* Database: PostgreSQL (Neon)
+* Hosting: Render
+* Redis Cache kullanılıyor.
+* Öğretmenler sınıf oluşturuyor.
+* Her sınıfa öğrenci kodları oluşturuluyor.
+* Öğrenciler oyun oynayıp puan kazanıyor.
+* Liderlik tablosu bu puanlardan besleniyor.
+
+## Olay
+
+Sadece tek bir sınıf kayboldu.
+
+Sınıf adı:
+Beylikdüzü
+
+Yaklaşık 100 öğrencisi vardı.
+
+Bu sınıftaki birkaç öğrenci sisteme giriş yaptı ve puan kazandı.
+
+Daha sonra:
+
+* Öğretmen panelinden sınıf tamamen kayboldu.
+* Liderlik tablosundan kayboldu.
+* Öğrenci kodları artık geçersiz hale geldi.
+* Aynı öğretmenin diğer sınıfları duruyor.
+* Diğer sınıflarda hiç puan alınmadı.
+* Sadece puan alınan bu sınıf kayboldu.
+
+## Bildiklerimiz
+
+* Render loglarında database bağlantısı normal.
+* Neon bağlantısı normal.
+* Migration başarılı.
+* Öğretmen login başarılı.
+* Diğer sınıflar çalışıyor.
+* Öğrenci login denemelerinde sadece silinen öğrenci kodları için 404 dönüyor.
+* 500 Internal Server Error logu görünmüyor.
+* Kurumun kullanım süresi henüz dolmadı.
+* Admin tarafından verilen başlangıç ve bitiş tarihi halen aktif.
+* Sistem tasarımına göre aktif kurum içerisindeki hiçbir sınıfın otomatik silinmemesi gerekiyor.
+
+## İstediğim
+
+Kodun tamamını incele ve aşağıdakileri araştır.
+
+1. classes tablosuna herhangi bir DELETE çalışıyor mu?
+2. classes tablosuna herhangi bir UPDATE ile pasif hale getiriliyor mu?
+3. Student silinirken Class etkileniyor mu?
+4. Institution kontrolü sırasında sınıflar yanlışlıkla siliniyor mu?
+5. Cron job, scheduler veya cleanup mekanizması var mı?
+6. Redis cache yanlışlıkla sınıfı görünmez yapabilir mi?
+7. Leaderboard oluşturulurken herhangi bir cleanup çalışıyor mu?
+8. PostgreSQL foreign key veya ON DELETE CASCADE benzeri ilişki nedeniyle sınıf silinebiliyor mu?
+9. Büyük öğrenci sayısına (100+) özel çalışan bir kod bloğu var mı?
+10. Puan hesaplama tamamlandıktan sonra çalışan herhangi bir otomatik işlem var mı?
+11. Öğrenci girişi veya puan güncellemesi sırasında class_id değişiyor veya NULL oluyor mu?
+12. Sınıfın gerçekten veritabanından silinmesi mümkün mü, yoksa sadece sorgular tarafından filtreleniyor olabilir mi?
+
+Kod tabanının tamamını tara ve bu belirtilere göre en olası nedeni olasılık sırasıyla listele.
+
+Sadece tahmin yapma. Hangi dosyada, hangi fonksiyonda ve hangi SQL sorgusunda bu davranışın oluşabileceğini belirt. Ayrıca gelecekte bunun tekrar yaşanmaması için gerekli mimari değişiklikleri öner.
