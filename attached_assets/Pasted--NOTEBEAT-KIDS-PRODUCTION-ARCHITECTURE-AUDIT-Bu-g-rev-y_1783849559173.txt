@@ -1,0 +1,316 @@
+# NOTEBEAT KIDS - PRODUCTION ARCHITECTURE AUDIT
+
+Bu görev yeni özellik geliştirme değildir.
+
+Bu görev mevcut NoteBeat Kids sisteminin tamamını Production ortamı için analiz etme görevidir.
+
+Kod yazmadan önce sistemi baştan sona incele.
+
+Varsayım yapma.
+
+Sadece gerçek kodu inceleyerek rapor hazırla.
+
+---
+
+# Proje
+
+NoteBeat Kids
+
+Backend
+
+* Node.js
+* Express
+* PostgreSQL (Neon)
+* Drizzle ORM
+* Redis
+* Socket.io
+
+Frontend
+
+* React
+* Vite
+* TypeScript
+
+Hosting
+
+Backend
+Render
+
+Database
+Neon PostgreSQL
+
+Redis
+Production Redis
+
+---
+
+# Sistemin İşleyişi
+
+## Admin
+
+Admin;
+
+* kurum oluşturur.
+* kurum adı belirler.
+* öğretmen kapasitesi belirler.
+* öğrenci kapasitesi belirler.
+* başlangıç tarihi belirler.
+* bitiş tarihi belirler.
+
+Bu tarih aralığında kurum aktif olur.
+
+Bitiş tarihi geldiğinde;
+
+Kurum yalnızca PASİF olur.
+
+Hiçbir veri silinmez.
+
+Kurum tekrar aktif yapılabilir.
+
+Hiçbir öğrenci
+
+Hiçbir öğretmen
+
+Hiçbir sınıf
+
+Hiçbir puan
+
+Hiçbir ilerleme
+
+otomatik olarak silinmez.
+
+---
+
+## Öğretmen
+
+Admin tarafından oluşturulan öğretmen kodu ile giriş yapar.
+
+Kendine ait sınıfları oluşturur.
+
+Admin tarafından belirlenen öğrenci kapasitesini aşamaz.
+
+Öğrenci kodlarını oluşturur.
+
+---
+
+## Öğrenci
+
+Kod
+
+İsim
+
+Soyisim
+
+ile giriş yapar.
+
+Oyunları kullanır.
+
+Aktiviteleri kullanır.
+
+Yıldız puanı kazanır.
+
+---
+
+## Puan Sistemi
+
+Öğrenci puan kazandığında;
+
+Sistem bunu veritabanına kaydeder.
+
+Redis cache kullanılıyorsa nasıl çalıştığını açıkla.
+
+Leaderboard kaç saniyede güncelleniyor?
+
+Cache invalidation nasıl yapılıyor?
+
+Socket.io nasıl çalışıyor?
+
+Tüm veri akışını adım adım açıkla.
+
+---
+
+## Leaderboard
+
+Öğrenci
+
+Öğretmen
+
+Admin
+
+hangi verileri görüyor?
+
+Puanlar hangi tabloda tutuluyor?
+
+Aylık sıfırlama nasıl yapılıyor?
+
+Reset mekanizması nasıl çalışıyor?
+
+Hangi cron çalışıyor?
+
+Hangi transaction kullanılıyor?
+
+---
+
+## Güvenlik
+
+Kod tabanını incele.
+
+Aşağıdakileri tek tek değerlendir.
+
+Soft Delete
+
+Audit Log
+
+Transaction
+
+Redis
+
+Socket.io
+
+Rate Limit
+
+JWT
+
+Session
+
+Cookie
+
+Password Hash
+
+SQL Injection
+
+XSS
+
+CSRF
+
+Authorization
+
+Authentication
+
+Input Validation
+
+Race Condition
+
+Deadlock
+
+N+1 Query
+
+Memory Leak
+
+Cache Leak
+
+---
+
+## Performans
+
+1500 aktif öğrenci
+
+100 öğretmen
+
+20 kurum
+
+aynı anda sistemi kullanırsa;
+
+hangi noktalar darboğaz olur?
+
+CPU
+
+RAM
+
+Redis
+
+PostgreSQL
+
+Socket.io
+
+API
+
+tek tek analiz et.
+
+---
+
+## Database
+
+Tüm tabloları incele.
+
+FK yapıları doğru mu?
+
+Index eksikleri var mı?
+
+Unique eksikleri var mı?
+
+Constraint eksikleri var mı?
+
+Transaction eksikleri var mı?
+
+Veri kaybına neden olabilecek tablolar var mı?
+
+---
+
+## Production Risk Analizi
+
+Kodun tamamını incele.
+
+En kritik 50 problemi önem sırasına göre listele.
+
+Her problem için;
+
+Risk Seviyesi
+
+Kritik / Yüksek / Orta / Düşük
+
+Neden
+
+Çözüm
+
+İlgili dosya
+
+İlgili fonksiyon
+
+bekliyorum.
+
+---
+
+## Production Readiness Score
+
+Sonunda sistemi puanla.
+
+0–100
+
+Kod Kalitesi
+
+Database
+
+API
+
+Frontend
+
+Socket.io
+
+Redis
+
+Güvenlik
+
+Performans
+
+Veri Güvenliği
+
+Bakım Kolaylığı
+
+ayrı ayrı puanla.
+
+---
+
+## Sonuç
+
+Kod değiştirme.
+
+Hiçbir dosyaya dokunma.
+
+Hiçbir endpoint değiştirme.
+
+Hiçbir migration oluşturma.
+
+Sadece gerçek kod üzerinden kapsamlı Production Audit raporu hazırla.
+
+Bu rapor, NoteBeat Kids'in gelecek eğitim yılında yaklaşık **1500 öğrenci**, **100 öğretmen** ve **20 kurum** tarafından güvenle kullanılabilmesi için eksiklerin belirlenmesine yönelik olacaktır.
