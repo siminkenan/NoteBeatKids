@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock, RotateCcw } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import type { Institution, Teacher } from "@shared/schema";
@@ -30,6 +30,20 @@ type AdminClass = {
   classCode: string;
   maxStudents: number;
   expiresAt: string | null;
+  createdAt: string;
+  teacherName: string;
+  teacherEmail: string;
+  institutionName: string | null;
+  studentCount: number;
+};
+
+type DeletedClassInfo = {
+  id: string;
+  name: string;
+  branchName: string;
+  classCode: string;
+  maxStudents: number;
+  deletedAt: string;
   createdAt: string;
   teacherName: string;
   teacherEmail: string;
@@ -194,6 +208,27 @@ export default function AdminDashboard() {
   const { data: allClasses } = useQuery<AdminClass[]>({
     queryKey: ["/api/admin/classes"],
     enabled: !!admin,
+  });
+
+  const { data: deletedClasses, isLoading: deletedLoading } = useQuery<DeletedClassInfo[]>({
+    queryKey: ["/api/admin/classes/deleted"],
+    enabled: !!admin,
+    staleTime: 0,
+  });
+
+  const restoreClass = useMutation({
+    mutationFn: async (classId: string) => {
+      const res = await apiRequest("POST", `/api/admin/classes/${classId}/restore`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/classes/deleted"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/classes"] });
+      toast({ title: "Sınıf geri yüklendi!", description: "Sınıf ve tüm öğrenci verileri aktif hale getirildi." });
+    },
+    onError: () => {
+      toast({ title: "Hata", description: "Sınıf geri yüklenemedi.", variant: "destructive" });
+    },
   });
 
   const [editClassMaxOpen, setEditClassMaxOpen] = useState<{ id: string; name: string; current: number } | null>(null);
@@ -448,6 +483,15 @@ export default function AdminDashboard() {
             <TabsTrigger value="institutions" className="rounded-lg font-bold">Kurumlar</TabsTrigger>
             <TabsTrigger value="teachers" className="rounded-lg font-bold">Öğretmenler</TabsTrigger>
             <TabsTrigger value="classes" className="rounded-lg font-bold">Sınıflar</TabsTrigger>
+            <TabsTrigger value="deleted-classes" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-deleted-classes">
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+              Çöp Kutusu
+              {(deletedClasses?.length ?? 0) > 0 && (
+                <span className="ml-1 bg-red-100 text-red-700 text-xs font-extrabold rounded-full px-1.5 py-0.5 leading-none">
+                  {deletedClasses!.length}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="institutions">
@@ -853,6 +897,69 @@ export default function AdminDashboard() {
                 <p className="text-muted-foreground font-semibold col-span-3 py-8 text-center" data-testid="text-no-classes">Henüz sınıf yok.</p>
               )}
             </div>
+          </TabsContent>
+
+          {/* Deleted Classes (Soft Delete Trash) */}
+          <TabsContent value="deleted-classes">
+            <div className="flex items-center gap-3 mb-5">
+              <Trash2 className="w-5 h-5 text-red-500" />
+              <h3 className="text-xl font-extrabold">Çöp Kutusu — Silinen Sınıflar</h3>
+              <Badge variant="secondary" className="ml-auto text-xs font-bold">
+                {deletedClasses?.length ?? 0} sınıf
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+              Bu sınıflar yumuşak silindi — tüm öğrenci verileri, puanları ve ilerleme kayıtları korunmaktadır.
+              Geri yükle butonu ile sınıfı tekrar aktif hale getirebilirsiniz.
+            </p>
+            {deletedLoading && (
+              <p className="text-muted-foreground text-center py-8 font-semibold">Yükleniyor...</p>
+            )}
+            {!deletedLoading && (deletedClasses ?? []).length === 0 && (
+              <div className="text-center py-12" data-testid="text-no-deleted-classes">
+                <Trash2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-muted-foreground font-semibold">Çöp kutusunda sınıf yok.</p>
+              </div>
+            )}
+            {!deletedLoading && (deletedClasses ?? []).length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {deletedClasses!.map(cls => (
+                  <motion.div key={cls.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                    <Card className="rounded-2xl border border-red-200 bg-red-50/60 shadow-sm" data-testid={`card-deleted-class-${cls.id}`}>
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-extrabold text-slate-800 leading-tight">{cls.name}</p>
+                            {cls.branchName && (
+                              <p className="text-xs text-muted-foreground font-semibold">{cls.branchName}</p>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="text-xs font-extrabold tracking-widest border-red-300 text-red-700 shrink-0">
+                            {cls.classCode}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          <p><span className="font-semibold">Öğretmen:</span> {cls.teacherName}</p>
+                          <p><span className="font-semibold">Kurum:</span> {cls.institutionName ?? "—"}</p>
+                          <p><span className="font-semibold">Öğrenci:</span> {cls.studentCount} kayıt</p>
+                          <p><span className="font-semibold">Silinme:</span> {new Date(cls.deletedAt).toLocaleString("tr-TR")}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full gap-2 rounded-xl font-bold bg-green-600 hover:bg-green-700 text-white mt-1"
+                          onClick={() => restoreClass.mutate(cls.id)}
+                          disabled={restoreClass.isPending}
+                          data-testid={`button-restore-class-${cls.id}`}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Geri Yükle
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
         </Tabs>

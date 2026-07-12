@@ -40,6 +40,7 @@ export const classes = pgTable("classes", {
   maxStudents: integer("max_students").notNull().default(30),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const students = pgTable("students", {
@@ -159,7 +160,7 @@ export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true,
   email: z.string().email().optional().nullable(),
   password: z.string().optional().nullable(),
 });
-export const insertClassSchema = createInsertSchema(classes).omit({ id: true, classCode: true, createdAt: true });
+export const insertClassSchema = createInsertSchema(classes).omit({ id: true, classCode: true, createdAt: true, deletedAt: true });
 export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
 export const insertProgressSchema = createInsertSchema(studentProgress).omit({ id: true, updatedAt: true });
 
@@ -186,6 +187,22 @@ export type MonthlyWinner = typeof monthlyWinners.$inferSelect;
 
 export type InsertUser = { username: string; password: string };
 export type User = { id: string; username: string; password: string };
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: text("action").notNull(),
+  userType: text("user_type").notNull(),
+  userId: text("user_id"),
+  institutionId: text("institution_id"),
+  teacherId: text("teacher_id"),
+  classId: text("class_id"),
+  studentId: text("student_id"),
+  details: text("details"),
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 // connect-pg-simple session tablosu — kısıtlama adı dahil birebir eşleştirildi
 export const sessionTable = pgTable("session", {
