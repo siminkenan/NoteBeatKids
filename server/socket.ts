@@ -172,6 +172,7 @@ export async function closeSocketIO(): Promise<void> {
 /** Yıldız değişince kurumun tüm bağlı kullanıcılarına anlık gönder */
 export async function broadcastLeaderboard(institutionId: string) {
   if (!io) return;
+  const start = Date.now();
   try {
     const types: Array<"school" | "monthly"> = ["school", "monthly"];
     for (const type of types) {
@@ -180,5 +181,19 @@ export async function broadcastLeaderboard(institutionId: string) {
       setCachedLeaderboard(cacheKey, { entries });
       io.to(`inst:${institutionId}`).emit("leaderboard:update", { type, entries });
     }
+    try {
+      const { leaderboardStats } = await import("./healthService");
+      leaderboardStats.lastBroadcastAt = new Date();
+      leaderboardStats.lastBroadcastDurationMs = Date.now() - start;
+    } catch {}
   } catch (_) {}
+}
+
+export function getSocketStats(): { totalSockets: number; connectedSockets: number; totalRooms: number } {
+  if (!io) return { totalSockets: 0, connectedSockets: 0, totalRooms: 0 };
+  const sockets = io.sockets.sockets;
+  const totalSockets = sockets.size;
+  let connected = 0;
+  for (const [, s] of Array.from(sockets.entries())) { if (s.connected) connected++; }
+  return { totalSockets, connectedSockets: connected, totalRooms: io.sockets.adapter.rooms.size };
 }

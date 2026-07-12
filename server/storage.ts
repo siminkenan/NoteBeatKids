@@ -127,6 +127,8 @@ export interface IStorage {
   restoreClass(id: string): Promise<void>;
   getDeletedClasses(institutionId?: string): Promise<DeletedClassInfo[]>;
   createAuditLog(data: AuditLogData): Promise<void>;
+  createSystemError(payload: import("./errorReporter").SystemErrorPayload): Promise<void>;
+  getSystemErrors(limit?: number): Promise<import("@shared/schema").SystemError[]>;
   // Student codes
   generateStudentCodesForClass(classId: string, count: number): Promise<StudentCode[]>;
   getStudentCodesByClass(classId: string): Promise<StudentCode[]>;
@@ -574,6 +576,28 @@ export class DatabaseStorage implements IStorage {
       // Audit log failure must never break the main flow
       console.error("[AUDIT LOG] Write failed:", e);
     }
+  }
+
+  async createSystemError(payload: import("./errorReporter").SystemErrorPayload): Promise<void> {
+    try {
+      await db.insert(schema.systemErrors).values({
+        severity: payload.severity,
+        route: payload.route ?? null,
+        institutionId: payload.institutionId ?? null,
+        teacherId: payload.teacherId ?? null,
+        studentId: payload.studentId ?? null,
+        adminId: payload.adminId ?? null,
+        message: payload.message,
+        stack: payload.stack ?? null,
+        requestId: payload.requestId ?? null,
+      });
+    } catch (e) {
+      console.error("[SYSTEM ERROR] Write failed:", e);
+    }
+  }
+
+  async getSystemErrors(limit = 100): Promise<import("@shared/schema").SystemError[]> {
+    return db.select().from(schema.systemErrors).orderBy(schema.systemErrors.createdAt).limit(limit);
   }
 
   async getStudentsByClass(classId: string): Promise<Student[]> {

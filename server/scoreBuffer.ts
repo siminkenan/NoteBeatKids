@@ -131,6 +131,22 @@ export function getBufferedByStudent(studentId: string): Map<string, BufferEntry
   return result;
 }
 
+// ── Flush istatistikleri ─────────────────────────────────────────────────────
+export const flushStats = {
+  lastFlushAt: null as Date | null,
+  lastFlushDurationMs: null as number | null,
+  lastFlushSuccess: null as boolean | null,
+  lastFlushError: null as string | null,
+};
+
+export function dirtyInstitutionCount(): number {
+  const ids = new Set<string>();
+  for (const entry of Array.from(scoreBuffer.values())) {
+    if (entry.dirty && entry.institutionId) ids.add(entry.institutionId);
+  }
+  return ids.size;
+}
+
 // ── Toplu veritabanı yazma (Batch Flush) ─────────────────────────────────────
 
 let isFlushing = false;

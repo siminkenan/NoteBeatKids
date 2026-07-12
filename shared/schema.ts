@@ -204,6 +204,23 @@ export const auditLogs = pgTable("audit_logs", {
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 
+export const systemErrors = pgTable("system_errors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  severity: text("severity").notNull().default("error"),
+  route: text("route"),
+  institutionId: text("institution_id"),
+  teacherId: text("teacher_id"),
+  studentId: text("student_id"),
+  adminId: text("admin_id"),
+  message: text("message").notNull(),
+  stack: text("stack"),
+  requestId: text("request_id"),
+  resolved: boolean("resolved").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SystemError = typeof systemErrors.$inferSelect;
+
 // connect-pg-simple session tablosu — kısıtlama adı dahil birebir eşleştirildi
 export const sessionTable = pgTable("session", {
   sid: varchar("sid").notNull(),

@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock, RotateCcw } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock, RotateCcw, Activity, AlertTriangle, Database, Wifi, RefreshCw, Server } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import type { Institution, Teacher } from "@shared/schema";
@@ -121,6 +121,152 @@ function lsGetInstitutions(): InstWithExpiry[] {
 }
 function lsSaveInstitutions(list: InstWithExpiry[]) {
   try { localStorage.setItem(INST_LS_KEY, JSON.stringify(list)); } catch {}
+}
+
+function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+      {ok ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />} {label}
+    </span>
+  );
+}
+
+function HealthPanel() {
+  const { data: health, isLoading, refetch, isFetching } = useQuery<any>({
+    queryKey: ["/api/admin/health"],
+    refetchInterval: 30_000,
+  });
+  const { data: errors } = useQuery<any[]>({ queryKey: ["/api/admin/system-errors"] });
+
+  if (isLoading) return <div className="text-center py-20 text-gray-400">Yükleniyor...</div>;
+  if (!health) return <div className="text-center py-10 text-gray-400">Veri yok</div>;
+
+  const overallColor = health.overall === "healthy" ? "text-green-600" : health.overall === "degraded" ? "text-yellow-600" : "text-red-600";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="w-5 h-5 text-purple-600" />
+          <h2 className="text-xl font-extrabold text-gray-800">Sistem Sağlığı</h2>
+          <span className={`font-bold uppercase text-sm ${overallColor}`}>{health.overall}</span>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching} data-testid="button-health-refresh">
+          <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isFetching ? "animate-spin" : ""}`} /> Yenile
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* PostgreSQL */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-1 pt-3 px-4"><CardTitle className="text-sm font-bold flex items-center gap-1.5"><Database className="w-4 h-4 text-blue-500" /> PostgreSQL</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1">
+            <StatusBadge ok={health.postgresql.status === "ok"} label={health.postgresql.status} />
+            <div className="text-xs text-gray-500">Ping: {health.postgresql.pingMs ?? "—"}ms</div>
+            <div className="text-xs text-gray-500">Pool: {health.postgresql.poolTotal} / idle {health.postgresql.poolIdle}</div>
+          </CardContent>
+        </Card>
+
+        {/* Redis */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-1 pt-3 px-4"><CardTitle className="text-sm font-bold flex items-center gap-1.5"><Wifi className="w-4 h-4 text-orange-500" /> Redis</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1">
+            <StatusBadge ok={health.redis.status === "ok" || health.redis.status === "disabled"} label={health.redis.status} />
+            {health.redis.memoryUsedMB != null && <div className="text-xs text-gray-500">Bellek: {health.redis.memoryUsedMB} MB</div>}
+            {health.redis.hitRate != null && <div className="text-xs text-gray-500">Hit Rate: %{health.redis.hitRate}</div>}
+          </CardContent>
+        </Card>
+
+        {/* Socket.IO */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-1 pt-3 px-4"><CardTitle className="text-sm font-bold flex items-center gap-1.5"><Wifi className="w-4 h-4 text-green-500" /> Socket.IO</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1">
+            <div className="text-xs text-gray-500">Toplam: {health.socketio.totalSockets}</div>
+            <div className="text-xs text-gray-500">Bağlı: {health.socketio.connectedSockets}</div>
+            <div className="text-xs text-gray-500">Oda: {health.socketio.totalRooms}</div>
+          </CardContent>
+        </Card>
+
+        {/* Sistem */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-1 pt-3 px-4"><CardTitle className="text-sm font-bold flex items-center gap-1.5"><Server className="w-4 h-4 text-gray-500" /> Sistem</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1">
+            <div className="text-xs text-gray-500">Uptime: {Math.round(health.system.uptime / 60)}dk</div>
+            <div className="text-xs text-gray-500">RSS: {health.system.rssMemoryMB} MB</div>
+            <div className="text-xs text-gray-500">Heap: {health.system.heapUsedMB}/{health.system.heapTotalMB} MB</div>
+          </CardContent>
+        </Card>
+
+        {/* API Metrikleri */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-1 pt-3 px-4"><CardTitle className="text-sm font-bold flex items-center gap-1.5"><Activity className="w-4 h-4 text-purple-500" /> API</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1">
+            <div className="text-xs text-gray-500">Toplam: {health.api.totalRequests}</div>
+            <div className="text-xs text-gray-500">Son 1s: {health.api.requestsLastHour}</div>
+            <div className="text-xs text-gray-500">Ort: {health.api.avgResponseMs}ms</div>
+            {health.api.slowestEndpoint && <div className="text-xs text-gray-400 truncate" title={health.api.slowestEndpoint.path}>Yavaş: {health.api.slowestEndpoint.avgMs}ms</div>}
+          </CardContent>
+        </Card>
+
+        {/* Score Buffer */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-1 pt-3 px-4"><CardTitle className="text-sm font-bold flex items-center gap-1.5"><Database className="w-4 h-4 text-teal-500" /> Skor Tamponu</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1">
+            <div className="text-xs text-gray-500">Bekleyen: {health.scoreBuffer.pendingEntries}</div>
+            <div className="text-xs text-gray-500">Dirty Kurum: {health.scoreBuffer.dirtyInstitutions}</div>
+            {health.scoreBuffer.lastFlushSuccess != null && <StatusBadge ok={health.scoreBuffer.lastFlushSuccess} label={health.scoreBuffer.lastFlushSuccess ? "son flush: ok" : "son flush: hata"} />}
+          </CardContent>
+        </Card>
+
+        {/* Integrity */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-1 pt-3 px-4"><CardTitle className="text-sm font-bold flex items-center gap-1.5"><Shield className="w-4 h-4 text-indigo-500" /> Bütünlük</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1">
+            <StatusBadge ok={health.integrity.lastResult !== "failed" && health.integrity.lastResult !== "warnings"} label={health.integrity.lastResult ?? "bekleniyor"} />
+            {health.integrity.warningCount > 0 && <div className="text-xs text-yellow-600 font-bold">{health.integrity.warningCount} uyarı</div>}
+            <div className="text-xs text-gray-400">{health.integrity.lastCheckAt ? new Date(health.integrity.lastCheckAt).toLocaleTimeString("tr-TR") : "—"}</div>
+          </CardContent>
+        </Card>
+
+        {/* Aylık Sıfırlama */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-1 pt-3 px-4"><CardTitle className="text-sm font-bold flex items-center gap-1.5"><CalendarClock className="w-4 h-4 text-pink-500" /> Aylık Reset</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1">
+            <StatusBadge ok={health.monthlyReset.lastResult !== "failed"} label={health.monthlyReset.lastResult ?? "bekleniyor"} />
+            <div className="text-xs text-gray-400">{health.monthlyReset.lastRunAt ? new Date(health.monthlyReset.lastRunAt).toLocaleString("tr-TR") : "—"}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sistem Hataları */}
+      <Card className="rounded-2xl border shadow-sm">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500" /> Son Sistem Hataları
+            {errors && errors.length > 0 && <span className="bg-red-100 text-red-700 text-xs font-extrabold rounded-full px-1.5 py-0.5">{errors.length}</span>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          {!errors || errors.length === 0 ? (
+            <div className="text-xs text-gray-400 text-center py-4">Hata yok 🎉</div>
+          ) : (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {errors.slice(-20).reverse().map((e: any) => (
+                <div key={e.id} className="border rounded-xl px-3 py-2 bg-gray-50">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className={`text-xs font-bold uppercase ${e.severity === "critical" ? "text-red-600" : e.severity === "error" ? "text-orange-600" : "text-yellow-600"}`}>{e.severity}</span>
+                    {e.route && <span className="text-xs text-gray-400">{e.route}</span>}
+                    <span className="text-xs text-gray-300 ml-auto">{new Date(e.createdAt).toLocaleString("tr-TR")}</span>
+                  </div>
+                  <div className="text-xs text-gray-700 font-medium">{e.message}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function AdminDashboard() {
@@ -483,6 +629,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="institutions" className="rounded-lg font-bold">Kurumlar</TabsTrigger>
             <TabsTrigger value="teachers" className="rounded-lg font-bold">Öğretmenler</TabsTrigger>
             <TabsTrigger value="classes" className="rounded-lg font-bold">Sınıflar</TabsTrigger>
+            <TabsTrigger value="health" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-health">
+              <Activity className="w-3.5 h-3.5" /> Sağlık
+            </TabsTrigger>
             <TabsTrigger value="deleted-classes" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-deleted-classes">
               <Trash2 className="w-3.5 h-3.5 text-red-500" />
               Çöp Kutusu
@@ -960,6 +1109,10 @@ export default function AdminDashboard() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="health">
+            <HealthPanel />
           </TabsContent>
 
         </Tabs>

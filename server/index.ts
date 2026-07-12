@@ -8,9 +8,12 @@ import { db } from "./db";
 import * as schema from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { storage } from "./storage";
-import { flushScoreBuffer, consumeDirtyInstitutions, bufferSize } from "./scoreBuffer";
+import { flushScoreBuffer, consumeDirtyInstitutions, bufferSize, flushStats } from "./scoreBuffer";
 import { broadcastLeaderboard, closeSocketIO } from "./socket";
 import { redis } from "./redis";
+import { setErrorReporter } from "./errorReporter";
+import { monthlyResetStats } from "./healthService";
+import { startIntegrityScanner } from "./integrityScanner";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
@@ -72,6 +75,20 @@ async function gracefulShutdown(signal: string, httpServer: import("http").Serve
 async function runMigrations() {
   const migrations = [
     sql`ALTER TABLE classes ADD COLUMN IF NOT EXISTS branch_name text NOT NULL DEFAULT ''`,
+    sql`CREATE TABLE IF NOT EXISTS system_errors (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      severity text NOT NULL DEFAULT 'error',
+      route text,
+      institution_id text,
+      teacher_id text,
+      student_id text,
+      admin_id text,
+      message text NOT NULL,
+      stack text,
+      request_id text,
+      resolved boolean NOT NULL DEFAULT false,
+      created_at timestamp DEFAULT now() NOT NULL
+    )`,
     sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_seen_at timestamp`,
     sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_stars integer NOT NULL DEFAULT 0`,
     sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS monthly_badges_count integer NOT NULL DEFAULT 0`,
@@ -120,6 +137,15 @@ async function main() {
   await runMigrations();
   await seedDatabase();
 
+  // ── Error Reporter köprüsünü bağla ───────────────────────────────────────
+  setErrorReporter((payload) => { storage.createSystemError(payload).catch(() => {}); });
+
+  // ── SYSTEM_START audit ────────────────────────────────────────────────────
+  storage.createAuditLog({ action: "SYSTEM_START", userType: "system", details: JSON.stringify({ port: PORT, nodeVersion: process.version, env: process.env.NODE_ENV }) }).catch(() => {});
+
+  // ── Integrity Scanner başlat ──────────────────────────────────────────────
+  startIntegrityScanner();
+
   // ── Bellek kullanımı izleme ───────────────────────────────────────────────
   if (process.env.NODE_ENV === "production") {
     setInterval(() => {
@@ -138,6 +164,7 @@ async function main() {
   setInterval(async () => {
     const count = bufferSize();
     if (count === 0) return;
+    const flushStart = Date.now();
     try {
       log(`📤 Puan tamponu: ${count} kayıt DB'ye yazılıyor...`);
       await flushScoreBuffer();
@@ -145,15 +172,34 @@ async function main() {
       for (const instId of dirtyIds) {
         broadcastLeaderboard(instId).catch(() => {});
       }
+      flushStats.lastFlushAt = new Date();
+      flushStats.lastFlushDurationMs = Date.now() - flushStart;
+      flushStats.lastFlushSuccess = true;
+      flushStats.lastFlushError = null;
       log(`✅ Puan tamponu temizlendi. ${dirtyIds.length} kurum liderlik tablosu yayınlandı.`);
     } catch (e) {
+      flushStats.lastFlushAt = new Date();
+      flushStats.lastFlushDurationMs = Date.now() - flushStart;
+      flushStats.lastFlushSuccess = false;
+      flushStats.lastFlushError = String(e);
       log(`❌ Puan tamponu flush hatası: ${String(e)}`);
     }
   }, 30_000);
 
   // ── Otomatik aylık sıfırlama ──────────────────────────────────────────────
   const runAutoMonthlyReset = async () => {
-    try { await storage.autoCheckMonthlyReset(); } catch (_) {}
+    const resetStart = Date.now();
+    try {
+      await storage.autoCheckMonthlyReset();
+      monthlyResetStats.lastRunAt = new Date();
+      monthlyResetStats.lastResult = "success";
+      const now = new Date();
+      const nextRun = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 5, 0);
+      monthlyResetStats.nextRunAt = nextRun;
+    } catch (_) {
+      monthlyResetStats.lastRunAt = new Date();
+      monthlyResetStats.lastResult = "failed";
+    }
   };
   await runAutoMonthlyReset();
   setInterval(runAutoMonthlyReset, 24 * 60 * 60 * 1000);

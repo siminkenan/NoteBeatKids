@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
+import { requestMetricsMiddleware } from "./apiMetrics";
+import { getHealthReport } from "./healthService";
 import {
   signAccessToken, signRefreshToken, storeRefreshToken,
   invalidateRefreshToken, invalidateAllRefreshTokens,
@@ -140,6 +142,7 @@ function generateClassCode(): string {
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+  app.use(requestMetricsMiddleware);
   // Health check (used by Render and load balancers)
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -1164,6 +1167,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e) {
       console.error("Monthly reset error:", e);
       res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // ── Admin: Sistem Sağlık & Hata Merkezi ────────────────────────────────────
+  app.get("/api/admin/health", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const report = await getHealthReport();
+      res.json(report);
+    } catch (e: any) {
+      res.status(500).json({ message: "Health check failed", error: e?.message });
+    }
+  });
+
+  app.get("/api/admin/system-errors", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const limit = Math.min(parseInt(String(req.query.limit ?? "100"), 10), 500);
+      const errors = await storage.getSystemErrors(limit);
+      res.json(errors);
+    } catch (e: any) {
+      res.status(500).json({ message: "Failed to fetch system errors", error: e?.message });
     }
   });
 
