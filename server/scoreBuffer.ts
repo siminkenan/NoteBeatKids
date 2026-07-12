@@ -146,6 +146,7 @@ let isFlushing = false;
 export async function flushScoreBuffer(): Promise<void> {
   if (isFlushing || buffer.size === 0) return;
   isFlushing = true;
+  const flushStart = Date.now();
 
   const snapshot = new Map(buffer);
   buffer.clear();
@@ -200,6 +201,17 @@ export async function flushScoreBuffer(): Promise<void> {
     // İkisini aynı anda çalıştır
     await Promise.all([progressPromise, monthlyPromise]);
 
+    flushStats.lastFlushAt = new Date();
+    flushStats.lastFlushDurationMs = Date.now() - flushStart;
+    flushStats.lastFlushSuccess = true;
+    flushStats.lastFlushError = null;
+
+  } catch (err: any) {
+    flushStats.lastFlushAt = new Date();
+    flushStats.lastFlushDurationMs = Date.now() - flushStart;
+    flushStats.lastFlushSuccess = false;
+    flushStats.lastFlushError = err?.message ?? String(err);
+    throw err;
   } finally {
     isFlushing = false;
   }
@@ -240,3 +252,16 @@ export function bufferSize(): number {
 export function getBufferEntry(studentId: string, appType: string): BufferEntry | null {
   return buffer.get(`${studentId}:${appType}`) ?? null;
 }
+
+/** Dirty institution sayısını bozmadan okur (health endpoint için) */
+export function dirtyInstitutionCount(): number {
+  return dirtyInstitutions.size;
+}
+
+/** Son flush istatistikleri — health endpoint tarafından okunur */
+export const flushStats = {
+  lastFlushAt: null as Date | null,
+  lastFlushDurationMs: null as number | null,
+  lastFlushSuccess: null as boolean | null,
+  lastFlushError: null as string | null,
+};

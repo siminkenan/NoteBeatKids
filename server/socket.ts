@@ -20,6 +20,7 @@ import { storage } from "./storage";
 import { getCachedLeaderboard, setCachedLeaderboard } from "./leaderboardCache";
 import { redis } from "./redis";
 import { log } from "./logger";
+import { leaderboardStats } from "./healthService";
 
 let io: SocketIOServer | null = null;
 
@@ -169,9 +170,25 @@ export async function closeSocketIO(): Promise<void> {
   });
 }
 
+/** Socket.io anlık bağlantı istatistikleri (health endpoint için) */
+export function getSocketStats(): { totalSockets: number; connectedSockets: number; totalRooms: number } {
+  if (!io) return { totalSockets: 0, connectedSockets: 0, totalRooms: 0 };
+  const sockets = io.sockets.sockets;
+  let connected = 0;
+  for (const [, s] of Array.from(sockets)) {
+    if (s.connected) connected++;
+  }
+  return {
+    totalSockets: sockets.size,
+    connectedSockets: connected,
+    totalRooms: io.sockets.adapter.rooms.size,
+  };
+}
+
 /** Yıldız değişince kurumun tüm bağlı kullanıcılarına anlık gönder */
 export async function broadcastLeaderboard(institutionId: string) {
   if (!io) return;
+  const start = Date.now();
   try {
     const types: Array<"school" | "monthly"> = ["school", "monthly"];
     for (const type of types) {
@@ -180,5 +197,7 @@ export async function broadcastLeaderboard(institutionId: string) {
       setCachedLeaderboard(cacheKey, { entries });
       io.to(`inst:${institutionId}`).emit("leaderboard:update", { type, entries });
     }
+    leaderboardStats.lastBroadcastAt = new Date();
+    leaderboardStats.lastBroadcastDurationMs = Date.now() - start;
   } catch (_) {}
 }

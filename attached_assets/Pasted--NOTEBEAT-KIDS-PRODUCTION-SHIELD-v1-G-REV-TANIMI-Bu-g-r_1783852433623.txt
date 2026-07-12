@@ -1,0 +1,410 @@
+# NOTEBEAT KIDS – PRODUCTION SHIELD v1
+
+## GÖREV TANIMI
+
+Bu görev yeni özellik geliştirme görevi değildir.
+
+Bu görev mevcut çalışan sistemi bozmadan Production güvenilirliğini ve gözlemlenebilirliğini artırma görevidir.
+
+Kod yazmadan önce mevcut sistemi analiz et.
+
+Hiçbir çalışan endpoint'i değiştirme.
+
+Hiçbir authentication yapısını değiştirme.
+
+Hiçbir Redis mimarisini değiştirme.
+
+Hiçbir Socket.io mantığını değiştirme.
+
+Hiçbir Leaderboard algoritmasını değiştirme.
+
+Hiçbir puan hesaplama mantığını değiştirme.
+
+Hiçbir öğrenci, öğretmen veya admin akışını değiştirme.
+
+Amaç yalnızca sistemi izlenebilir, denetlenebilir ve veri kaybına karşı daha güvenli hale getirmektir.
+
+---
+
+# SİSTEMİN DEĞİŞMEYECEK MİMARİSİ
+
+Admin
+
+* Kurum oluşturur.
+* Öğretmen kapasitesi belirler.
+* Öğrenci kapasitesi belirler.
+* Lisans başlangıç ve bitiş tarihi belirler.
+
+Lisans süresi bittiğinde
+
+Kurum PASİF olur.
+
+Hiçbir veri silinmez.
+
+---
+
+Öğretmen
+
+Admin tarafından oluşturulan öğretmen kodu ile giriş yapar.
+
+Sınıflarını oluşturur.
+
+Öğrenci kodlarını üretir.
+
+---
+
+Öğrenci
+
+Kod
+
+Ad
+
+Soyad
+
+ile giriş yapar.
+
+Oyunları oynar.
+
+Yıldız kazanır.
+
+---
+
+Puan Sistemi
+
+Kesinlikle değiştirilmeyecek.
+
+RAM Buffer
+
+↓
+
+30 saniyelik batch flush
+
+↓
+
+PostgreSQL
+
+↓
+
+Redis Cache
+
+↓
+
+Socket.io Broadcast
+
+şeklindeki mevcut mimari korunacaktır.
+
+---
+
+# YAPILMASI İSTENENLER
+
+## 1. SYSTEM HEALTH SERVICE
+
+Yeni bir Health Service oluştur.
+
+Bu servis yalnızca sistem durumunu okuyacaktır.
+
+Hiçbir veri değiştirmeyecektir.
+
+İzlenecek metrikler:
+
+PostgreSQL
+
+Redis
+
+Socket.io
+
+Score Buffer
+
+Leaderboard Cache
+
+Monthly Reset
+
+JWT
+
+Memory
+
+CPU
+
+Active Connections
+
+Pool Usage
+
+Response Time
+
+Flush Duration
+
+Flush Queue
+
+Dirty Institution Count
+
+Son Broadcast
+
+Son Flush
+
+Son Monthly Reset
+
+Son Migration
+
+Son Backup Bilgisi (erişilebiliyorsa)
+
+---
+
+## 2. ERROR CENTER
+
+Yeni bir merkezi hata sistemi oluştur.
+
+Amaç:
+
+Sistemde oluşan bütün beklenmeyen hatalar tek yerde toplanmalıdır.
+
+Yeni tablo gerekiyorsa oluştur.
+
+Tutulacak bilgiler:
+
+Tarih
+
+Severity
+
+Route
+
+Institution
+
+Teacher
+
+Student
+
+Admin
+
+Error Message
+
+Stack Trace
+
+Request ID
+
+Resolved
+
+Sadece beklenmeyen sistem hataları kaydedilsin.
+
+Normal kullanıcı hataları (401, yanlış şifre vb.) kaydedilmesin.
+
+---
+
+## 3. ADMIN HEALTH DASHBOARD
+
+Admin paneline yeni bir sekme ekle.
+
+Adı:
+
+Production Health
+
+Bu ekranda yalnızca okunabilir bilgiler gösterilecek.
+
+Hiçbir işlem yapılmayacak.
+
+Gösterilecek bilgiler:
+
+🟢 PostgreSQL
+
+Bağlantı Durumu
+
+Pool Kullanımı
+
+Son Query Süresi
+
+Toplam Query
+
+🟢 Redis
+
+Bağlı
+
+Memory
+
+Hit Rate
+
+Miss Rate
+
+Cache Boyutu
+
+🟢 Socket.io
+
+Bağlı Öğrenci
+
+Bağlı Öğretmen
+
+Bağlı Admin
+
+Toplam Socket
+
+Toplam Room
+
+🟢 Score Buffer
+
+Bekleyen Kayıt
+
+Son Flush
+
+Flush Süresi
+
+Flush Başarılı mı
+
+Flush Hatası
+
+🟢 Leaderboard
+
+Cache Durumu
+
+Son Broadcast
+
+Broadcast Süresi
+
+🟢 Monthly Reset
+
+Son Çalışma
+
+Sonuç
+
+Bir Sonraki Kontrol
+
+🟢 API
+
+Toplam İstek
+
+Son 1 Saat
+
+Ortalama Süre
+
+En Yavaş Endpoint
+
+🟢 Sistem
+
+Node Version
+
+Build Version
+
+Deploy Tarihi
+
+Uptime
+
+RAM Kullanımı
+
+CPU Kullanımı
+
+---
+
+## 4. DATA INTEGRITY CHECK
+
+Yeni bir Integrity Scanner oluştur.
+
+Belirli aralıklarla yalnızca kontrol yapacak.
+
+Hiçbir kayıt silmeyecek.
+
+Kontrol edilecekler:
+
+Öğrenci → sınıf ilişkisi
+
+Sınıf → öğretmen ilişkisi
+
+Öğretmen → kurum ilişkisi
+
+Student Progress
+
+Leaderboard
+
+Monthly Stats
+
+Student Codes
+
+Teacher Codes
+
+Eksik kayıt bulunursa Error Center'a yaz.
+
+---
+
+## 5. AUDIT
+
+Mevcut Audit Log sistemi korunacak.
+
+Sadece aşağıdaki yeni kayıtlar eklensin:
+
+SYSTEM_START
+
+SYSTEM_STOP
+
+FLUSH_SUCCESS
+
+FLUSH_FAILED
+
+MONTHLY_RESET_SUCCESS
+
+MONTHLY_RESET_FAILED
+
+DATABASE_WARNING
+
+REDIS_WARNING
+
+SOCKET_WARNING
+
+INTEGRITY_WARNING
+
+---
+
+## 6. PERFORMANS
+
+Yeni sistem;
+
+Render Starter
+
+Neon Launch
+
+Redis
+
+üzerinde ekstra yük oluşturmamalıdır.
+
+Sürekli polling yapılmamalıdır.
+
+Mümkün olduğunca mevcut cache ve mevcut servislerden veri okunmalıdır.
+
+---
+
+## 7. GÜVENLİK
+
+Yeni eklenecek hiçbir özellik;
+
+JWT
+
+Authentication
+
+Authorization
+
+Rate Limit
+
+Socket
+
+Redis
+
+Leaderboards
+
+Score Buffer
+
+ve mevcut Production mimarisini değiştirmemelidir.
+
+---
+
+## 8. SON
+
+Kod tamamlandıktan sonra:
+
+* TypeScript kontrolü yap.
+* Build al.
+* Server tarafında hata olmadığını doğrula.
+* Performans etkisini raporla.
+* Eklenen dosyaları listele.
+* Eklenen endpoint'leri listele.
+* Yeni tabloları listele.
+* RAM etkisini tahmini olarak belirt.
+* Render Starter ve Neon Launch için uygun olup olmadığını değerlendir.
+
+GitHub'a otomatik push yapma.
+
+Önce kapsamlı rapor ver.

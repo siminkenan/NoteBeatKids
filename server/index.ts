@@ -11,6 +11,9 @@ import { storage } from "./storage";
 import { flushScoreBuffer, consumeDirtyInstitutions, bufferSize } from "./scoreBuffer";
 import { broadcastLeaderboard, closeSocketIO } from "./socket";
 import { redis } from "./redis";
+import { monthlyResetStats } from "./healthService";
+import { startIntegrityScanner } from "./integrityScanner";
+import { setErrorReporter } from "./errorReporter";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
@@ -27,6 +30,9 @@ process.on("unhandledRejection", (reason) => {
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 async function gracefulShutdown(signal: string, httpServer: import("http").Server) {
   log(`🛑 ${signal} alındı — kapatılıyor...`);
+
+  // Audit: SYSTEM_STOP
+  storage.createAuditLog({ action: "SYSTEM_STOP", userType: "system", details: JSON.stringify({ signal }) }).catch(() => {});
 
   // 1. Yeni HTTP bağlantılarını reddet
   httpServer.close(async () => {
@@ -76,6 +82,25 @@ async function runMigrations() {
     sql`ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_stars integer NOT NULL DEFAULT 0`,
     sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS monthly_badges_count integer NOT NULL DEFAULT 0`,
     sql`ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS last_reset_month varchar(7) NOT NULL DEFAULT ''`,
+    // system_errors tablosu (Error Center)
+    sql`CREATE TABLE IF NOT EXISTS system_errors (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      severity text NOT NULL DEFAULT 'error',
+      route text,
+      institution_id text,
+      teacher_id text,
+      student_id text,
+      admin_id text,
+      message text NOT NULL,
+      stack text,
+      request_id text,
+      resolved boolean NOT NULL DEFAULT false,
+      created_at timestamp NOT NULL DEFAULT now()
+    )`,
+    // audit_logs tablosuna index'ler (büyüdükçe kritik)
+    sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_institution_id ON audit_logs(institution_id)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_system_errors_created_at ON system_errors(created_at)`,
     // Performans index'leri
     sql`CREATE INDEX IF NOT EXISTS idx_students_class_id ON students(class_id)`,
     sql`CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes(teacher_id)`,
@@ -120,6 +145,19 @@ async function main() {
   await runMigrations();
   await seedDatabase();
 
+  // ── Error Reporter bağlantısı (storage hazır olduktan sonra) ──────────────
+  setErrorReporter((data) => storage.createSystemError(data).catch(() => {}));
+
+  // ── Audit: SYSTEM_START ───────────────────────────────────────────────────
+  storage.createAuditLog({
+    action: "SYSTEM_START",
+    userType: "system",
+    details: JSON.stringify({ nodeVersion: process.version, env: process.env.NODE_ENV ?? "development" }),
+  }).catch(() => {});
+
+  // ── Integrity Scanner (4s'de bir, 5dk sonra başlar) ──────────────────────
+  startIntegrityScanner();
+
   // ── Bellek kullanımı izleme ───────────────────────────────────────────────
   if (process.env.NODE_ENV === "production") {
     setInterval(() => {
@@ -146,15 +184,48 @@ async function main() {
         broadcastLeaderboard(instId).catch(() => {});
       }
       log(`✅ Puan tamponu temizlendi. ${dirtyIds.length} kurum liderlik tablosu yayınlandı.`);
+      // Audit: FLUSH_SUCCESS
+      storage.createAuditLog({
+        action: "FLUSH_SUCCESS",
+        userType: "system",
+        details: JSON.stringify({ flushedCount: count, broadcastedInstitutions: dirtyIds.length }),
+      }).catch(() => {});
     } catch (e) {
       log(`❌ Puan tamponu flush hatası: ${String(e)}`);
+      // Audit: FLUSH_FAILED
+      storage.createAuditLog({
+        action: "FLUSH_FAILED",
+        userType: "system",
+        details: JSON.stringify({ error: String(e), pendingCount: count }),
+      }).catch(() => {});
     }
   }, 30_000);
 
   // ── Otomatik aylık sıfırlama ──────────────────────────────────────────────
   const runAutoMonthlyReset = async () => {
-    try { await storage.autoCheckMonthlyReset(); } catch (_) {}
+    const resetStart = Date.now();
+    try {
+      await storage.autoCheckMonthlyReset();
+      monthlyResetStats.lastRunAt = new Date();
+      monthlyResetStats.lastResult = "success";
+      monthlyResetStats.nextRunAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      storage.createAuditLog({
+        action: "MONTHLY_RESET_SUCCESS",
+        userType: "system",
+        details: JSON.stringify({ durationMs: Date.now() - resetStart }),
+      }).catch(() => {});
+    } catch (e) {
+      monthlyResetStats.lastRunAt = new Date();
+      monthlyResetStats.lastResult = "failed";
+      monthlyResetStats.nextRunAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      storage.createAuditLog({
+        action: "MONTHLY_RESET_FAILED",
+        userType: "system",
+        details: JSON.stringify({ error: String(e) }),
+      }).catch(() => {});
+    }
   };
+  monthlyResetStats.nextRunAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await runAutoMonthlyReset();
   setInterval(runAutoMonthlyReset, 24 * 60 * 60 * 1000);
 

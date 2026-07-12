@@ -27,7 +27,7 @@ async function cacheDel(...keys: string[]): Promise<void> {
 import {
   institutions, admins, teachers, classes, students, studentProgress, teacherCodes, studentCodes,
   orchestraSongs, orchestraProgress, maestroResources, maestroViewProgress,
-  monthlyStats, monthlyWinners, auditLogs,
+  monthlyStats, monthlyWinners, auditLogs, systemErrors,
   type Institution, type InsertInstitution,
   type Admin, type Teacher, type InsertTeacher,
   type Class, type InsertClass,
@@ -127,6 +127,7 @@ export interface IStorage {
   restoreClass(id: string): Promise<void>;
   getDeletedClasses(institutionId?: string): Promise<DeletedClassInfo[]>;
   createAuditLog(data: AuditLogData): Promise<void>;
+  createSystemError(data: { severity?: string; route?: string | null; institutionId?: string | null; teacherId?: string | null; studentId?: string | null; adminId?: string | null; message: string; stack?: string | null; requestId?: string | null }): Promise<void>;
   // Student codes
   generateStudentCodesForClass(classId: string, count: number): Promise<StudentCode[]>;
   getStudentCodesByClass(classId: string): Promise<StudentCode[]>;
@@ -573,6 +574,36 @@ export class DatabaseStorage implements IStorage {
     } catch (e) {
       // Audit log failure must never break the main flow
       console.error("[AUDIT LOG] Write failed:", e);
+    }
+  }
+
+  async createSystemError(data: {
+    severity?: string;
+    route?: string | null;
+    institutionId?: string | null;
+    teacherId?: string | null;
+    studentId?: string | null;
+    adminId?: string | null;
+    message: string;
+    stack?: string | null;
+    requestId?: string | null;
+  }): Promise<void> {
+    try {
+      await db.insert(systemErrors).values({
+        severity: data.severity ?? "error",
+        route: data.route ?? null,
+        institutionId: data.institutionId ?? null,
+        teacherId: data.teacherId ?? null,
+        studentId: data.studentId ?? null,
+        adminId: data.adminId ?? null,
+        message: data.message,
+        stack: data.stack ?? null,
+        requestId: data.requestId ?? null,
+        resolved: false,
+      });
+    } catch (e) {
+      // System error logging must never crash the app
+      console.error("[SYSTEM ERROR LOG] Write failed:", e);
     }
   }
 

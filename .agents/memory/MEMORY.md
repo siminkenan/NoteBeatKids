@@ -2,3 +2,4 @@
 - [GitHub push method](github-push.md) — git commit is blocked in main agent; use /tmp/gh_push_final.mjs + GitHub REST API (blobs→tree→commit→ref PATCH) with GITHUB_TOKEN from bash env.
 - [Auth header conflict fix](auth-headers.md) — queryClient uses route-based authHeadersForPath() so adminToken and teacherToken never override each other.
 - [Institutions pagination bug](pagination-bug.md) — GET /api/admin/institutions must NOT paginate by default; only paginate when ?page= and ?limit= are both explicitly provided.
+- [Production Shield v1](production-shield-v1.md) — 7 yeni dosya/değişiklik: healthService, integrityScanner, apiMetrics, errorReporter, systemErrors tablosu, health+system-errors endpoint'leri, Admin Health tab. Tümü tamamlandı.

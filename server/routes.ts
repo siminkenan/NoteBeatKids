@@ -4,6 +4,11 @@ import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
 import multer from "multer";
+import { getHealthReport } from "./healthService";
+import { requestMetricsMiddleware } from "./apiMetrics";
+import { systemErrors } from "@shared/schema";
+import { db } from "./db";
+import { desc } from "drizzle-orm";
 import {
   signAccessToken, signRefreshToken, storeRefreshToken,
   invalidateRefreshToken, invalidateAllRefreshTokens,
@@ -1166,6 +1171,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(500).json({ message: "Server error" });
     }
   });
+
+  // ── Production Health (admin-only, read-only) ──────────────────────────────
+  app.get("/api/admin/health", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const report = await getHealthReport();
+      res.json(report);
+    } catch (e: any) {
+      res.status(500).json({ message: "Health check failed", error: e?.message });
+    }
+  });
+
+  // ── System Errors (admin-only, read-only, last 100) ───────────────────────
+  app.get("/api/admin/system-errors", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const rows = await db
+        .select()
+        .from(systemErrors)
+        .orderBy(desc(systemErrors.createdAt))
+        .limit(100);
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // ── API Metrics middleware (all routes) ───────────────────────────────────
+  app.use(requestMetricsMiddleware);
 
   return httpServer;
 }

@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock, RotateCcw } from "lucide-react";
+import { Plus, Building2, Users, BookOpen, Clock, LogOut, Shield, CheckCircle, XCircle, School, Trash2, Search, ChevronRight, QrCode, Copy, Pencil, CalendarClock, RotateCcw, Activity, AlertTriangle, Database, Wifi, RefreshCw, Cpu, ServerCrash, Zap } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ProtectedLogo from "@/components/protected-logo";
 import type { Institution, Teacher } from "@shared/schema";
@@ -121,6 +121,279 @@ function lsGetInstitutions(): InstWithExpiry[] {
 }
 function lsSaveInstitutions(list: InstWithExpiry[]) {
   try { localStorage.setItem(INST_LS_KEY, JSON.stringify(list)); } catch {}
+}
+
+// ── Health Dashboard ──────────────────────────────────────────────────────────
+type StatusDot = "healthy" | "degraded" | "critical" | "disabled" | "unknown";
+
+function StatusPill({ status }: { status: StatusDot }) {
+  const map: Record<StatusDot, { label: string; className: string }> = {
+    healthy:  { label: "Sağlıklı",  className: "bg-emerald-100 text-emerald-700" },
+    degraded: { label: "Yavaş",     className: "bg-amber-100 text-amber-700" },
+    critical: { label: "Kritik",    className: "bg-red-100 text-red-700" },
+    disabled: { label: "Devre Dışı",className: "bg-slate-100 text-slate-500" },
+    unknown:  { label: "Bilinmiyor",className: "bg-slate-100 text-slate-400" },
+  };
+  const { label, className } = map[status];
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${className}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${status === "healthy" ? "bg-emerald-500" : status === "degraded" ? "bg-amber-500" : status === "critical" ? "bg-red-500" : "bg-slate-400"}`} />
+      {label}
+    </span>
+  );
+}
+
+function fmt(n: number | null, unit = "ms") {
+  if (n === null || n === undefined) return "—";
+  return `${n}${unit}`;
+}
+
+function fmtDate(iso: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "2-digit", month: "2-digit" });
+}
+
+function fmtUptime(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}d`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}s ${Math.floor((seconds % 3600) / 60)}d`;
+  return `${Math.floor(seconds / 86400)}g ${Math.floor((seconds % 86400) / 3600)}s`;
+}
+
+interface HealthReport {
+  timestamp: string;
+  overall: "healthy" | "degraded" | "critical";
+  postgresql: { status: string; pingMs: number | null; poolTotal: number; poolIdle: number; poolWaiting: number };
+  redis: { status: string; memoryUsedMB: number | null; hitRate: number | null; keyCount: number | null; connected: boolean };
+  socketio: { totalSockets: number; connectedSockets: number; totalRooms: number };
+  scoreBuffer: { pendingEntries: number; dirtyInstitutions: number; lastFlushAt: string | null; lastFlushDurationMs: number | null; lastFlushSuccess: boolean | null; lastFlushError: string | null };
+  leaderboard: { lastBroadcastAt: string | null; lastBroadcastDurationMs: number | null };
+  monthlyReset: { lastRunAt: string | null; lastResult: string | null; nextRunAt: string | null };
+  api: { totalRequests: number; requestsLastHour: number; avgResponseMs: number; slowestEndpoint: { path: string; avgMs: number } | null };
+  integrity: { lastCheckAt: string | null; lastResult: string | null; warningCount: number };
+  system: { nodeVersion: string; uptime: number; rssMemoryMB: number; heapUsedMB: number; heapTotalMB: number };
+}
+
+function HealthDashboard() {
+  const { data: health, isLoading, error, refetch, isFetching } = useQuery<HealthReport>({
+    queryKey: ["/api/admin/health"],
+    refetchInterval: 30_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw className="w-6 h-6 animate-spin text-indigo-500 mr-2" />
+        <span className="text-muted-foreground font-medium">Sistem durumu yükleniyor...</span>
+      </div>
+    );
+  }
+
+  if (error || !health) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <ServerCrash className="w-10 h-10 text-red-400" />
+        <p className="text-red-600 font-bold">Health endpoint'e bağlanılamadı</p>
+        <button onClick={() => refetch()} className="text-sm text-indigo-600 underline">Tekrar dene</button>
+      </div>
+    );
+  }
+
+  const h = health;
+  const pgStatus: StatusDot = h.postgresql.status === "ok" ? "healthy" : h.postgresql.status === "slow" ? "degraded" : "critical";
+  const rdStatus: StatusDot = h.redis.status === "ok" ? "healthy" : h.redis.status === "disabled" ? "disabled" : "critical";
+  const intStatus: StatusDot = h.integrity.lastResult === "ok" ? "healthy" : h.integrity.lastResult === "warnings" ? "degraded" : h.integrity.lastResult === "failed" ? "critical" : "unknown";
+  const flushStatus: StatusDot = h.scoreBuffer.lastFlushSuccess === true ? "healthy" : h.scoreBuffer.lastFlushSuccess === false ? "critical" : "unknown";
+  const resetStatus: StatusDot = h.monthlyReset.lastResult === "success" ? "healthy" : h.monthlyReset.lastResult === "failed" ? "critical" : h.monthlyReset.lastResult === "skipped" ? "degraded" : "unknown";
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="w-5 h-5 text-indigo-600" />
+          <h3 className="text-xl font-extrabold">Üretim Sağlığı</h3>
+          <StatusPill status={h.overall === "healthy" ? "healthy" : h.overall === "degraded" ? "degraded" : "critical"} />
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Son güncelleme: {fmtDate(h.timestamp)}</span>
+          <button
+            data-testid="btn-health-refresh"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="rounded-lg border px-2 py-1 text-xs font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-1 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
+            Yenile
+          </button>
+        </div>
+      </div>
+
+      {/* Cards grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+        {/* PostgreSQL */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Database className="w-4 h-4 text-indigo-500" />
+              PostgreSQL
+              <div className="ml-auto"><StatusPill status={pgStatus} /></div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Ping</span><span className="font-bold">{fmt(h.postgresql.pingMs)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Havuz toplam</span><span className="font-bold">{h.postgresql.poolTotal}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Boşta</span><span className="font-bold">{h.postgresql.poolIdle}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Bekleyen</span><span className={`font-bold ${h.postgresql.poolWaiting > 0 ? "text-amber-600" : ""}`}>{h.postgresql.poolWaiting}</span></div>
+          </CardContent>
+        </Card>
+
+        {/* Redis */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Zap className="w-4 h-4 text-orange-500" />
+              Redis
+              <div className="ml-auto"><StatusPill status={rdStatus} /></div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Bellek</span><span className="font-bold">{fmt(h.redis.memoryUsedMB, " MB")}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Hit oranı</span><span className="font-bold">{h.redis.hitRate !== null ? `%${h.redis.hitRate}` : "—"}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Anahtar sayısı</span><span className="font-bold">{h.redis.keyCount ?? "—"}</span></div>
+          </CardContent>
+        </Card>
+
+        {/* Socket.io */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Wifi className="w-4 h-4 text-blue-500" />
+              Socket.io
+              <div className="ml-auto"><StatusPill status={h.socketio.connectedSockets > 0 ? "healthy" : "disabled"} /></div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Bağlı</span><span className="font-bold">{h.socketio.connectedSockets}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Toplam socket</span><span className="font-bold">{h.socketio.totalSockets}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Oda sayısı</span><span className="font-bold">{h.socketio.totalRooms}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Son yayın</span><span className="font-bold text-xs">{fmtDate(h.leaderboard.lastBroadcastAt)}</span></div>
+          </CardContent>
+        </Card>
+
+        {/* Puan Tamponu */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Activity className="w-4 h-4 text-violet-500" />
+              Puan Tamponu
+              <div className="ml-auto"><StatusPill status={flushStatus} /></div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Bekleyen kayıt</span><span className={`font-bold ${h.scoreBuffer.pendingEntries > 100 ? "text-amber-600" : ""}`}>{h.scoreBuffer.pendingEntries}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Dirty kurum</span><span className="font-bold">{h.scoreBuffer.dirtyInstitutions}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Son flush</span><span className="font-bold text-xs">{fmtDate(h.scoreBuffer.lastFlushAt)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Flush süresi</span><span className="font-bold">{fmt(h.scoreBuffer.lastFlushDurationMs)}</span></div>
+            {h.scoreBuffer.lastFlushError && (
+              <div className="mt-1 rounded bg-red-50 px-2 py-1 text-xs text-red-700 font-medium truncate" title={h.scoreBuffer.lastFlushError}>
+                ❌ {h.scoreBuffer.lastFlushError}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* API İstatistikleri */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-teal-500" />
+              API İstatistikleri
+              <div className="ml-auto"><StatusPill status={h.api.avgResponseMs < 200 ? "healthy" : h.api.avgResponseMs < 1000 ? "degraded" : "critical"} /></div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Toplam istek</span><span className="font-bold">{h.api.totalRequests.toLocaleString("tr-TR")}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Son 1 saat</span><span className="font-bold">{h.api.requestsLastHour.toLocaleString("tr-TR")}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Ort. yanıt</span><span className={`font-bold ${h.api.avgResponseMs > 500 ? "text-amber-600" : ""}`}>{fmt(h.api.avgResponseMs)}</span></div>
+            {h.api.slowestEndpoint && (
+              <div className="flex justify-between items-start gap-2">
+                <span className="text-muted-foreground shrink-0">En yavaş</span>
+                <span className="font-bold text-xs text-right truncate" title={h.api.slowestEndpoint.path}>{h.api.slowestEndpoint.path} ({h.api.slowestEndpoint.avgMs}ms)</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Sistem */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <ServerCrash className="w-4 h-4 text-slate-500" />
+              Sistem
+              <div className="ml-auto"><StatusPill status="healthy" /></div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Node.js</span><span className="font-bold">{h.system.nodeVersion}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Uptime</span><span className="font-bold">{fmtUptime(h.system.uptime)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">RSS Bellek</span><span className="font-bold">{h.system.rssMemoryMB} MB</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Heap kullanım</span><span className={`font-bold ${h.system.heapUsedMB / h.system.heapTotalMB > 0.85 ? "text-amber-600" : ""}`}>{h.system.heapUsedMB}/{h.system.heapTotalMB} MB</span></div>
+          </CardContent>
+        </Card>
+
+        {/* Bütünlük Taraması */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Shield className="w-4 h-4 text-indigo-500" />
+              Bütünlük Taraması
+              <div className="ml-auto"><StatusPill status={intStatus} /></div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Son tarama</span><span className="font-bold text-xs">{fmtDate(h.integrity.lastCheckAt)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Sonuç</span><span className={`font-bold ${h.integrity.lastResult === "warnings" ? "text-amber-600" : h.integrity.lastResult === "failed" ? "text-red-600" : ""}`}>{h.integrity.lastResult ?? "—"}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Uyarı sayısı</span><span className={`font-bold ${h.integrity.warningCount > 0 ? "text-amber-600" : ""}`}>{h.integrity.warningCount}</span></div>
+          </CardContent>
+        </Card>
+
+        {/* Aylık Sıfırlama */}
+        <Card className="rounded-2xl border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-pink-500" />
+              Aylık Sıfırlama
+              <div className="ml-auto"><StatusPill status={resetStatus} /></div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 text-sm space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Son çalışma</span><span className="font-bold text-xs">{fmtDate(h.monthlyReset.lastRunAt)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Sonuç</span><span className={`font-bold ${h.monthlyReset.lastResult === "failed" ? "text-red-600" : ""}`}>{h.monthlyReset.lastResult ?? "—"}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Sonraki çalışma</span><span className="font-bold text-xs">{fmtDate(h.monthlyReset.nextRunAt)}</span></div>
+          </CardContent>
+        </Card>
+
+      </div>
+
+      {/* Genel durum uyarısı */}
+      {h.overall !== "healthy" && (
+        <div className={`rounded-xl border px-4 py-3 flex items-start gap-2 ${h.overall === "critical" ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}>
+          <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${h.overall === "critical" ? "text-red-500" : "text-amber-500"}`} />
+          <div>
+            <p className={`text-sm font-bold ${h.overall === "critical" ? "text-red-700" : "text-amber-700"}`}>
+              {h.overall === "critical" ? "Kritik sistem sorunu tespit edildi!" : "Sistem performansı düşük"}
+            </p>
+            <p className={`text-xs mt-0.5 ${h.overall === "critical" ? "text-red-600" : "text-amber-600"}`}>
+              Lütfen yukarıdaki kartlardaki uyarıları inceleyin.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminDashboard() {
@@ -491,6 +764,10 @@ export default function AdminDashboard() {
                   {deletedClasses!.length}
                 </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="health" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-health">
+              <Activity className="w-3.5 h-3.5 text-emerald-500" />
+              Sistem Sağlığı
             </TabsTrigger>
           </TabsList>
 
@@ -960,6 +1237,11 @@ export default function AdminDashboard() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* ── Production Health Tab ─────────────────────────────────────── */}
+          <TabsContent value="health">
+            <HealthDashboard />
           </TabsContent>
 
         </Tabs>

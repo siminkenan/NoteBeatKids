@@ -10,6 +10,7 @@ import { initSocketIO } from "./socket";
 import { log } from "./logger";
 import rateLimit from "express-rate-limit";
 import { validateEnv } from "./env";
+import { reportSystemError } from "./errorReporter";
 
 export { log };
 
@@ -150,11 +151,19 @@ export async function createApp() {
   await initSocketIO(httpServer);
 
   // ── Global hata yakalayıcı ────────────────────────────────────────────────
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     if (status >= 500) {
       log(`❌ Sunucu hatası: ${message} — ${err?.stack?.split("\n")[1]?.trim() ?? ""}`, "error");
+      // Beklenmeyen 500 hatalarını Error Center'a raporla (fire-and-forget)
+      reportSystemError({
+        severity: "error",
+        route: req.path,
+        message,
+        stack: err?.stack?.slice(0, 2000) ?? null,
+        requestId: (req as any).id ?? null,
+      });
     }
     if (res.headersSent) return next(err);
     res.status(status).json({ message });
