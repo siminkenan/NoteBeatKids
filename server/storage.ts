@@ -762,82 +762,136 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInstitution(institutionId: string): Promise<void> {
     // Institution deletion is a HARD delete — all data is permanently removed.
-    // We do NOT use deleteClass() (soft-delete) here because soft-deleted classes
+    // We do NOT use deleteClass() (soft-delete) here: soft-deleted class rows
     // still hold FK references (classes.teacher_id → teachers.id) that block
     // teacher/institution deletion. We must physically remove all rows.
+    //
+    // Audit logs (STARTED/COMPLETED/FAILED) are written OUTSIDE the transaction
+    // so they persist even if the transaction rolls back.
 
+    // --- Pre-flight: collect IDs before opening the transaction ---
     const institutionTeachers = await this.getTeachersByInstitution(institutionId);
     const teacherIds = institutionTeachers.map(t => t.id);
 
+    let allClasses: { id: string; classCode: string | null }[] = [];
+    let classIds: string[] = [];
+    let studentIds: string[] = [];
+
     if (teacherIds.length > 0) {
-      // 1. Get ALL classes for these teachers — including soft-deleted ones
-      //    (getClassesByTeacher filters deleted_at IS NULL, so we query directly)
-      const allClasses = await db
+      // ALL classes for these teachers, including soft-deleted ones
+      allClasses = await db
         .select({ id: classes.id, classCode: classes.classCode })
         .from(classes)
         .where(inArray(classes.teacherId, teacherIds));
-      const classIds = allClasses.map(c => c.id);
+      classIds = allClasses.map(c => c.id);
 
       if (classIds.length > 0) {
-        // 2. Collect all student IDs
         const studentList = await db
           .select({ id: students.id })
           .from(students)
           .where(inArray(students.classId, classIds));
-        const studentIds = studentList.map(s => s.id);
-
-        // 3. Hard-delete all student-dependent rows
-        if (studentIds.length > 0) {
-          await db.delete(maestroViewProgress).where(inArray(maestroViewProgress.studentId, studentIds));
-          await db.delete(studentProgress).where(inArray(studentProgress.studentId, studentIds));
-          await db.delete(orchestraProgress).where(inArray(orchestraProgress.studentId, studentIds));
-          await db.delete(monthlyStats).where(inArray(monthlyStats.studentId, studentIds));
-          await db.delete(monthlyWinners).where(inArray(monthlyWinners.studentId, studentIds));
-        }
-
-        // 4. Nullify student FK in student_codes, then hard-delete students and codes
-        await db.update(studentCodes).set({ studentId: null }).where(inArray(studentCodes.classId, classIds));
-        await db.delete(students).where(inArray(students.classId, classIds));
-        await db.delete(studentCodes).where(inArray(studentCodes.classId, classIds));
-
-        // 5. Invalidate Redis cache for all class codes
-        for (const cls of allClasses) {
-          if (cls.classCode) await cacheDel(`cls:code:${cls.classCode.toUpperCase()}`);
-        }
-
-        // 6. Hard-delete classes (including soft-deleted ones)
-        await db.delete(classes).where(inArray(classes.id, classIds));
+        studentIds = studentList.map(s => s.id);
       }
-
-      // 7. Delete orchestra and maestro data per teacher
-      for (const teacher of institutionTeachers) {
-        const teacherSongs = await db
-          .select({ id: orchestraSongs.id })
-          .from(orchestraSongs)
-          .where(eq(orchestraSongs.teacherId, teacher.id));
-        for (const song of teacherSongs) {
-          await db.delete(orchestraProgress).where(eq(orchestraProgress.songId, song.id));
-        }
-        await db.delete(orchestraSongs).where(eq(orchestraSongs.teacherId, teacher.id));
-
-        const teacherResources = await db
-          .select({ id: maestroResources.id })
-          .from(maestroResources)
-          .where(eq(maestroResources.teacherId, teacher.id));
-        for (const res of teacherResources) {
-          await db.delete(maestroViewProgress).where(eq(maestroViewProgress.resourceId, res.id));
-        }
-        await db.delete(maestroResources).where(eq(maestroResources.teacherId, teacher.id));
-      }
-
-      // 8. Delete teachers
-      await db.delete(teachers).where(eq(teachers.institutionId, institutionId));
     }
 
-    // 9. Delete teacher invite codes and monthly winners, then the institution itself
-    await db.delete(teacherCodes).where(eq(teacherCodes.institutionId, institutionId));
-    await db.delete(monthlyWinners).where(eq(monthlyWinners.institutionId, institutionId));
-    await db.delete(institutions).where(eq(institutions.id, institutionId));
+    // --- Audit: STARTED (outside tx — always persists) ---
+    await db.insert(auditLogs).values({
+      action: "DELETE_INSTITUTION_STARTED",
+      userType: "admin",
+      institutionId,
+      details: JSON.stringify({
+        teacherCount: teacherIds.length,
+        classCount: classIds.length,
+        studentCount: studentIds.length,
+      }),
+    }).catch(e => console.error("[AUDIT] DELETE_INSTITUTION_STARTED failed:", e));
+
+    try {
+      await db.transaction(async (tx) => {
+        if (teacherIds.length > 0) {
+          if (classIds.length > 0) {
+            // Step 1 — Hard-delete all student-dependent rows
+            if (studentIds.length > 0) {
+              await tx.delete(maestroViewProgress).where(inArray(maestroViewProgress.studentId, studentIds));
+              await tx.delete(studentProgress).where(inArray(studentProgress.studentId, studentIds));
+              await tx.delete(orchestraProgress).where(inArray(orchestraProgress.studentId, studentIds));
+              await tx.delete(monthlyStats).where(inArray(monthlyStats.studentId, studentIds));
+              await tx.delete(monthlyWinners).where(inArray(monthlyWinners.studentId, studentIds));
+            }
+
+            // Step 2 — Nullify student FK in student_codes, then delete students + codes
+            await tx.update(studentCodes).set({ studentId: null }).where(inArray(studentCodes.classId, classIds));
+            await tx.delete(students).where(inArray(students.classId, classIds));
+            await tx.delete(studentCodes).where(inArray(studentCodes.classId, classIds));
+
+            // Step 3 — Hard-delete classes (including soft-deleted)
+            await tx.delete(classes).where(inArray(classes.id, classIds));
+          }
+
+          // Step 4 — Orchestra and maestro data per teacher
+          for (const teacher of institutionTeachers) {
+            const teacherSongs = await tx
+              .select({ id: orchestraSongs.id })
+              .from(orchestraSongs)
+              .where(eq(orchestraSongs.teacherId, teacher.id));
+            for (const song of teacherSongs) {
+              await tx.delete(orchestraProgress).where(eq(orchestraProgress.songId, song.id));
+            }
+            await tx.delete(orchestraSongs).where(eq(orchestraSongs.teacherId, teacher.id));
+
+            const teacherResources = await tx
+              .select({ id: maestroResources.id })
+              .from(maestroResources)
+              .where(eq(maestroResources.teacherId, teacher.id));
+            for (const res of teacherResources) {
+              await tx.delete(maestroViewProgress).where(eq(maestroViewProgress.resourceId, res.id));
+            }
+            await tx.delete(maestroResources).where(eq(maestroResources.teacherId, teacher.id));
+          }
+
+          // Step 5 — Delete teachers
+          await tx.delete(teachers).where(eq(teachers.institutionId, institutionId));
+        }
+
+        // Step 6 — Delete teacher invite codes, monthly winners, institution
+        await tx.delete(teacherCodes).where(eq(teacherCodes.institutionId, institutionId));
+        await tx.delete(monthlyWinners).where(eq(monthlyWinners.institutionId, institutionId));
+        await tx.delete(institutions).where(eq(institutions.id, institutionId));
+      });
+
+      // Transaction committed — invalidate Redis cache (outside tx: Redis is not transactional)
+      for (const cls of allClasses) {
+        if (cls.classCode) await cacheDel(`cls:code:${cls.classCode.toUpperCase()}`);
+      }
+
+      // --- Audit: COMPLETED (outside tx — always persists) ---
+      await db.insert(auditLogs).values({
+        action: "DELETE_INSTITUTION_COMPLETED",
+        userType: "admin",
+        institutionId,
+        details: JSON.stringify({
+          teacherCount: teacherIds.length,
+          classCount: classIds.length,
+          studentCount: studentIds.length,
+        }),
+      }).catch(e => console.error("[AUDIT] DELETE_INSTITUTION_COMPLETED failed:", e));
+
+    } catch (err) {
+      // --- Audit: FAILED (outside tx — persists after rollback) ---
+      await db.insert(auditLogs).values({
+        action: "DELETE_INSTITUTION_FAILED",
+        userType: "admin",
+        institutionId,
+        details: JSON.stringify({
+          error: err instanceof Error ? err.message : String(err),
+          teacherCount: teacherIds.length,
+          classCount: classIds.length,
+          studentCount: studentIds.length,
+        }),
+      }).catch(e => console.error("[AUDIT] DELETE_INSTITUTION_FAILED failed:", e));
+
+      throw err; // Re-throw so the route handler returns 500
+    }
   }
 
   async getInstitutionDetails(institutionId: string): Promise<{
