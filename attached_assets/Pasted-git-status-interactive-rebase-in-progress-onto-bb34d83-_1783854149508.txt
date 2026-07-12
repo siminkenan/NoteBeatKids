@@ -1,0 +1,193 @@
+git status
+interactive rebase in progress; onto bb34d83
+Last command done (1 command done):
+   pick 968b2ea # Prioritize JWT authentication over sessions for cross-domain access
+Next commands to do (32 remaining commands):
+   pick 601a617 # Update the leaderboard to showcase top students and add branding
+   pick ece60e1 # Improve system performance and stability with database and rate limiting optimizations
+  (use "git rebase --edit-todo" to view and edit)
+You are currently rebasing branch 'main' on 'bb34d83'.
+  (fix conflicts and then run "git rebase --continue")
+  (use "git rebase --skip" to skip this patch)
+  (use "git rebase --abort" to check out the original branch)
+
+Unmerged paths:
+  (use "git restore --staged <file>..." to unstage)
+  (use "git add <file>..." to mark resolution)
+    both modified:   server/routes.ts
+
+no changes added to commit (use "git add" and/or "git commit -a")
+~/workspace$ git diff
+diff --cc server/routes.ts
+index c66a635,cd1a810..0000000
+--- a/server/routes.ts
++++ b/server/routes.ts
+@@@ -4,72 -4,57 +4,94 @@@ import { storage } from "./storage"
+  import bcrypt from "bcryptjs";
+  import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
+  import multer from "multer";
+ -import crypto from "crypto";
+ -import { getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache } from "./leaderboardCache";
+ +import {
+ +  signAccessToken, signRefreshToken, storeRefreshToken,
+ +  invalidateRefreshToken, invalidateAllRefreshTokens,
+ +  verifyAccessToken, verifyRefreshToken,
+ +  signLegacyToken, verifyLegacyToken,
+ +  extractBearerToken,
+ +} from "./auth";
+ +import {
+ +  getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache,
+ +  getCachedLeaderboardAsync, setCachedLeaderboardAsync,
+ +} from "./leaderboardCache";
+  import { broadcastLeaderboard } from "./socket";
+  import { markInstitutionDirty } from "./scoreBuffer";
+ -
+ -// ── Token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
+ -const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
+ -
+ -function signToken(id: string, prefix: string): string {
+ -  const payload = Buffer.from(`${prefix}:${id}`).toString("base64url");
+ -  const sig = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+ -  return `${payload}.${sig}`;
+ +import { scoreRateLimit } from "./rateLimit";
+ +
+ +// ── Kurum ID önbelleği (instance içi, 5 dk TTL) ───────────────────────────────
+ +// getInstitutionIdForStudent her puan isteğinde 3 tablolu JOIN yapıyor.
+ +// Bu cache ile her öğrenci için ilk istekte DB'ye gidilir, sonraki istekler bellekten döner.
+ +const instIdCache = new Map<string, { id: string | null; expiresAt: number }>();
+ +const INST_CACHE_TTL = 5 * 60 * 1000; // 5 dakika
+ +async function cachedInstitutionId(studentId: string): Promise<string | null> {
+ +  const now = Date.now();
+ +  const hit = instIdCache.get(studentId);
+ +  if (hit && now < hit.expiresAt) return hit.id;
+ +  const id = await storage.getInstitutionIdForStudent(studentId);
+ +  instIdCache.set(studentId, { id, expiresAt: now + INST_CACHE_TTL });
+ +  return id;
+  }
+diff --cc server/routes.ts
+index c66a635,cd1a810..0000000
+--- a/server/routes.ts
++++ b/server/routes.ts
+@@@ -4,72 -4,57 +4,94 @@@ import { storage } from "./storage"
+  import bcrypt from "bcryptjs";
+  import { insertInstitutionSchema, insertClassSchema } from "@shared/schema";
+  import multer from "multer";
+ -import crypto from "crypto";
+ -import { getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache } from "./leaderboardCache";
+ +import {
+ +  signAccessToken, signRefreshToken, storeRefreshToken,
+ +  invalidateRefreshToken, invalidateAllRefreshTokens,
+ +  verifyAccessToken, verifyRefreshToken,
+ +  signLegacyToken, verifyLegacyToken,
+ +  extractBearerToken,
+ +} from "./auth";
+ +import {
+ +  getCachedLeaderboard, setCachedLeaderboard, invalidateLeaderboardCache,
+ +  getCachedLeaderboardAsync, setCachedLeaderboardAsync,
+ +} from "./leaderboardCache";
+  import { broadcastLeaderboard } from "./socket";
+  import { markInstitutionDirty } from "./scoreBuffer";
+ -
+ -// ── Token helpers (session OR Bearer token — works cross-domain for Render+Vercel) ──
+ -const TOKEN_SECRET = process.env.SESSION_SECRET || "notebeat-kids-secret-2024";
+ -
+ -function signToken(id: string, prefix: string): string {
+ -  const payload = Buffer.from(`${prefix}:${id}`).toString("base64url");
+ -  const sig = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+ -  return `${payload}.${sig}`;
+ +import { scoreRateLimit } from "./rateLimit";
+ +
+ +// ── Kurum ID önbelleği (instance içi, 5 dk TTL) ───────────────────────────────
+ +// getInstitutionIdForStudent her puan isteğinde 3 tablolu JOIN yapıyor.
+ +// Bu cache ile her öğrenci için ilk istekte DB'ye gidilir, sonraki istekler bellekten döner.
+ +const instIdCache = new Map<string, { id: string | null; expiresAt: number }>();
+ +const INST_CACHE_TTL = 5 * 60 * 1000; // 5 dakika
+ +async function cachedInstitutionId(studentId: string): Promise<string | null> {
+ +  const now = Date.now();
+ +  const hit = instIdCache.get(studentId);
+ +  if (hit && now < hit.expiresAt) return hit.id;
+ +  const id = await storage.getInstitutionIdForStudent(studentId);
+ +  instIdCache.set(studentId, { id, expiresAt: now + INST_CACHE_TTL });
+ +  return id;
+  }
+ -
+ -function verifyToken(token: string, prefix: string): string | null {
+ -  try {
+ -    const [payload, sig] = token.split(".");
+ -    if (!payload || !sig) return null;
+ -    const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+ -    if (sig !== expected) return null;
+ -    const decoded = Buffer.from(payload, "base64url").toString();
+ -    if (!decoded.startsWith(`${prefix}:`)) return null;
+ -    return decoded.slice(prefix.length + 1);
+ -  } catch {
+ -    return null;
+ +// Her 10 dakikada TTL geçmiş girdileri temizle
+ +setInterval(() => {
+ +  const now = Date.now();
+ +  for (const [k, v] of Array.from(instIdCache.entries())) {
+ +    if (now >= v.expiresAt) instIdCache.delete(k);
+    }
+ -}
+ -
+ -function signAdminToken(adminId: string): string { return signToken(adminId, "admin"); }
+ -function signTeacherToken(teacherId: string): string { return signToken(teacherId, "teacher"); }
+ -
+ +}, 10 * 60 * 1000).unref();
+ +
+ +// ── Kısa isimler (geriye dönük uyumluluk) ──────────────────────────────────────
+ +const signAdminToken   = (id: string) => signLegacyToken(id, "admin");
+ +const signTeacherToken = (id: string) => signLegacyToken(id, "teacher");
+ +
+ +/**
+ + * Admin ID'yi çöz.
+ + * Öncelik sırası:
+ + *   1. JWT access token (15 dk) — production ve dev
+ + *   2. Eski HMAC token (sonsuz ömürlü, geriye dönük uyumluluk)
+ + *   3. Session — SADECE dev ortamında (req.session undefined olabilir)
+ + */
+  function getAdminId(req: Request): string | null {
+++<<<<<<< HEAD
+ +  const token = extractBearerToken(req.headers.authorization);
+ +  if (token) {
+ +    return verifyAccessToken(token, "admin") || verifyLegacyToken(token, "admin");
+ +  }
+ +  // req.session sadece dev'de mevcuttur (production'da session middleware yok)
+ +  return (req as any).session?.adminId ?? null;
+++=======
++   // 1. Bearer token (cross-domain Render+Vercel) — checked FIRST so stale session cookies don't override valid JWT
++   const auth = req.headers.authorization;
++   if (auth?.startsWith("Bearer ")) {
++     const id = verifyToken(auth.slice(7), "admin");
++     if (id) return id;
++   }
++   // 2. Session fallback (same-origin Replit dev)
++   return (req.session as any).adminId ?? null;
+++>>>>>>> 968b2ea (Prioritize JWT authentication over sessions for cross-domain access)
+  }
+  
+ +/**
+ + * Teacher ID'yi çöz.
+ + * Öncelik sırası: JWT → HMAC → Session (dev-only)
+ + */
+  function getTeacherId(req: Request): string | null {
+++<<<<<<< HEAD
+ +  const token = extractBearerToken(req.headers.authorization);
+ +  if (token) {
+ +    return verifyAccessToken(token, "teacher") || verifyLegacyToken(token, "teacher");
+ +  }
+ +  return (req as any).session?.teacherId ?? null;
+++=======
++   // 1. Bearer token (cross-domain Render+Vercel) — checked FIRST so stale session cookies don't override valid JWT
++   const auth = req.headers.authorization;
++   if (auth?.startsWith("Bearer ")) {
++     const id = verifyToken(auth.slice(7), "teacher");
++     if (id) return id;
++   }
++   // 2. Session fallback (same-origin Replit dev)
++   return (req.session as any).teacherId ?? null;
+++>>>>>>> 968b2ea (Prioritize JWT authentication over sessions for cross-domain access)
+  }
+  
+  function getContentType(filename: string): string {
+log file: erver/routes.ts
