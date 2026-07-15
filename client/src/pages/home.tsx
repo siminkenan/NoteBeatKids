@@ -69,9 +69,14 @@ const FLOATING_NOTES = Array.from({ length: 12 }, (_, i) => {
 // ── iOS detection ───────────────────────────────────────────────────────────
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-const isStandalone =
-  ("standalone" in window.navigator && (window.navigator as any).standalone) ||
-  window.matchMedia("(display-mode: standalone)").matches;
+function _safeIsStandalone(): boolean {
+  try {
+    if ("standalone" in window.navigator && (window.navigator as any).standalone) return true;
+    return typeof window.matchMedia === "function" &&
+      window.matchMedia("(display-mode: standalone)").matches;
+  } catch { return false; }
+}
+const isStandalone = _safeIsStandalone();
 
 export default function Home() {
   const [, navigate] = useLocation();
