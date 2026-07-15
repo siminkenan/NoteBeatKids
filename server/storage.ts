@@ -800,32 +800,58 @@ export class DatabaseStorage implements IStorage {
     // Phase 2: ALL permanent physical deletes in one atomic transaction.
     // Uses SQL subqueries instead of pre-fetched IDs to guarantee FK-safe ordering.
     // If any step fails the entire block rolls back — no partial data loss.
+    // Pre-check which optional tables exist in this environment (avoids "relation does not exist"
+    // errors on databases that haven't run all migrations yet, e.g. an older production DB).
+    const checkTable = async (name: string) => {
+      const r = await db.execute(sql`
+        SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = ${name}
+      `);
+      return r.rows.length > 0;
+    };
+    const [
+      hasOrchestraProgress, hasOrchestraSongs,
+      hasMaestroViewProgress, hasMaestroResources,
+      hasStudentCodes, hasMonthlyWinners,
+    ] = await Promise.all([
+      checkTable('orchestra_progress'), checkTable('orchestra_songs'),
+      checkTable('maestro_view_progress'), checkTable('maestro_resources'),
+      checkTable('student_codes'), checkTable('monthly_winners'),
+    ]);
+
     await db.transaction(async (tx) => {
       // ── Orchestra cleanup (FK: orchestra_progress.song_id → orchestra_songs.id) ──
-      await tx.execute(sql`
-        DELETE FROM orchestra_progress
-        WHERE song_id IN (
-          SELECT id FROM orchestra_songs
+      if (hasOrchestraProgress) {
+        await tx.execute(sql`
+          DELETE FROM orchestra_progress
+          WHERE song_id IN (
+            SELECT id FROM orchestra_songs
+            WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+          )
+        `);
+      }
+      if (hasOrchestraSongs) {
+        await tx.execute(sql`
+          DELETE FROM orchestra_songs
           WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-        )
-      `);
-      await tx.execute(sql`
-        DELETE FROM orchestra_songs
-        WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-      `);
+        `);
+      }
 
       // ── Maestro cleanup (FK: maestro_view_progress.resource_id → maestro_resources.id) ──
-      await tx.execute(sql`
-        DELETE FROM maestro_view_progress
-        WHERE resource_id IN (
-          SELECT id FROM maestro_resources
+      if (hasMaestroViewProgress) {
+        await tx.execute(sql`
+          DELETE FROM maestro_view_progress
+          WHERE resource_id IN (
+            SELECT id FROM maestro_resources
+            WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+          )
+        `);
+      }
+      if (hasMaestroResources) {
+        await tx.execute(sql`
+          DELETE FROM maestro_resources
           WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-        )
-      `);
-      await tx.execute(sql`
-        DELETE FROM maestro_resources
-        WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-      `);
+        `);
+      }
 
       // ── Student data cleanup (FK chain: progress → students → classes → teachers) ──
       await tx.execute(sql`
@@ -838,13 +864,15 @@ export class DatabaseStorage implements IStorage {
           )
         )
       `);
-      await tx.execute(sql`
-        DELETE FROM student_codes
-        WHERE class_id IN (
-          SELECT id FROM classes
-          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-        )
-      `);
+      if (hasStudentCodes) {
+        await tx.execute(sql`
+          DELETE FROM student_codes
+          WHERE class_id IN (
+            SELECT id FROM classes
+            WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+          )
+        `);
+      }
       await tx.execute(sql`
         DELETE FROM students
         WHERE class_id IN (
@@ -860,7 +888,9 @@ export class DatabaseStorage implements IStorage {
 
       // ── Institution-level cleanup ──
       await tx.execute(sql`DELETE FROM teacher_codes WHERE institution_id = ${institutionId}`);
-      await tx.execute(sql`DELETE FROM monthly_winners WHERE institution_id = ${institutionId}`);
+      if (hasMonthlyWinners) {
+        await tx.execute(sql`DELETE FROM monthly_winners WHERE institution_id = ${institutionId}`);
+      }
       // Teachers and institution are now safe (no more FK references)
       await tx.execute(sql`DELETE FROM teachers WHERE institution_id = ${institutionId}`);
       await tx.execute(sql`DELETE FROM institutions WHERE id = ${institutionId}`);
