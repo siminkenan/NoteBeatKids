@@ -792,7 +792,6 @@ export default function AdminDashboard() {
           <TabsList className="mb-6 rounded-xl bg-white border">
             <TabsTrigger value="institutions" className="rounded-lg font-bold">Kurumlar</TabsTrigger>
             <TabsTrigger value="teachers" className="rounded-lg font-bold">Öğretmenler</TabsTrigger>
-            <TabsTrigger value="classes" className="rounded-lg font-bold">Sınıflar</TabsTrigger>
             <TabsTrigger value="health" className="rounded-lg font-bold flex items-center gap-1.5" data-testid="tab-health">
               <Activity className="w-3.5 h-3.5" /> Sağlık
             </TabsTrigger>
@@ -1118,103 +1117,6 @@ export default function AdminDashboard() {
               ))}
             </div>
           </TabsContent>
-          <TabsContent value="classes">
-            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-              <h3 className="text-xl font-extrabold">Sınıflar</h3>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Sınıf, öğretmen veya kurum ara..."
-                  value={classSearch}
-                  onChange={e => setClassSearch(e.target.value)}
-                  className="pl-9 rounded-xl"
-                  data-testid="input-class-search"
-                />
-              </div>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(allClasses ?? [])
-                .filter(cls => {
-                  if (!classSearch.trim()) return true;
-                  const q = classSearch.toLowerCase();
-                  return (
-                    cls.name.toLowerCase().includes(q) ||
-                    cls.classCode.toLowerCase().includes(q) ||
-                    cls.teacherName.toLowerCase().includes(q) ||
-                    (cls.institutionName ?? "").toLowerCase().includes(q)
-                  );
-                })
-                .map((cls, i) => (
-                  <motion.div key={cls.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                    <Card className="rounded-2xl" data-testid={`card-class-${cls.id}`}>
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                              <School className="w-4 h-4 text-indigo-600" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-extrabold text-foreground truncate">{cls.name}</p>
-                              <code className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md" data-testid={`text-classcode-${cls.id}`}>{cls.classCode}</code>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:bg-red-50 rounded-xl flex-shrink-0"
-                            disabled={deleteClass.isPending}
-                            onClick={() => {
-                              setConfirmDialog({
-                                open: true,
-                                title: "Sınıfı Sil",
-                                description: `"${cls.name}" sınıfı ve içindeki tüm öğrenciler kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-                                onConfirm: () => deleteClass.mutate(cls.id),
-                              });
-                            }}
-                            data-testid={`button-delete-class-${cls.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          <p className="font-semibold truncate">
-                            <span className="text-foreground">Öğretmen:</span> {cls.teacherName}
-                          </p>
-                          {cls.institutionName && (
-                            <p className="font-semibold truncate">
-                              <span className="text-foreground">Kurum:</span> {cls.institutionName}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex gap-2 flex-wrap items-center">
-                          <button
-                            className="bg-green-50 text-green-700 font-bold text-xs px-2 py-1 rounded-lg hover:bg-green-100 transition-colors flex items-center gap-1"
-                            data-testid={`text-student-count-${cls.id}`}
-                            title="Kapasiteyi düzenle"
-                            onClick={() => { setEditClassMaxOpen({ id: cls.id, name: cls.name, current: cls.maxStudents }); setNewMaxStudents(cls.maxStudents); }}
-                          >
-                            {cls.studentCount} / {cls.maxStudents} öğrenci
-                            <Pencil className="w-3 h-3 opacity-50" />
-                          </button>
-                          {cls.expiresAt && (
-                            <span className={`font-bold text-xs px-2 py-1 rounded-lg ${new Date(cls.expiresAt) < new Date() ? "bg-red-50 text-red-600" : "bg-yellow-50 text-yellow-700"}`}>
-                              {new Date(cls.expiresAt) < new Date() ? "Süresi doldu" : `Bitiş: ${new Date(cls.expiresAt).toLocaleDateString("tr-TR")}`}
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              {(allClasses ?? []).length === 0 && (
-                <p className="text-muted-foreground font-semibold col-span-3 py-8 text-center" data-testid="text-no-classes">Henüz sınıf yok.</p>
-              )}
-            </div>
-          </TabsContent>
-
           {/* Deleted Classes (Soft Delete Trash) */}
           <TabsContent value="deleted-classes">
             <div className="flex items-center gap-3 mb-5">

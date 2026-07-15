@@ -1,6 +1,7 @@
 import { eq, and, sql, desc, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
+import * as schema from "@shared/schema";
 import { bufferScore, getBufferEntry, getBufferedByStudent, flushScoreBuffer } from "./scoreBuffer";
 import { redis } from "./redis";
 

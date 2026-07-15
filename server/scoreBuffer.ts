@@ -141,7 +141,7 @@ export const flushStats = {
 
 export function dirtyInstitutionCount(): number {
   const ids = new Set<string>();
-  for (const entry of Array.from(scoreBuffer.values())) {
+  for (const entry of Array.from(buffer.values())) {
     if (entry.dirty && entry.institutionId) ids.add(entry.institutionId);
   }
   return ids.size;
