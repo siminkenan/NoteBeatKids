@@ -917,43 +917,144 @@ export class DatabaseStorage implements IStorage {
       }>;
     }>;
   }> {
-    const teacherList = await this.getTeachersByInstitution(institutionId);
-    const result = [];
-    for (const teacher of teacherList) {
-      const classList = await this.getClassesByTeacher(teacher.id);
-      const classResults = [];
-      for (const cls of classList) {
-        const progressList = await this.getClassProgress(cls.id);
-        const studentRows = progressList.map(s => ({
-          id: s.id,
-          firstName: s.firstName,
-          lastName: s.lastName,
-          rhythmLevel: s.rhythmProgress?.level ?? 0,
-          rhythmStars: s.rhythmProgress?.starsEarned ?? 0,
-          rhythmCorrect: s.rhythmProgress?.correctAnswers ?? 0,
-          rhythmWrong: s.rhythmProgress?.wrongAnswers ?? 0,
-          notesLevel: s.notesProgress?.level ?? 0,
-          notesStars: s.notesProgress?.starsEarned ?? 0,
-          notesCorrect: s.notesProgress?.correctAnswers ?? 0,
-          notesWrong: s.notesProgress?.wrongAnswers ?? 0,
-          drumTimeSeconds: s.drumProgress?.timeSpentSeconds ?? 0,
-          melodyCorrect: s.melodyProgress?.correctAnswers ?? 0,
-          melodyWrong: s.melodyProgress?.wrongAnswers ?? 0,
-          melodyStars: s.melodyProgress?.starsEarned ?? 0,
-          totalCorrect: (s.rhythmProgress?.correctAnswers ?? 0) + (s.notesProgress?.correctAnswers ?? 0) + (s.melodyProgress?.correctAnswers ?? 0),
-          totalTimeSeconds: (s.rhythmProgress?.timeSpentSeconds ?? 0) + (s.notesProgress?.timeSpentSeconds ?? 0) + (s.drumProgress?.timeSpentSeconds ?? 0) + (s.melodyProgress?.timeSpentSeconds ?? 0),
-        }));
-        classResults.push({
+    // ── Sorgu 1: Kuruma ait tüm öğretmenler ──────────────────────────────────
+    const teacherList = await db.select().from(teachers)
+      .where(eq(teachers.institutionId, institutionId));
+    if (teacherList.length === 0) return { teachers: [] };
+
+    // ── Sorgu 2: Bu öğretmenlere ait tüm sınıflar (tek IN sorgusu) ───────────
+    const teacherIds = teacherList.map(t => t.id);
+    const classList = await db.select().from(classes)
+      .where(and(inArray(classes.teacherId, teacherIds), isNull(classes.deletedAt)))
+      .orderBy(classes.createdAt);
+    if (classList.length === 0) {
+      return {
+        teachers: teacherList.map(t => ({ id: t.id, name: t.name, email: t.email ?? "", classes: [] })),
+      };
+    }
+
+    // ── Sorgu 3: Bu sınıflara ait tüm öğrenciler (tek IN sorgusu) ────────────
+    const classIds = classList.map(c => c.id);
+    const studentList = await db.select().from(students)
+      .where(inArray(students.classId, classIds))
+      .orderBy(students.firstName);
+    const studentIds = studentList.map(s => s.id);
+
+    // ── Sorgu 4 + 5: student_codes ve student_progress paralel çek ────────────
+    const [codeRows, progressRows] = await Promise.all([
+      db.select({ studentId: studentCodes.studentId, classId: studentCodes.classId })
+        .from(studentCodes)
+        .where(and(inArray(studentCodes.classId, classIds), isNotNull(studentCodes.studentId))),
+      studentIds.length > 0
+        ? db.select().from(studentProgress).where(inArray(studentProgress.studentId, studentIds))
+        : Promise.resolve([] as StudentProgress[]),
+    ]);
+
+    // ── Bellekte haritalar oluştur ────────────────────────────────────────────
+
+    // classId → kod atanmış öğrenci ID'leri
+    const codedByClass = new Map<string, Set<string>>();
+    for (const row of codeRows) {
+      if (!row.studentId || !row.classId) continue;
+      if (!codedByClass.has(row.classId)) codedByClass.set(row.classId, new Set());
+      codedByClass.get(row.classId)!.add(row.studentId);
+    }
+
+    // studentId → appType → StudentProgress (DB verisi + buffer birleşimi)
+    const progressByStudent = new Map<string, Map<string, StudentProgress>>();
+    for (const p of progressRows) {
+      if (!progressByStudent.has(p.studentId)) progressByStudent.set(p.studentId, new Map());
+      progressByStudent.get(p.studentId)!.set(p.appType, p);
+    }
+    // Henüz DB'ye yazılmamış buffer verilerini üzerine yaz (senkron, DB sorgusu yok)
+    for (const sid of studentIds) {
+      const buffered = getBufferedByStudent(sid);
+      if (buffered.size === 0) continue;
+      if (!progressByStudent.has(sid)) progressByStudent.set(sid, new Map());
+      const pMap = progressByStudent.get(sid)!;
+      const now = new Date();
+      for (const entry of Array.from(buffered.values())) {
+        pMap.set(entry.appType, {
+          id: entry.existingId ?? `buf_${sid}:${entry.appType}`,
+          studentId: entry.studentId,
+          appType: entry.appType,
+          level: entry.data.level ?? 1,
+          starsEarned: entry.data.starsEarned ?? 0,
+          correctAnswers: entry.data.correctAnswers ?? 0,
+          wrongAnswers: entry.data.wrongAnswers ?? 0,
+          timeSpentSeconds: entry.data.timeSpentSeconds ?? 0,
+          notesBadge: entry.data.notesBadge ?? null,
+          createdAt: now,
+          updatedAt: now,
+        } as StudentProgress);
+      }
+    }
+
+    // classId → öğrenci listesi
+    const studentsByClass = new Map<string, typeof studentList>();
+    for (const s of studentList) {
+      if (!studentsByClass.has(s.classId)) studentsByClass.set(s.classId, []);
+      studentsByClass.get(s.classId)!.push(s);
+    }
+
+    // teacherId → sınıf listesi
+    const classesByTeacher = new Map<string, typeof classList>();
+    for (const c of classList) {
+      if (!classesByTeacher.has(c.teacherId)) classesByTeacher.set(c.teacherId, []);
+      classesByTeacher.get(c.teacherId)!.push(c);
+    }
+
+    // ── Aynı çıktı yapısını bellek üzerinde kur ───────────────────────────────
+    const result = teacherList.map(teacher => {
+      const teacherClasses = classesByTeacher.get(teacher.id) ?? [];
+      const classResults = teacherClasses.map(cls => {
+        const classStudents = studentsByClass.get(cls.id) ?? [];
+        const codedSet = codedByClass.get(cls.id) ?? new Set<string>();
+        const studentRows = classStudents
+          .filter(s => {
+            const pMap = progressByStudent.get(s.id);
+            const hasProgress = pMap !== undefined && pMap.size > 0;
+            const hasCode = codedSet.has(s.id);
+            return hasCode || hasProgress;
+          })
+          .map(s => {
+            const pMap = progressByStudent.get(s.id);
+            const r = pMap?.get("rhythm");
+            const n = pMap?.get("notes");
+            const d = pMap?.get("drum_kit");
+            const m = pMap?.get("melody");
+            return {
+              id: s.id,
+              firstName: s.firstName,
+              lastName: s.lastName,
+              rhythmLevel:     r?.level ?? 0,
+              rhythmStars:     r?.starsEarned ?? 0,
+              rhythmCorrect:   r?.correctAnswers ?? 0,
+              rhythmWrong:     r?.wrongAnswers ?? 0,
+              notesLevel:      n?.level ?? 0,
+              notesStars:      n?.starsEarned ?? 0,
+              notesCorrect:    n?.correctAnswers ?? 0,
+              notesWrong:      n?.wrongAnswers ?? 0,
+              drumTimeSeconds: d?.timeSpentSeconds ?? 0,
+              melodyCorrect:   m?.correctAnswers ?? 0,
+              melodyWrong:     m?.wrongAnswers ?? 0,
+              melodyStars:     m?.starsEarned ?? 0,
+              totalCorrect:    (r?.correctAnswers ?? 0) + (n?.correctAnswers ?? 0) + (m?.correctAnswers ?? 0),
+              totalTimeSeconds:(r?.timeSpentSeconds ?? 0) + (n?.timeSpentSeconds ?? 0) + (d?.timeSpentSeconds ?? 0) + (m?.timeSpentSeconds ?? 0),
+            };
+          });
+        return {
           id: cls.id,
           name: cls.name,
           classCode: cls.classCode,
           maxStudents: cls.maxStudents,
           expiresAt: cls.expiresAt ? cls.expiresAt.toISOString() : null,
           students: studentRows,
-        });
-      }
-      result.push({ id: teacher.id, name: teacher.name, email: teacher.email ?? "", classes: classResults });
-    }
+        };
+      });
+      return { id: teacher.id, name: teacher.name, email: teacher.email ?? "", classes: classResults };
+    });
+
     return { teachers: result };
   }
 
