@@ -265,6 +265,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: true });
   });
 
+  app.post("/api/auth/admin/change-password", async (req: Request, res: Response) => {
+    const adminId = getAdminId(req);
+    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
+    const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: "Geçersiz parametreler" });
+    }
+    const existing = await storage.getAdminByEmail(ADMIN_EMAIL);
+    if (!existing) return res.status(404).json({ message: "Admin bulunamadı" });
+    const valid = await bcrypt.compare(currentPassword, existing.password);
+    if (!valid) return res.status(401).json({ message: "Mevcut şifre yanlış" });
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await storage.updateAdminPassword(existing.id, hashed);
+    res.json({ ok: true, message: "Şifre güncellendi" });
+  });
+
   app.get("/api/auth/admin/me", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
