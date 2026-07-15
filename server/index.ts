@@ -128,6 +128,22 @@ async function runMigrations() {
     sql`CREATE INDEX IF NOT EXISTS idx_student_codes_student_id ON student_codes(student_id)`,
     sql`CREATE INDEX IF NOT EXISTS idx_student_codes_code ON student_codes(code)`,
     sql`CREATE INDEX IF NOT EXISTS idx_classes_class_code ON classes(class_code)`,
+    sql`ALTER TABLE classes ADD COLUMN IF NOT EXISTS deleted_at timestamp`,
+    sql`CREATE TABLE IF NOT EXISTS audit_logs (
+      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+      action text NOT NULL,
+      user_type text NOT NULL,
+      user_id text,
+      institution_id text,
+      teacher_id text,
+      class_id text,
+      student_id text,
+      details text,
+      ip_address text,
+      created_at timestamp DEFAULT now() NOT NULL
+    )`,
+    sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)`,
+    sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)`,
   ];
   for (const m of migrations) {
     try { await db.execute(m); } catch (e: any) {

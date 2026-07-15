@@ -632,32 +632,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(stats);
   });
 
-  // Emergency: run all schema migrations immediately (idempotent, safe to call multiple times)
-  app.post("/api/admin/sync-schema", async (req: Request, res: Response) => {
-    const adminId = getAdminId(req);
-    if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const results: { migration: string; status: string; error?: string }[] = [];
-    const migrations: Array<{ name: string; sql: string }> = [
-      { name: "classes.branch_name",          sql: `ALTER TABLE classes ADD COLUMN IF NOT EXISTS branch_name text NOT NULL DEFAULT ''` },
-      { name: "classes.deleted_at",            sql: `ALTER TABLE classes ADD COLUMN IF NOT EXISTS deleted_at timestamp` },
-      { name: "students.last_seen_at",         sql: `ALTER TABLE students ADD COLUMN IF NOT EXISTS last_seen_at timestamp` },
-      { name: "students.pending_stars",        sql: `ALTER TABLE students ADD COLUMN IF NOT EXISTS pending_stars integer NOT NULL DEFAULT 0` },
-      { name: "monthly_stats.badges_count",    sql: `ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS monthly_badges_count integer NOT NULL DEFAULT 0` },
-      { name: "monthly_stats.last_reset_month",sql: `ALTER TABLE monthly_stats ADD COLUMN IF NOT EXISTS last_reset_month varchar(7) NOT NULL DEFAULT ''` },
-    ];
-    for (const m of migrations) {
-      try {
-        await db.execute(sql.raw(m.sql));
-        results.push({ migration: m.name, status: "ok" });
-      } catch (e: any) {
-        results.push({ migration: m.name, status: "error", error: e?.message });
-      }
-    }
-    const failed = results.filter(r => r.status === "error");
-    console.log("[sync-schema] results:", results);
-    res.json({ ok: failed.length === 0, results });
-  });
-
   // Helper: compute whether license date is still valid (never writes to DB)
   const isLicenseExpired = (inst: { licenseEnd: Date | string }) =>
     new Date(inst.licenseEnd) < new Date();
