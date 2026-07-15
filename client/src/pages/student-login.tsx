@@ -64,6 +64,24 @@ function removeSavedStudent(student: SavedStudent) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
+const deviceLang = navigator.language?.toLowerCase() ?? "tr";
+const isTurkish = deviceLang.startsWith("tr");
+const T = {
+  installTitle: isTurkish ? "Ana Ekrana Ekle" : "Add to Home Screen",
+  installBody: isTurkish
+    ? "Uygulamayı ana ekranına ekleyerek kolayca açabilirsin."
+    : "Add the app to your home screen for easy access.",
+  iosStep1: isTurkish
+    ? "1. Alttaki 📤 Paylaş butonuna dokun"
+    : "1. Tap the 📤 Share button below",
+  iosStep2: isTurkish
+    ? "2. \"Ana Ekrana Ekle\" seçeneğine dokun"
+    : "2. Tap \"Add to Home Screen\"",
+  iosStep3: isTurkish ? "3. \"Ekle\" butonuna dokun" : "3. Tap \"Add\"",
+  installBtn: isTurkish ? "Kur" : "Install",
+  closeBtn: isTurkish ? "Kapat" : "Close",
+};
+
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 function _safeIsStandalone(): boolean {
