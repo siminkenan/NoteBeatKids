@@ -794,114 +794,109 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteInstitution(institutionId: string): Promise<void> {
-    // Phase 1: soft-delete all active classes via helper (marks deleted_at)
-    await this.resetInstitutionQuota(institutionId);
+    // Safety: institutionId must be a UUID to prevent injection into the PL/pgSQL literal.
+    if (!/^[0-9a-f-]{36}$/i.test(institutionId)) throw new Error('Invalid institution ID format');
 
-    // Phase 2: ALL permanent physical deletes in one atomic transaction.
-    // Uses SQL subqueries instead of pre-fetched IDs to guarantee FK-safe ordering.
-    // If any step fails the entire block rolls back — no partial data loss.
-    // Pre-check which optional tables exist in this environment.
-    // Prevents "relation does not exist" errors on databases that haven't run all migrations.
-    const checkTable = async (name: string) => {
-      const r = await db.execute(sql`
-        SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = ${name}
-      `);
-      return r.rows.length > 0;
-    };
-    const [
-      hasOrchestraProgress, hasOrchestraSongs,
-      hasMaestroViewProgress, hasMaestroResources,
-      hasStudentCodes, hasMonthlyWinners, hasMonthlyStats,
-    ] = await Promise.all([
-      checkTable('orchestra_progress'), checkTable('orchestra_songs'),
-      checkTable('maestro_view_progress'), checkTable('maestro_resources'),
-      checkTable('student_codes'), checkTable('monthly_winners'), checkTable('monthly_stats'),
-    ]);
+    // Single atomic PL/pgSQL block — runs entirely inside PostgreSQL, no Drizzle ORM wrapping.
+    // Dynamically discovers every FK reference via pg_catalog and deletes children before parents.
+    // Works regardless of which migrations have run (production vs dev schema differences).
+    await db.execute(sql.raw(`
+      DO $$
+      DECLARE
+        v_inst     TEXT := '${institutionId}';
+        v_students TEXT[];
+        v_teachers TEXT[];
+        r          RECORD;
+      BEGIN
+        -- Collect student IDs for this institution
+        SELECT ARRAY_AGG(s.id) INTO v_students
+        FROM students s
+        JOIN classes  c ON c.id = s.class_id
+        JOIN teachers t ON t.id = c.teacher_id
+        WHERE t.institution_id = v_inst;
 
-    // Reusable subquery: all student IDs belonging to this institution
-    const studentsOfInstitution = sql`
-      SELECT id FROM students
-      WHERE class_id IN (
-        SELECT id FROM classes
-        WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-      )
-    `;
+        -- Collect teacher IDs
+        SELECT ARRAY_AGG(id) INTO v_teachers
+        FROM teachers WHERE institution_id = v_inst;
 
-    await db.transaction(async (tx) => {
-      // ── Step 1: Delete rows that reference STUDENTS (must happen before deleting students) ──
+        -- 1. Delete every row that FK-references STUDENTS
+        IF v_students IS NOT NULL THEN
+          FOR r IN
+            SELECT c.relname AS tbl, a.attname AS col
+            FROM pg_constraint con
+            JOIN pg_class     c  ON c.oid  = con.conrelid
+            JOIN pg_class     cf ON cf.oid = con.confrelid
+            JOIN pg_attribute a  ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+            WHERE con.contype = 'f'
+              AND cf.relname  = 'students'
+              AND c.relname  != 'students'
+              AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+          LOOP
+            EXECUTE FORMAT('DELETE FROM %I WHERE %I = ANY($1)', r.tbl, r.col)
+              USING v_students;
+          END LOOP;
+        END IF;
 
-      // orchestra_progress has FKs to both song_id and student_id
-      if (hasOrchestraProgress) {
-        await tx.execute(sql`
-          DELETE FROM orchestra_progress WHERE student_id IN (${studentsOfInstitution})
-        `);
-      }
-
-      // monthly_stats references student_id
-      if (hasMonthlyStats) {
-        await tx.execute(sql`
-          DELETE FROM monthly_stats WHERE student_id IN (${studentsOfInstitution})
-        `);
-      }
-
-      // monthly_winners references both institution_id and student_id
-      if (hasMonthlyWinners) {
-        await tx.execute(sql`DELETE FROM monthly_winners WHERE institution_id = ${institutionId}`);
-      }
-
-      // maestro_view_progress references both resource_id and student_id
-      if (hasMaestroViewProgress) {
-        await tx.execute(sql`
-          DELETE FROM maestro_view_progress WHERE student_id IN (${studentsOfInstitution})
-        `);
-      }
-
-      // student_progress, student_codes reference student_id / class_id
-      await tx.execute(sql`
-        DELETE FROM student_progress WHERE student_id IN (${studentsOfInstitution})
-      `);
-      if (hasStudentCodes) {
-        await tx.execute(sql`
-          DELETE FROM student_codes WHERE student_id IN (${studentsOfInstitution})
-        `);
-      }
-
-      // ── Step 2: Delete students (all FK refs to students are gone now) ──
-      await tx.execute(sql`
+        -- 2. Delete students
         DELETE FROM students
         WHERE class_id IN (
           SELECT id FROM classes
-          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-        )
-      `);
+          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = v_inst)
+        );
 
-      // ── Step 3: Delete rows that reference SONGS / RESOURCES (after students gone) ──
-      if (hasOrchestraSongs) {
-        await tx.execute(sql`
-          DELETE FROM orchestra_songs
-          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-        `);
-      }
-      if (hasMaestroResources) {
-        await tx.execute(sql`
-          DELETE FROM maestro_resources
-          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-        `);
-      }
+        -- 2b. Delete any remaining student_codes by class_id
+        --     (rows with NULL student_id are missed by the student-id loop above)
+        IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'student_codes') THEN
+          DELETE FROM student_codes
+          WHERE class_id IN (
+            SELECT id FROM classes
+            WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = v_inst)
+          );
+        END IF;
 
-      // ── Step 4: Delete classes (FK ref from students is gone) ──
-      await tx.execute(sql`
+        -- 3. Delete every row that FK-references TEACHERS (skip students/classes handled elsewhere)
+        IF v_teachers IS NOT NULL THEN
+          FOR r IN
+            SELECT c.relname AS tbl, a.attname AS col
+            FROM pg_constraint con
+            JOIN pg_class     c  ON c.oid  = con.conrelid
+            JOIN pg_class     cf ON cf.oid = con.confrelid
+            JOIN pg_attribute a  ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+            WHERE con.contype = 'f'
+              AND cf.relname  = 'teachers'
+              AND c.relname  NOT IN ('students', 'classes', 'teachers')
+              AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+          LOOP
+            EXECUTE FORMAT('DELETE FROM %I WHERE %I = ANY($1)', r.tbl, r.col)
+              USING v_teachers;
+          END LOOP;
+        END IF;
+
+        -- 4. Delete classes
         DELETE FROM classes
-        WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
-      `);
+        WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = v_inst);
 
-      // ── Step 5: Delete teacher_codes (refs institution_id and teacher_id) ──
-      await tx.execute(sql`DELETE FROM teacher_codes WHERE institution_id = ${institutionId}`);
+        -- 5. Delete every row that FK-references INSTITUTIONS (skip teachers/classes)
+        FOR r IN
+          SELECT c.relname AS tbl, a.attname AS col
+          FROM pg_constraint con
+          JOIN pg_class     c  ON c.oid  = con.conrelid
+          JOIN pg_class     cf ON cf.oid = con.confrelid
+          JOIN pg_attribute a  ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+          WHERE con.contype = 'f'
+            AND cf.relname  = 'institutions'
+            AND c.relname  NOT IN ('teachers', 'classes', 'students', 'institutions')
+            AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+        LOOP
+          EXECUTE FORMAT('DELETE FROM %I WHERE %I = $1', r.tbl, r.col)
+            USING v_inst;
+        END LOOP;
 
-      // ── Step 6: Delete teachers, then institution ──
-      await tx.execute(sql`DELETE FROM teachers WHERE institution_id = ${institutionId}`);
-      await tx.execute(sql`DELETE FROM institutions WHERE id = ${institutionId}`);
-    });
+        -- 6. Delete teachers, then institution
+        DELETE FROM teachers    WHERE institution_id = v_inst;
+        DELETE FROM institutions WHERE id            = v_inst;
+      END $$;
+    `));
   }
 
   async getInstitutionDetails(institutionId: string): Promise<{
