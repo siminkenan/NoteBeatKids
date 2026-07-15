@@ -296,11 +296,25 @@ function SecurityPanel() {
 }
 
 function HealthPanel() {
+  const { toast } = useToast();
   const { data: health, isLoading, refetch, isFetching } = useQuery<any>({
     queryKey: ["/api/admin/health"],
     refetchInterval: 30_000,
   });
   const { data: errors } = useQuery<any[]>({ queryKey: ["/api/admin/system-errors"] });
+
+  const syncSchema = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/sync-schema"),
+    onSuccess: (data: any) => {
+      if (data.ok) {
+        toast({ title: "✅ Schema senkronize edildi", description: "Tüm eksik kolonlar eklendi." });
+      } else {
+        const failed = data.results?.filter((r: any) => r.status === "error").map((r: any) => r.migration).join(", ");
+        toast({ title: "⚠️ Kısmi hata", description: `Başarısız: ${failed}`, variant: "destructive" });
+      }
+    },
+    onError: () => toast({ title: "Hata", description: "Schema sync başarısız.", variant: "destructive" }),
+  });
 
   if (isLoading) return <div className="text-center py-20 text-gray-400">Yükleniyor...</div>;
   if (!health) return <div className="text-center py-10 text-gray-400">Veri yok</div>;
@@ -315,9 +329,15 @@ function HealthPanel() {
           <h2 className="text-xl font-extrabold text-gray-800">Sistem Sağlığı</h2>
           <span className={`font-bold uppercase text-sm ${overallColor}`}>{health.overall}</span>
         </div>
-        <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching} data-testid="button-health-refresh">
-          <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isFetching ? "animate-spin" : ""}`} /> Yenile
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => syncSchema.mutate()} disabled={syncSchema.isPending} data-testid="button-sync-schema" className="gap-1.5 text-xs border-orange-300 text-orange-700 hover:bg-orange-50">
+            <Database className={`w-3.5 h-3.5 ${syncSchema.isPending ? "animate-pulse" : ""}`} />
+            {syncSchema.isPending ? "Senkronize ediliyor..." : "DB Şemasını Senkronize Et"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching} data-testid="button-health-refresh">
+            <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isFetching ? "animate-spin" : ""}`} /> Yenile
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
