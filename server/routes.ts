@@ -722,8 +722,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       await storage.deleteInstitution(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) {
-      console.error("deleteInstitution error:", e);
-      res.status(500).json({ message: e?.message ?? "Kurum silinemedi" });
+      // Log full PG detail server-side only — never expose schema/constraint names to clients
+      console.error("deleteInstitution error:", e?.message, e?.detail ?? "", e?.hint ?? "");
+      res.status(500).json({ message: "Kurum silinemedi. Lütfen tekrar deneyin." });
     }
   });
 
