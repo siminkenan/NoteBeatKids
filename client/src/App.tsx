@@ -1,5 +1,6 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense, Component } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +8,57 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./lib/auth";
 import { useLiteMode } from "./lib/liteMode";
 import AmbientSound from "@/components/ambient-sound";
+
+class RouteErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[RouteErrorBoundary]", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          minHeight: "100vh", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          background: "#1a0533", color: "#fff", padding: "24px", textAlign: "center"
+        }}>
+          <div style={{ fontSize: "40px", marginBottom: "16px" }}>⚠️</div>
+          <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "12px" }}>
+            Sayfa Yüklenemedi
+          </h2>
+          <p style={{
+            background: "rgba(255,0,0,0.15)", border: "1px solid rgba(255,80,80,0.4)",
+            borderRadius: "12px", padding: "12px 16px", fontSize: "13px",
+            fontFamily: "monospace", wordBreak: "break-all", maxWidth: "480px",
+            marginBottom: "20px"
+          }}>
+            {this.state.error.message || String(this.state.error)}
+          </p>
+          <button
+            onClick={() => { this.setState({ error: null }); window.history.back(); }}
+            style={{
+              background: "#764ba2", color: "#fff", border: "none",
+              borderRadius: "12px", padding: "10px 24px", fontSize: "15px",
+              fontWeight: "bold", cursor: "pointer"
+            }}
+          >
+            ← Geri Dön
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Eagerly loaded — shown immediately on first visit
 import Home from "@/pages/home";
@@ -99,28 +151,30 @@ function Router() {
   const ambientActive = useAmbientActive();
   return (
     <>
-      <Suspense fallback={<PageLoader />}>
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/teacher/login" component={TeacherLogin} />
-          <Route path="/teacher/dashboard" component={TeacherDashboard} />
-          <Route path="/teacher/class/:classId" component={ClassDetail} />
-          <Route path="/teacher/orchestra" component={TeacherOrchestra} />
-          <Route path="/student/login" component={StudentLogin} />
-          <Route path="/student/home" component={StudentHome} />
-          <Route path="/student/rhythm" component={RhythmGame} />
-          <Route path="/student/notes" component={NoteDetective} />
-          <Route path="/student/map" component={LevelMap} />
-          <Route path="/student/orchestra" component={RhythmOrchestra} />
-          <Route path="/admin/login" component={AdminLogin} />
-          <Route path="/admin/dashboard" component={AdminDashboard} />
-          <Route path="/metronome" component={Metronome} />
-          <Route path="/student/drum" component={DrumKit} />
-          <Route path="/student/melody" component={MelodyEcho} />
-          <Route path="/leaderboard" component={Leaderboard} />
-          <Route component={NotFound} />
-        </Switch>
-      </Suspense>
+      <RouteErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/teacher/login" component={TeacherLogin} />
+            <Route path="/teacher/dashboard" component={TeacherDashboard} />
+            <Route path="/teacher/class/:classId" component={ClassDetail} />
+            <Route path="/teacher/orchestra" component={TeacherOrchestra} />
+            <Route path="/student/login" component={StudentLogin} />
+            <Route path="/student/home" component={StudentHome} />
+            <Route path="/student/rhythm" component={RhythmGame} />
+            <Route path="/student/notes" component={NoteDetective} />
+            <Route path="/student/map" component={LevelMap} />
+            <Route path="/student/orchestra" component={RhythmOrchestra} />
+            <Route path="/admin/login" component={AdminLogin} />
+            <Route path="/admin/dashboard" component={AdminDashboard} />
+            <Route path="/metronome" component={Metronome} />
+            <Route path="/student/drum" component={DrumKit} />
+            <Route path="/student/melody" component={MelodyEcho} />
+            <Route path="/leaderboard" component={Leaderboard} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
+      </RouteErrorBoundary>
       <AmbientSound active={ambientActive} />
     </>
   );
