@@ -215,18 +215,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const adminId = String(admin!.id);
 
       // 4. Cihaz parmak izi kontrolü (sadece fingerprint varsa ve master key değilse)
+      // 4. Cihaz parmak izi kontrolü — tablo henüz yoksa sessizce atla
       if (fingerprint && !isMasterKeyLogin) {
-        const existingDevice = await storage.getAdminDeviceByType(adminId, deviceType);
-        if (!existingDevice) {
-          // İlk kayıt — otomatik kaydet
-          await storage.registerAdminDevice({ adminId, deviceType, fingerprint, deviceName, browser, os });
-        } else if (existingDevice.fingerprint !== fingerprint) {
-          // Farklı cihaz — reddet
-          storage.createAdminLoginLog({ adminEmail: ADMIN_EMAIL, ip, browser, os, deviceType, fingerprint, success: false, failureReason: "unauthorized_device" }).catch(() => {});
-          return res.status(403).json({ message: "Bu cihaz admin paneli için yetkilendirilmemiştir." });
-        } else {
-          // Aynı cihaz — son giriş zamanını güncelle
-          await storage.updateAdminDeviceLastLogin(existingDevice.id);
+        try {
+          const existingDevice = await storage.getAdminDeviceByType(adminId, deviceType);
+          if (!existingDevice) {
+            // İlk kayıt — otomatik kaydet
+            await storage.registerAdminDevice({ adminId, deviceType, fingerprint, deviceName, browser, os });
+          } else if (existingDevice.fingerprint !== fingerprint) {
+            // Farklı cihaz — reddet
+            storage.createAdminLoginLog({ adminEmail: ADMIN_EMAIL, ip, browser, os, deviceType, fingerprint, success: false, failureReason: "unauthorized_device" }).catch(() => {});
+            return res.status(403).json({ message: "Bu cihaz admin paneli için yetkilendirilmemiştir." });
+          } else {
+            // Aynı cihaz — son giriş zamanını güncelle
+            await storage.updateAdminDeviceLastLogin(existingDevice.id);
+          }
+        } catch (deviceErr: any) {
+          console.warn("[DEVICE SECURITY] Cihaz kontrolü atlandı:", deviceErr?.message);
         }
       }
 
@@ -247,7 +252,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         id: admin!.id, name: admin!.name, email: admin!.email, role: "admin",
         token, accessToken, refreshToken,
       });
-    } catch (e) {
+    } catch (e: any) {
+      console.error("[ADMIN LOGIN] Hata:", e?.message, e?.stack?.split("\n")[1]);
       res.status(500).json({ message: "Server error" });
     }
   });
