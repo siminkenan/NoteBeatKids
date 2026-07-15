@@ -184,13 +184,14 @@ async function main() {
     await setupVite(httpServer, app);
   }
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
-    log(`🚀 Server running on port ${PORT}`);
-  });
-
+  // Migrations + schema check BEFORE accepting any traffic
   await runMigrations();
   await verifySchema();
   await seedDatabase();
+
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    log(`🚀 Server running on port ${PORT}`);
+  });
 
   // ── Error Reporter köprüsünü bağla ───────────────────────────────────────
   setErrorReporter((payload) => { storage.createSystemError(payload).catch(() => {}); });
