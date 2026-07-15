@@ -422,6 +422,34 @@ function HealthPanel() {
         </Card>
       </div>
 
+      {/* Schema Uyarısı */}
+      {health.schema && health.schema.ok === false && health.schema.missingColumns.length > 0 && (
+        <div className="flex items-start gap-3 rounded-2xl border-2 border-red-400 bg-red-50 px-4 py-3" data-testid="alert-schema-missing">
+          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-extrabold text-red-700">⚠️ Veritabanı Schema Hatası</p>
+            <p className="text-xs text-red-600 mt-0.5">Aşağıdaki kritik sütunlar üretim veritabanında eksik. Sorgu hataları yaşanabilir!</p>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {health.schema.missingColumns.map((col: string) => (
+                <span key={col} className="font-mono text-xs bg-red-100 text-red-800 rounded px-1.5 py-0.5 border border-red-300">{col}</span>
+              ))}
+            </div>
+            {health.schema.checkedAt && (
+              <p className="text-xs text-red-400 mt-1">Son kontrol: {new Date(health.schema.checkedAt).toLocaleString("tr-TR")}</p>
+            )}
+          </div>
+        </div>
+      )}
+      {health.schema && health.schema.ok === true && (
+        <div className="flex items-center gap-2 rounded-2xl border border-green-300 bg-green-50 px-4 py-2.5" data-testid="alert-schema-ok">
+          <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
+          <span className="text-xs font-bold text-green-700">Schema doğrulama: tüm kritik sütunlar mevcut</span>
+          {health.schema.checkedAt && (
+            <span className="text-xs text-green-400 ml-auto">{new Date(health.schema.checkedAt).toLocaleString("tr-TR")}</span>
+          )}
+        </div>
+      )}
+
       {/* Sistem Hataları */}
       <Card className="rounded-2xl border shadow-sm">
         <CardHeader className="pb-2 pt-4 px-4">

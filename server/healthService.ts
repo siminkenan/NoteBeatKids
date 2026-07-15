@@ -19,11 +19,13 @@ export interface HealthReport {
   api: { totalRequests: number; requestsLastHour: number; avgResponseMs: number; slowestEndpoint: { path: string; avgMs: number } | null };
   integrity: { lastCheckAt: string | null; lastResult: "ok" | "warnings" | "failed" | null; warningCount: number };
   system: { nodeVersion: string; uptime: number; rssMemoryMB: number; heapUsedMB: number; heapTotalMB: number };
+  schema: { checkedAt: string | null; ok: boolean | null; missingColumns: string[] };
 }
 
 export const leaderboardStats = { lastBroadcastAt: null as Date | null, lastBroadcastDurationMs: null as number | null };
 export const monthlyResetStats = { lastRunAt: null as Date | null, lastResult: null as "success" | "failed" | "skipped" | null, nextRunAt: null as Date | null };
 export const integrityStats = { lastCheckAt: null as Date | null, lastResult: null as "ok" | "warnings" | "failed" | null, warningCount: 0 };
+export const schemaStats = { checkedAt: null as Date | null, ok: null as boolean | null, missingColumns: [] as string[] };
 
 async function checkPostgres(): Promise<HealthReport["postgresql"]> {
   const stats = poolStats();
@@ -72,5 +74,6 @@ export async function getHealthReport(): Promise<HealthReport> {
     api: apiMetrics,
     integrity: { lastCheckAt: integrityStats.lastCheckAt?.toISOString() ?? null, lastResult: integrityStats.lastResult, warningCount: integrityStats.warningCount },
     system: { nodeVersion: process.version, uptime: Math.round(process.uptime()), rssMemoryMB: Math.round(mem.rss / 1024 / 1024), heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024), heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024) },
+    schema: { checkedAt: schemaStats.checkedAt?.toISOString() ?? null, ok: schemaStats.ok, missingColumns: schemaStats.missingColumns },
   };
 }

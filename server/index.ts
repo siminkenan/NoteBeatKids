@@ -12,7 +12,7 @@ import { flushScoreBuffer, consumeDirtyInstitutions, bufferSize, flushStats } fr
 import { broadcastLeaderboard, closeSocketIO } from "./socket";
 import { redis } from "./redis";
 import { setErrorReporter } from "./errorReporter";
-import { monthlyResetStats } from "./healthService";
+import { monthlyResetStats, schemaStats } from "./healthService";
 import { startIntegrityScanner } from "./integrityScanner";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
@@ -158,9 +158,14 @@ async function verifySchema() {
       if ((rows as any).rows?.length === 0) missing.push(`${table}.${column}`);
     } catch (_) {}
   }
+  schemaStats.checkedAt = new Date();
   if (missing.length > 0) {
+    schemaStats.ok = false;
+    schemaStats.missingColumns = missing;
     log(`❌ SCHEMA EKSİK SÜTUNLAR: ${missing.join(", ")} — sorgu hataları olabilir!`, "error");
   } else {
+    schemaStats.ok = true;
+    schemaStats.missingColumns = [];
     log("✅ Schema doğrulama: tüm kritik sütunlar mevcut");
   }
 }
