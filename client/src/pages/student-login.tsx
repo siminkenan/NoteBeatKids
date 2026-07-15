@@ -66,9 +66,14 @@ function removeSavedStudent(student: SavedStudent) {
 
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-const isStandalone =
-  ("standalone" in window.navigator && (window.navigator as any).standalone) ||
-  window.matchMedia("(display-mode: standalone)").matches;
+function _safeIsStandalone(): boolean {
+  try {
+    if ("standalone" in window.navigator && (window.navigator as any).standalone) return true;
+    return typeof window.matchMedia === "function" &&
+      window.matchMedia("(display-mode: standalone)").matches;
+  } catch { return false; }
+}
+const isStandalone = _safeIsStandalone();
 
 export default function StudentLogin() {
   const [, navigate] = useLocation();
