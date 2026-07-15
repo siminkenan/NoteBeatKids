@@ -131,10 +131,38 @@ async function runMigrations() {
   ];
   for (const m of migrations) {
     try { await db.execute(m); } catch (e: any) {
-      log(`Migration hatası: ${e?.message ?? e}`, "warn");
+      log(`❌ Migration HATA (kritik): ${e?.message ?? e}`, "error");
     }
   }
   log("✅ Migration: tüm sütunlar ve index'ler kontrol edildi");
+}
+
+// Kritik sütunların canlı DB'de gerçekten var olduğunu doğrula
+async function verifySchema() {
+  const criticalColumns: Array<{ table: string; column: string }> = [
+    { table: "classes",         column: "branch_name" },
+    { table: "classes",         column: "deleted_at" },
+    { table: "teachers",        column: "institution_id" },
+    { table: "students",        column: "last_seen_at" },
+    { table: "students",        column: "pending_stars" },
+    { table: "monthly_stats",   column: "monthly_badges_count" },
+    { table: "monthly_stats",   column: "last_reset_month" },
+  ];
+  const missing: string[] = [];
+  for (const { table, column } of criticalColumns) {
+    try {
+      const rows = await db.execute(
+        sql`SELECT 1 FROM information_schema.columns
+            WHERE table_name = ${table} AND column_name = ${column} LIMIT 1`
+      );
+      if ((rows as any).rows?.length === 0) missing.push(`${table}.${column}`);
+    } catch (_) {}
+  }
+  if (missing.length > 0) {
+    log(`❌ SCHEMA EKSİK SÜTUNLAR: ${missing.join(", ")} — sorgu hataları olabilir!`, "error");
+  } else {
+    log("✅ Schema doğrulama: tüm kritik sütunlar mevcut");
+  }
 }
 
 async function seedDatabase() {
@@ -161,6 +189,7 @@ async function main() {
   });
 
   await runMigrations();
+  await verifySchema();
   await seedDatabase();
 
   // ── Error Reporter köprüsünü bağla ───────────────────────────────────────

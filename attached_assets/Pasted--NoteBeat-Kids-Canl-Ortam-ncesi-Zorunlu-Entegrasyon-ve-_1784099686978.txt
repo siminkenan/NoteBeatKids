@@ -1,0 +1,284 @@
+# NoteBeat Kids – Canlı Ortam Öncesi Zorunlu Entegrasyon ve Smoke Testi
+
+**Önemli Talimat**
+
+Hiçbir yeni özellik geliştirme. Hiçbir mevcut çalışan sistemi değiştirme. Görevin yalnızca mevcut düzeltmelerin gerçekten çalıştığını doğrulamak ve ayrıntılı bir test raporu hazırlamaktır.
+
+Eğer herhangi bir test başarısız olursa:
+
+* Push yapma.
+* Deploy önerme.
+* Sorunu düzeltmeden "başarılı" raporu verme.
+
+---
+
+# TEST 1 – Veritabanı Şema Doğrulaması
+
+Canlı ortamda kullanılacak veritabanı şemasını doğrula.
+
+Kontrol edilecek tablolar:
+
+* classes
+* teachers
+* institutions
+* students
+
+Her tablo için aşağıdaki alanların mevcut olduğunu doğrula.
+
+Özellikle:
+
+* branch_name
+* deleted_at
+* institution_id
+* class_code
+* expires_at
+* max_students
+
+Eksik kolon varsa ayrıntılı olarak raporla.
+
+Migration geçmişini kontrol et.
+
+verifySchema() gerçekten çalışıyor mu doğrula.
+
+---
+
+# TEST 2 – Kurum Oluşturma
+
+Yeni bir kurum oluştur.
+
+Kontrol et:
+
+✓ kayıt oluştu
+
+✓ tekrar listeleniyor
+
+✓ sayfa yenilenince kaybolmuyor
+
+✓ yeniden giriş yapınca kaybolmuyor
+
+✓ database kaydı mevcut
+
+---
+
+# TEST 3 – Öğretmen Oluşturma
+
+Yeni öğretmen oluştur.
+
+Kontrol et:
+
+✓ institution_id doğru
+
+✓ login olabiliyor
+
+✓ database kaydı mevcut
+
+---
+
+# TEST 4 – Sınıf Oluşturma
+
+Yeni sınıf oluştur.
+
+Kontrol et:
+
+✓ branch_name kayıt oluyor
+
+✓ class_code oluşuyor
+
+✓ teacher_id doğru
+
+✓ kurum detayında görünüyor
+
+✓ admin listesinde görünüyor
+
+✓ teacher panelinde görünüyor
+
+✓ sayfa yenilenince kaybolmuyor
+
+✓ yeniden girişte kaybolmuyor
+
+✓ database'de kayıt duruyor
+
+---
+
+# TEST 5 – Soft Delete
+
+Bir sınıfı sil.
+
+Kontrol et:
+
+✓ deleted_at doluyor
+
+✓ aktif listeden kalkıyor
+
+✓ deleted listesine geliyor
+
+✓ geri yüklenince tekrar aktif oluyor
+
+✓ hiçbir başka sınıf etkilenmiyor
+
+---
+
+# TEST 6 – resetInstitutionQuota
+
+Bu fonksiyonu analiz et.
+
+Şunları doğrula:
+
+* Gereksiz yere bütün sınıfları soft-delete etmiyor.
+* Yanlış endpoint tarafından çağrılamıyor.
+* Yetkisiz kullanıcı çalıştıramıyor.
+* Transaction güvenli.
+* Veri kaybı oluşturmuyor.
+
+Risk varsa ayrıntılı açıkla.
+
+---
+
+# TEST 7 – Endpoint Dayanıklılığı
+
+Aşağıdaki endpointleri tek tek test et.
+
+* /api/admin/classes
+* /api/admin/classes/deleted
+* /api/admin/institutions/:id/details
+* /api/teacher/classes
+
+Her biri için:
+
+✓ 200 dönüyor
+
+✓ 500 oluşmuyor
+
+✓ try/catch çalışıyor
+
+✓ hata logları düzgün
+
+✓ frontend boş görünmüyor
+
+---
+
+# TEST 8 – Render Uyum Analizi
+
+Kodun Render üzerinde çalışmasını incele.
+
+Kontrol et:
+
+* Environment Variable eksik mi
+* DATABASE_URL doğru kullanılıyor mu
+* Migration otomatik çalışıyor mu
+* Build sırasında hata oluşur mu
+* Production ile Development arasında farklı davranış oluşturacak kod var mı
+
+---
+
+# TEST 9 – Veri Bütünlüğü
+
+Kontrol et:
+
+* Hiçbir sorgu veri silmiyor.
+* DROP TABLE yok.
+* DELETE sorgusu yanlış kullanılmıyor.
+* Soft delete dışında fiziksel silme yapılmıyor.
+* Transaction gereken yerlerde kullanılıyor.
+
+---
+
+# TEST 10 – Genel Sistem Smoke Testi
+
+Sırasıyla aşağıdaki akışı çalıştır.
+
+Kurum oluştur
+
+↓
+
+Öğretmen oluştur
+
+↓
+
+Sınıf oluştur
+
+↓
+
+Öğrenci ekle
+
+↓
+
+Çıkış yap
+
+↓
+
+Tekrar giriş yap
+
+↓
+
+Kurum ekranını aç
+
+↓
+
+Öğretmen panelini aç
+
+↓
+
+Admin panelini aç
+
+↓
+
+Silinenler ekranını aç
+
+↓
+
+Geri yükleme yap
+
+↓
+
+Tekrar kontrol et
+
+Hiçbir veri kaybolmamalı.
+
+---
+
+# İSTENEN RAPOR
+
+Test tamamlandıktan sonra aşağıdaki formatta rapor hazırla.
+
+## 1. Test Sonuçları
+
+Her test için:
+
+PASS / FAIL
+
+## 2. Bulunan Hatalar
+
+Dosya adı
+
+Sebep
+
+Çözüm
+
+## 3. Veri Kaybı Analizi
+
+Veri kaybı ihtimali var mı?
+
+Neden?
+
+## 4. Production Risk Analizi
+
+Düşük / Orta / Yüksek
+
+Gerekçesi
+
+## 5. Performans
+
+Yeni eklenen kontroller performansı etkiliyor mu?
+
+## 6. Sonuç
+
+Sadece aşağıdakilerden birini yaz:
+
+✅ PRODUCTION'A GÜVENLE ALINABİLİR
+
+veya
+
+❌ PRODUCTION'A ALINMAMALIDIR
+
+Kararsız ifadeler kullanma. Bütün test sonuçlarına dayanarak tek ve net bir karar ver.

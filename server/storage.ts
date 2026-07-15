@@ -794,41 +794,77 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteInstitution(institutionId: string): Promise<void> {
+    // Phase 1: soft-delete all active classes via helper (marks deleted_at)
     await this.resetInstitutionQuota(institutionId);
-    const institutionTeachers = await this.getTeachersByInstitution(institutionId);
-    for (const teacher of institutionTeachers) {
-      // 1. Delete all classes (cascades: student progress, student codes, students)
-      const teacherClasses = await this.getClassesByTeacher(teacher.id);
-      for (const cls of teacherClasses) {
-        await this.deleteClass(cls.id);
-      }
-      // 2. Delete orchestra progress for this teacher's songs
-      const teacherSongs = await db
-        .select({ id: orchestraSongs.id })
-        .from(orchestraSongs)
-        .where(eq(orchestraSongs.teacherId, teacher.id));
-      for (const song of teacherSongs) {
-        await db.delete(orchestraProgress).where(eq(orchestraProgress.songId, song.id));
-      }
-      // 3. Delete orchestra songs (FK: orchestra_songs.teacher_id → teachers.id)
-      await db.delete(orchestraSongs).where(eq(orchestraSongs.teacherId, teacher.id));
-      // 4. Delete maestro view progress & resources
-      const teacherResources = await db
-        .select({ id: maestroResources.id })
-        .from(maestroResources)
-        .where(eq(maestroResources.teacherId, teacher.id));
-      for (const res of teacherResources) {
-        await db.delete(maestroViewProgress).where(eq(maestroViewProgress.resourceId, res.id));
-      }
-      await db.delete(maestroResources).where(eq(maestroResources.teacherId, teacher.id));
-    }
-    // 5. Delete teacher invite codes
-    await db.delete(teacherCodes).where(eq(teacherCodes.institutionId, institutionId));
-    // 6. Delete monthly winners for this institution (FK: monthly_winners.institution_id → institutions.id)
-    await db.delete(monthlyWinners).where(eq(monthlyWinners.institutionId, institutionId));
-    // 7. Delete teachers, then institution
-    await db.delete(teachers).where(eq(teachers.institutionId, institutionId));
-    await db.delete(institutions).where(eq(institutions.id, institutionId));
+
+    // Phase 2: ALL permanent physical deletes in one atomic transaction.
+    // Uses SQL subqueries instead of pre-fetched IDs to guarantee FK-safe ordering.
+    // If any step fails the entire block rolls back — no partial data loss.
+    await db.transaction(async (tx) => {
+      // ── Orchestra cleanup (FK: orchestra_progress.song_id → orchestra_songs.id) ──
+      await tx.execute(sql`
+        DELETE FROM orchestra_progress
+        WHERE song_id IN (
+          SELECT id FROM orchestra_songs
+          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+        )
+      `);
+      await tx.execute(sql`
+        DELETE FROM orchestra_songs
+        WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+      `);
+
+      // ── Maestro cleanup (FK: maestro_view_progress.resource_id → maestro_resources.id) ──
+      await tx.execute(sql`
+        DELETE FROM maestro_view_progress
+        WHERE resource_id IN (
+          SELECT id FROM maestro_resources
+          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+        )
+      `);
+      await tx.execute(sql`
+        DELETE FROM maestro_resources
+        WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+      `);
+
+      // ── Student data cleanup (FK chain: progress → students → classes → teachers) ──
+      await tx.execute(sql`
+        DELETE FROM student_progress
+        WHERE student_id IN (
+          SELECT id FROM students
+          WHERE class_id IN (
+            SELECT id FROM classes
+            WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+          )
+        )
+      `);
+      await tx.execute(sql`
+        DELETE FROM student_codes
+        WHERE class_id IN (
+          SELECT id FROM classes
+          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+        )
+      `);
+      await tx.execute(sql`
+        DELETE FROM students
+        WHERE class_id IN (
+          SELECT id FROM classes
+          WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+        )
+      `);
+      // Physical class delete — clears FK reference that blocks deleting teachers
+      await tx.execute(sql`
+        DELETE FROM classes
+        WHERE teacher_id IN (SELECT id FROM teachers WHERE institution_id = ${institutionId})
+      `);
+
+      // ── Institution-level cleanup ──
+      await tx.execute(sql`DELETE FROM teacher_codes WHERE institution_id = ${institutionId}`);
+      await tx.execute(sql`DELETE FROM monthly_winners WHERE institution_id = ${institutionId}`);
+      // Teachers and institution are now safe (no more FK references)
+      await tx.execute(sql`DELETE FROM teachers WHERE institution_id = ${institutionId}`);
+      await tx.execute(sql`DELETE FROM institutions WHERE id = ${institutionId}`);
+    });
   }
 
   async getInstitutionDetails(institutionId: string): Promise<{

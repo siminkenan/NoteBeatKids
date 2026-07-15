@@ -512,8 +512,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/teacher/classes", async (req: Request, res: Response) => {
     const teacherId = getTeacherId(req);
     if (!teacherId) return res.status(401).json({ message: "Not authenticated" });
-    const classList = await storage.getClassesByTeacher(teacherId);
-    res.json(classList);
+    try {
+      const classList = await storage.getClassesByTeacher(teacherId);
+      res.json(classList);
+    } catch (e: any) {
+      console.error("[GET /api/teacher/classes] DB hatası:", e?.message);
+      res.status(500).json({ message: "Sınıflar alınamadı", error: e?.message });
+    }
   });
 
   app.post("/api/teacher/classes", async (req: Request, res: Response) => {
@@ -725,11 +730,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/institutions/:id/details", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const inst = await storage.getInstitution(req.params.id as string);
-    if (!inst) return res.status(404).json({ message: "Institution not found" });
-    const details = await storage.getInstitutionDetails(req.params.id as string);
-    const effectiveInst = { ...inst, isExpired: isLicenseExpired(inst) };
-    res.json({ institution: effectiveInst, ...details });
+    try {
+      const inst = await storage.getInstitution(req.params.id as string);
+      if (!inst) return res.status(404).json({ message: "Institution not found" });
+      const details = await storage.getInstitutionDetails(req.params.id as string);
+      const effectiveInst = { ...inst, isExpired: isLicenseExpired(inst) };
+      res.json({ institution: effectiveInst, ...details });
+    } catch (e: any) {
+      console.error("[GET /api/admin/institutions/:id/details] DB hatası:", e?.message);
+      res.status(500).json({ message: "Kurum detayları alınamadı", error: e?.message });
+    }
   });
 
   app.get("/api/admin/institutions/:id/teacher-codes", async (req: Request, res: Response) => {
@@ -793,17 +803,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/classes", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const page  = Math.max(1, Number(req.query.page)  || 0);
-    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 0));
-    const list  = await storage.getAllClasses();
-    if (page && limit) {
-      const start = (page - 1) * limit;
-      res.setHeader("X-Total-Count", String(list.length));
-      res.setHeader("X-Page",  String(page));
-      res.setHeader("X-Pages", String(Math.ceil(list.length / limit)));
-      return res.json(list.slice(start, start + limit));
+    try {
+      const page  = Math.max(1, Number(req.query.page)  || 0);
+      const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 0));
+      const list  = await storage.getAllClasses();
+      if (page && limit) {
+        const start = (page - 1) * limit;
+        res.setHeader("X-Total-Count", String(list.length));
+        res.setHeader("X-Page",  String(page));
+        res.setHeader("X-Pages", String(Math.ceil(list.length / limit)));
+        return res.json(list.slice(start, start + limit));
+      }
+      res.json(list);
+    } catch (e: any) {
+      console.error("[GET /api/admin/classes] DB hatası:", e?.message);
+      res.status(500).json({ message: "Sınıflar alınamadı", error: e?.message });
     }
-    res.json(list);
   });
 
   // Admin: delete any class
@@ -823,9 +838,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/classes/deleted", async (req: Request, res: Response) => {
     const adminId = getAdminId(req);
     if (!adminId) return res.status(401).json({ message: "Not authenticated" });
-    const institutionId = req.query.institutionId as string | undefined;
-    const list = await storage.getDeletedClasses(institutionId);
-    res.json(list);
+    try {
+      const institutionId = req.query.institutionId as string | undefined;
+      const list = await storage.getDeletedClasses(institutionId);
+      res.json(list);
+    } catch (e: any) {
+      console.error("[GET /api/admin/classes/deleted] DB hatası:", e?.message);
+      res.status(500).json({ message: "Silinen sınıflar alınamadı", error: e?.message });
+    }
   });
 
   // Admin: restore a soft-deleted class
@@ -1269,6 +1289,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(logs.slice().reverse());
     } catch (e: any) {
       res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Global Express hata yakalayıcı — try/catch'ten kaçan async hataları yakalar
+  app.use((err: any, _req: import("express").Request, res: import("express").Response, _next: import("express").NextFunction) => {
+    console.error("[GLOBAL ERROR HANDLER]", err?.message, err?.stack?.split("\n")[1]);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Sunucu hatası", error: err?.message });
     }
   });
 

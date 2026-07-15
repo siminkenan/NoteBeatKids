@@ -1,0 +1,55 @@
+# NoteBeat Kids – Kurum ve Sınıf Verisi Kaybolma Problemi Analizi (Canlı Ortam Güvenlik Talimatı)
+
+**Önemli:** Bu görevde hiçbir mevcut çalışan sistemi değiştirme. Öncelik, sorunun kök nedenini tespit etmek ve veri kaybını tamamen önlemektir.
+
+## Problem
+
+Canlı ortamda bazı kurumların içerisindeki sınıflar otomatik olarak görünmez oluyor veya kaybolmuş gibi davranıyor. Aynı zamanda aşağıdaki endpointlerde sorgu hataları oluşuyor:
+
+* `/api/admin/classes`
+* `/api/admin/classes/deleted`
+* `/api/admin/institutions/:id/details`
+
+Bu durum kesinlikle veri silinmesine veya kullanıcıların verilerini kaybetmesine neden olmamalıdır.
+
+## Görev
+
+1. `classes`, `teachers` ve `institutions` tablolarını ayrıntılı şekilde incele.
+2. Canlı veritabanı ile geliştirme veritabanının şema farklarını kontrol et.
+3. Drizzle migration geçmişini doğrula.
+4. Render ve Neon'un aynı veritabanını kullandığını doğrula.
+5. `branch_name`, `deleted_at`, `institution_id` ve kullanılan tüm kolonların canlı veritabanında mevcut olduğunu doğrula.
+6. Soft delete mantığını incele. Yanlışlıkla `deleted_at` alanının doldurulmasına neden olan herhangi bir kod varsa tespit et.
+7. Kurum detay ekranındaki sorguların neden başarısız olduğunu analiz et.
+8. Eğer veri gerçekten silinmemiş ancak sorgular nedeniyle görünmüyorsa bunu düzelt.
+9. Hiçbir migration mevcut verileri silmeyecek şekilde hazırlanmalıdır.
+10. Eksik kolon varsa güvenli migration oluştur. DROP TABLE, TRUNCATE, DELETE veya veri kaybına neden olacak hiçbir işlem yapma.
+11. Sınıf oluşturma, güncelleme, silme ve kurum detay ekranlarını uçtan uca test et.
+12. Her endpoint için hata loglarını analiz ederek kök nedeni belirle.
+13. Gerekiyorsa transaction kullanarak veri bütünlüğünü koru.
+14. Kod değişiklikleri mevcut çalışan sistemleri bozmayacak şekilde geriye dönük uyumlu (backward compatible) olsun.
+
+## Güvenlik Kuralları
+
+* Mevcut veriler korunacaktır.
+* Hiçbir kurum silinmeyecek.
+* Hiçbir öğretmen silinmeyecek.
+* Hiçbir sınıf silinmeyecek.
+* Hiçbir öğrenci kaydı silinmeyecek.
+* Migration yalnızca eksik alanları ekleyecek veya uyumsuzlukları giderecek.
+* Sistemin diğer modülleri etkilenmeyecek.
+
+## İstenen Çıktı
+
+Çalışma sonunda aşağıdaki raporu oluştur:
+
+* Sorunun kök nedeni.
+* Etkilenen dosyalar.
+* Yapılan düzeltmeler.
+* Veritabanı değişiklikleri.
+* Migration özeti.
+* Test sonuçları.
+* Veri kaybı riski analizi.
+* Canlı ortama güvenle alınabileceğine dair doğrulama.
+
+**Amaç:** NoteBeat Kids'in canlı ortamında kurum, öğretmen, sınıf ve öğrenci verilerinin hiçbir koşulda kaybolmaması; geliştirme ve canlı ortam arasında tam şema uyumluluğunun sağlanması ve sistem entegrasyonunun güvenli şekilde çalışmasıdır.
